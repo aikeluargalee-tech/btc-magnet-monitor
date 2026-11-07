@@ -30,10 +30,52 @@
     .price-box { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
     .price { font-size: 42px; font-weight: 700; }
     .change { color: #3dd68c; font-size: 14px; margin-top: 4px; }
-    .magnet-area { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; min-height: 180px; position: relative; }
-    .band { position: absolute; left: 16px; right: 16px; height: 8px; border-radius: 4px; opacity: 0.85; }
-    .band.above { background: var(--cyan); top: 40px; }
-    .band.near { background: var(--amber); top: 100px; }
+    .magnet-area {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+    .chart-line {
+      position: absolute;
+      bottom: 40px;
+      left: 20px;
+      right: 20px;
+      height: 2px;
+      background: var(--amber);
+      opacity: 0.6;
+    }
+    .price-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--amber);
+      border-radius: 50%;
+      bottom: 36px;
+      right: 40px;
+      box-shadow: 0 0 8px var(--amber);
+    }
+    .band {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      height: 6px;
+      border-radius: 3px;
+      opacity: 0.9;
+    }
+    .band.above { background: var(--cyan); top: 50px; box-shadow: 0 0 10px var(--cyan); }
+    .band.near { background: var(--amber); top: 120px; box-shadow: 0 0 8px var(--amber); }
+    .label {
+      position: absolute;
+      font-size: 11px;
+      color: var(--muted);
+      right: 24px;
+    }
+    .label.above { top: 38px; color: var(--cyan); }
+    .label.near { top: 108px; color: var(--amber); }
     .status-card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #2a2e35; }
     .status-card p { line-height: 1.5; font-size: 15px; }
     .status-card .wait { color: var(--amber); font-weight: 600; margin-top: 8px; }
@@ -53,7 +95,11 @@
     </div>
     <div class="magnet-area" id="magnet">
       <div class="band above"></div>
+      <div class="label above">77,100 MAGNET</div>
       <div class="band near"></div>
+      <div class="label near">CURRENT</div>
+      <div class="chart-line"></div>
+      <div class="price-dot"></div>
     </div>
     <div class="status-card" id="status">
       <p>Strong magnet above at $77,100.<br>Short liquidations clustered.<br>Spot flow positive.</p>
