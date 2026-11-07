@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BTC Magnet</title>
+  <style>
+    :root {
+      --bg: #0a0c0f;
+      --card: #12151a;
+      --amber: #f5a623;
+      --cyan: #00d4c8;
+      --text: #e8eaed;
+      --muted: #8b929a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app { width: 100%; max-width: 420px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logo { font-weight: 700; letter-spacing: 1px; color: var(--amber); }
+    .terminal { font-size: 12px; border: 1px solid var(--amber); padding: 4px 8px; border-radius: 4px; color: var(--amber); }
+    .price-box { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .price { font-size: 42px; font-weight: 700; }
+    .change { color: #3dd68c; font-size: 14px; margin-top: 4px; }
+    .magnet-area { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; min-height: 180px; position: relative; }
+    .band { position: absolute; left: 16px; right: 16px; height: 8px; border-radius: 4px; opacity: 0.85; }
+    .band.above { background: var(--cyan); top: 40px; }
+    .band.near { background: var(--amber); top: 100px; }
+    .status-card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #2a2e35; }
+    .status-card p { line-height: 1.5; font-size: 15px; }
+    .status-card .wait { color: var(--amber); font-weight: 600; margin-top: 8px; }
+    button { width: 100%; background: transparent; color: var(--amber); border: 1px solid var(--amber); padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    button:active { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="logo">BTC MAGNET</div>
+      <div class="terminal">TERMINAL v1.0</div>
+    </div>
+    <div class="price-box">
+      <div class="price" id="price">$74,800</div>
+      <div class="change" id="change">+1.32% (24h)</div>
+    </div>
+    <div class="magnet-area" id="magnet">
+      <div class="band above"></div>
+      <div class="band near"></div>
+    </div>
+    <div class="status-card" id="status">
+      <p>Strong magnet above at $77,100.<br>Short liquidations clustered.<br>Spot flow positive.</p>
+      <p class="wait">No clear edge — wait.</p>
+    </div>
+    <button onclick="shareCard()">SHARE MAGNET CARD</button>
+  </div>
+  <script>
+    function evaluateStatus(data) {
+      const rulesPass = false;
+      if (!rulesPass) {
+        return {
+          text: "Strong magnet above at $77,100.<br>Short liquidations clustered.<br>Spot flow positive.",
+          status: "No clear edge — wait."
+        };
+      }
+      return {
+        text: "Strong magnet above at $77,100. Short liquidations clustered, OI rising, funding elevated. Range regime.",
+        status: "Watch for sweep."
+      };
+    }
+    function updateUI() {
+      const result = evaluateStatus({});
+      document.getElementById("status").innerHTML = `<p>${result.text}</p><p class="wait">${result.status}</p>`;
+    }
+    function shareCard() {
+      alert("Share Magnet Card\n\n(In the full version this generates the image.)\n\nPrice: " + document.getElementById("price").textContent + "\n" + document.getElementById("status").innerText);
+    }
+    updateUI();
+  </script>
+</body>
+</html>
