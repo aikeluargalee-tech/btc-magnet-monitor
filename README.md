@@ -2,15 +2,11 @@
 
 Mechanics-first Bitcoin app concept.
 
-This repository holds the locked product definition, speaking rules, status text templates, prototype specification, and starter code.
+**Handoff package for external builder:** see `HANDOFF.md`
 
 ## Contents
-- `docs/one-pager.md` — Locked product definition
-- `docs/speaking-rules.md` — Internal rules for when the app speaks
-- `docs/status-templates.md` — Exact status text templates
-- `docs/prototype-spec.md` — Minimal prototype specification
-- `prototype/index.html` — Starter single-file prototype
+- `HANDOFF.md` — Complete brief for Google Antigravity or any builder
+- `docs/` — Locked product definition, rules, and templates
+- `prototype/` — Current starter code (UX needs rebuild)
 
-Visual direction: modern dark UI with restrained retro character (amber/cyan accents).
-
-All decisions locked as of November 2026.
+Private repository. Core decisions locked as of November 2026.
