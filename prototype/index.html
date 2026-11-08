@@ -1046,7 +1046,16 @@
       const clearUpper = up && up.distPct >= 0.8 && up.distPct <= 4.5 && up.usd >= 100000000;
       const clearLower = lo && Math.abs(lo.distPct) >= 0.8 && Math.abs(lo.distPct) <= 4.5 && lo.usd >= 100000000;
       const cond1 = Boolean(clearUpper || clearLower);
-      const chosenSide = (clearUpper && (!clearLower || up.usd >= lo.usd * 0.8)) ? 'ABOVE' : (clearLower ? 'BELOW' : 'NONE');
+      const upWeight = up ? (up.usd / Math.max(Math.abs(up.distPct), 0.5)) : 0;
+      const loWeight = lo ? (lo.usd / Math.max(Math.abs(lo.distPct), 0.5)) : 0;
+      let chosenSide = 'NONE';
+      if (clearUpper && clearLower) {
+        chosenSide = (up.usd >= lo.usd * 1.15 || upWeight >= loWeight) ? 'ABOVE' : 'BELOW';
+      } else if (clearUpper) {
+        chosenSide = 'ABOVE';
+      } else if (clearLower) {
+        chosenSide = 'BELOW';
+      }
 
       // Condition 2: Open-Interest confirmation (OI expanding into the magnet, delta > 0.0% or stable)
       const cond2 = state.oiDelta4h >= -0.5;
@@ -1070,9 +1079,10 @@
       // Condition 6: Not already swept (price not already past the cluster)
       const cond6 = (chosenSide === 'ABOVE' && up.price > p) || (chosenSide === 'BELOW' && lo.price < p);
 
-      // Condition 7: Conviction Threshold (At least 4 cleanly met, 0 direct conflicts)
+      // Condition 7: Conviction Threshold (At least 5 cleanly met, 0 direct conflicts)
       const passedCount = [cond1, cond2, cond3, cond4, cond5, cond6].filter(Boolean).length;
-      const cond7 = passedCount >= 5 && cond1 && cond6;
+      const cond7 = passedCount >= 5 && cond1 && cond4 && cond5 && cond6;
+      const isExhaustion = cond1 && cond6 && !cond3 && !cond2;
 
       state.evaluation.rulesStatus = [cond1, cond2, cond3, cond4, cond5, cond6, cond7];
       state.evaluation.ruleDescs = [
@@ -1102,6 +1112,12 @@
         state.evaluation.headline = `Magnet at ${fmtUSD(targetP)} aligns with trend.`;
         state.evaluation.body = `OI and funding confirm. Structure supportive. Edge present — monitor for entry zone.`;
         state.evaluation.ruleSubtitle = `Locked Pattern: Trend-Aligned Acceleration (${state.regime})`;
+      } else if (isExhaustion) {
+        const targetP = chosenSide === 'ABOVE' ? up.price : lo.price;
+        state.evaluation.verdict = 'WAIT';
+        state.evaluation.headline = `Dense magnet at ${fmtUSD(targetP)} with extreme funding and declining OI.`;
+        state.evaluation.body = `Possible exhaustion. High caution — wait for confirmation.`;
+        state.evaluation.ruleSubtitle = `Locked Pattern: Exhaustion Regime (Extreme Funding + Declining OI)`;
       } else {
         // DEFAULT LOCKED STATUS
         state.evaluation.verdict = 'WAIT';
