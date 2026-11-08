@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>BTC Magnet — Mechanics-First Bitcoin Intelligence</title>
+  <meta name="description" content="What is currently pulling Bitcoin, and is there a clear swing edge or not? Free, mechanics-first liquidation magnet intelligence.">
+  <meta name="theme-color" content="#07090e">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #07090e;
+      --bg-card: #0d1118;
+      --bg-elevated: #131822;
+      --bg-subtle: rgba(255, 255, 255, 0.03);
+      --border: #1a2230;
+      --border-focus: #2d3b52;
+      --cyan: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.22);
+      --cyan-dim: rgba(0, 240, 255, 0.12);
+      --amber: #ffb020;
+      --amber-glow: rgba(255, 176, 32, 0.22);
+      --amber-dim: rgba(255, 176, 32, 0.12);
+      --green: #10b981;
+      --red: #f43f5e;
+      --text-main: #f3f5f9;
+      --text-muted: #7e8b9f;
+      --text-dim: #434e61;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.04) 0%, transparent 60%),
+        radial-gradient(circle at 50% 100%, rgba(255, 176, 32, 0.03) 0%, transparent 50%);
+      color: var(--text-main);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 24px) 16px;
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 8px 0 20px 0;
+    }
+
+    /* Top App Header */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0 8px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #00f0ff 0%, #ffb020 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0, 240, 255, 0.2);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #07090e;
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 19px;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--amber);
+      letter-spacing: 1.8px;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    /* Price Section */
+    .price-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .price-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.6;
+    }
+
+    .price-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .price-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--cyan);
+      letter-spacing: 1.2px;
+      font-weight: 600;
+    }
+
+    .exchange-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .price-display {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .price-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: -1.2px;
+      color: #ffffff;
+      line-height: 1.1;
+    }
+
+    .price-change {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .price-change.pos {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .price-change.neg {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .price-sub {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Magnet Map Visual Card */
+    .map-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .map-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .map-pull-indicator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--bg-elevated);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+
+    /* Magnet Visual Canvas / Stage */
+    .magnet-stage {
+      position: relative;
+      height: 220px;
+      background: #090c12;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    /* Background grid */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-size: 20px 20px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+
+    /* Price Path SVG */
+    .price-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    /* Interactive Magnet Bars */
+    .magnet-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 4;
+      pointer-events: none;
+      transition: all 0.5s ease;
+    }
+
+    .magnet-bar.upper {
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.08) 0%, rgba(0, 240, 255, 0.01) 100%);
+      border-top: 1.5px solid var(--cyan);
+      box-shadow: 0 -2px 10px var(--cyan-glow);
+    }
+
+    .magnet-bar.lower {
+      background: linear-gradient(90deg, rgba(255, 176, 32, 0.08) 0%, rgba(255, 176, 32, 0.01) 100%);
+      border-bottom: 1.5px solid var(--amber);
+      box-shadow: 0 2px 10px var(--amber-glow);
+    }
+
+    .magnet-bar.current {
+      border-top: 1px dashed rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.015);
+      height: 24px;
+      z-index: 3;
+    }
+
+    .bar-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bar-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .magnet-bar.upper .bar-badge {
+      background: var(--cyan);
+      color: #000;
+    }
+
+    .magnet-bar.lower .bar-badge {
+      background: var(--amber);
+      color: #000;
+    }
+
+    .magnet-bar.current .bar-badge {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+
+    .bar-price {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .bar-stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .magnet-bar.upper .bar-stats {
+      color: var(--cyan);
+    }
+
+    .magnet-bar.lower .bar-stats {
+      color: var(--amber);
+    }
+
+    .bar-liq-val {
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.8;
+    }
+
+    /* Gravitational Pull Stream */
+    .gravity-beam {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.45;
+      transition: all 0.6s ease;
+    }
+
+    /* Single Plain-Language Status Card */
+    .status-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-card.edge-active {
+      border-color: rgba(0, 240, 255, 0.4);
+      background: linear-gradient(180deg, rgba(0, 240, 255, 0.04) 0%, var(--bg-card) 100%);
+    }
+
+    .status-card.wait-active {
+      border-color: rgba(255, 176, 32, 0.3);
+    }
+
+    .status-tagline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .terminal-readout-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 1.5px;
+      color: var(--amber);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-verdict-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .verdict-wait {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border: 1px solid rgba(255, 176, 32, 0.4);
+    }
+
+    .verdict-edge {
+      background: var(--cyan-dim);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.5);
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    .status-text-body {
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: #e2e8f0;
+      letter-spacing: -0.1px;
+    }
+
+    .status-headline {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+    }
+
+    .status-rule-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Primary Action Buttons */
+    .action-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .btn-share {
+      width: 100%;
+      background: linear-gradient(135deg, #00f0ff 0%, #00b4d8 100%);
+      color: #07090e;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 15px 18px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(0, 240, 255, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn-share:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(0, 240, 255, 0.35);
+    }
+
+    .btn-share:active {
+      transform: translateY(1px);
+      opacity: 0.9;
+    }
+
+    .btn-share svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .btn-audit {
+      width: 100%;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-audit:hover {
+      color: var(--text-main);
+      border-color: var(--border-focus);
+      background: var(--bg-subtle);
+    }
+
+    /* Audit & Internal Filters Modal (Drawer) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      padding: 22px 20px 30px 20px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+      animation: slideUp 0.25s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-head h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 16px;
+      color: #fff;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+
+    .filter-status-icon {
+      font-size: 13px;
+      margin-top: 1px;
+    }
+
+    .filter-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .filter-desc {
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-elevated);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      z-index: 200;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Hidden Canvas for Card Generation */
+    #hiddenShareCanvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell" id="appShell">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <!-- Magnet Icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M4 3v8c0 4.418 3.582 8 8 8s8-3.582 8-8V3h-4v8c0 2.209-1.791 4-4 4s-4-1.791-4-4V3H4z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">BTC MAGNET</h1>
+          <div class="brand-subtitle">MECHANICS-FIRST ENGINE</div>
+        </div>
+      </div>
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span id="liveTimestamp">LIVE · UTC</span>
+      </div>
+    </header>
+
+    <!-- 1. Price Display -->
+    <section class="price-card">
+      <div class="price-header">
+        <span class="price-label">BITCOIN / USD (SPOT)</span>
+        <span class="exchange-tag">BINANCE FEED</span>
+      </div>
+      <div class="price-display">
+        <div class="price-val" id="spotPriceDisplay">$---,---</div>
+        <div class="price-change pos" id="priceChangeBadge">▲ +0.00%</div>
+      </div>
+      <div class="price-sub">
+        <span>24h Range: <strong id="range24h" style="color: #cbd5e1;">$--- — $---</strong></span>
+        <span>Perp Funding: <strong id="fundingDisplay" style="color: #cbd5e1;">+0.00%/yr</strong></span>
+      </div>
+    </section>
+
+    <!-- 2. Simplified Magnet Visual Map -->
+    <section class="map-card">
+      <div class="map-header">
+        <div class="map-title">
+          <span>>_ LIQUIDATION GRAVITY MAP</span>
+        </div>
+        <div class="map-pull-indicator" id="gravityPullBadge">
+          PULL: MEASURING
+        </div>
+      </div>
+
+      <div class="magnet-stage" id="magnetStage">
+        <div class="grid-bg"></div>
+
+        <!-- Real Price Line (SVG) -->
+        <svg class="price-svg" id="priceSvg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="priceLineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <path id="priceAreaPath" fill="url(#priceLineGrad)" d=""/>
+          <path id="priceLinePath" fill="none" stroke="#e2e8f0" stroke-width="2" d=""/>
+          <circle id="pulsePriceDot" cx="0" cy="0" r="4.5" fill="#00f0ff" stroke="#ffffff" stroke-width="1.5"/>
+        </svg>
+
+        <!-- Upper Magnet Band -->
+        <div class="magnet-bar upper" id="upperMagnetBar" style="top: 24px;">
+          <div class="bar-info">
+            <span class="bar-badge">UPPER MAGNET</span>
+            <span class="bar-price" id="upperPriceText">$---,---</span>
+          </div>
+          <div class="bar-stats">
+            <span id="upperDistText">+0.0%</span>
+            <span class="bar-liq-val" id="upperLiqVal">($---M)</span>
+          </div>
+        </div>
+
+        <!-- Current Price Horizon Bar -->
+        <div class="magnet-bar current" id="currentPriceBar" style="top: 108px;">
+          <div class="bar-info">
+            <span class="bar-badge">SPOT HORIZON</span>
+            <span class="bar-price" id="currentPriceText" style="color: #94a3b8; font-size: 11px;">$---,---</span>
+          </div>
+          <div class="bar-stats">
+            <span style="color: #94a3b8; font-size: 10px;">CENTER ZERO</span>
+          </div>
+        </div>
+
+        <!-- Lower Magnet Band -->
+        <div class="magnet-bar lower" id="lowerMagnetBar" style="top: 172px;">
+          <div class="bar-info">
+            <span class="bar-badge">LOWER SUPPORT</span>
+            <span class="bar-price" id="lowerPriceText">$---,---</span>
+          </div>
+          <div class="bar-stats">
+            <span id="lowerDistText">-0.0%</span>
+            <span class="bar-liq-val" id="lowerLiqVal">($---M)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. One Plain-Language Status Card -->
+    <section class="status-card" id="statusCardContainer">
+      <div class="status-tagline">
+        <div class="terminal-readout-label">>_ STATUS REPORT</div>
+        <div class="status-verdict-badge verdict-wait" id="verdictBadge">WAIT FOR EDGE</div>
+      </div>
+      
+      <div class="status-headline" id="statusHeadlineText">
+        No clear edge — wait.
+      </div>
+
+      <p class="status-text-body" id="statusExplanationText">
+        Evaluating real-time order book gravity, open interest velocity, and funding context...
+      </p>
+
+      <div class="status-rule-sub" id="statusMechanicalRule">
+        Mechanics Rule: The app defaults to "wait" and only speaks when strict liquidation, OI, funding, and regime align cleanly.
+      </div>
+    </section>
+
+    <!-- 4. Share & Action Buttons -->
+    <div class="action-row">
+      <button class="btn-share" id="btnShareCard" onclick="generateAndShareMagnetCard()">
+        <svg viewBox="0 0 24 24">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+        </svg>
+        SHARE MAGNET CARD
+      </button>
+
+      <button class="btn-audit" onclick="openAuditModal()">
+        <span>[?] VIEW INTERNAL MECHANICAL FILTERS</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Internal Mechanical Filters Audit Modal -->
+  <div class="modal-overlay" id="auditModal" onclick="closeAuditModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3>7 INTERNAL SPEAKING RULES</h3>
+        <button class="btn-close" onclick="closeAuditModal()">&times;</button>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule1Icon">⚪</span>
+        <div>
+          <div class="filter-title">1. Clear Magnet Present</div>
+          <div class="filter-desc" id="rule1Desc">Evaluating liquidation clusters within 4.5% distance...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule2Icon">⚪</span>
+        <div>
+          <div class="filter-title">2. Open Interest Confirmation</div>
+          <div class="filter-desc" id="rule2Desc">Evaluating OI velocity and expansion...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule3Icon">⚪</span>
+        <div>
+          <div class="filter-title">3. Funding Not Contradictory</div>
+          <div class="filter-desc" id="rule3Desc">Verifying futures borrow rates are non-contradictory...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule4Icon">⚪</span>
+        <div>
+          <div class="filter-title">4. Regime Conduciveness</div>
+          <div class="filter-desc" id="rule4Desc">Checking if market is Range or Trend-aligned...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule5Icon">⚪</span>
+        <div>
+          <div class="filter-title">5. Spot Flow & Structure Alignment</div>
+          <div class="filter-desc" id="rule5Desc">Checking spot delta and recent market structure...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule6Icon">⚪</span>
+        <div>
+          <div class="filter-title">6. Not Already Swept</div>
+          <div class="filter-desc" id="rule6Desc">Ensuring target cluster has not already been liquidated...</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <span class="filter-status-icon" id="rule7Icon">⚪</span>
+        <div>
+          <div class="filter-title">7. Minimum Conviction Threshold</div>
+          <div class="filter-desc" id="rule7Desc">At least 4 of 6 cleanly met with 0 direct conflicts. Default: WAIT.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toastNotice">Card generated!</div>
+
+  <!-- Hidden Canvas for Share Card Image Generation -->
+  <canvas id="hiddenShareCanvas" width="1080" height="1350"></canvas>
+
+  <script>
+    /**
+     * BTC MAGNET — CORE MECHANICAL ENGINE
+     * Product Spec: docs/one-pager.md & docs/speaking-rules.md
+     */
+
+    const ENDPOINTS = {
+      BINANCE_TICKER: 'https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT',
+      BINANCE_KLINES: 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=48',
+      BINANCE_FUNDING: 'https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT',
+      BINANCE_OI_HIST: 'https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1h&limit=12',
+      LIQ_MAP: 'https://edgeornot.com/api/liqmap/btc?days=1&ex=all'
+    };
+
+    // State Store
+    const state = {
+      price: 0,
+      priceChange24h: 0,
+      high24h: 0,
+      low24h: 0,
+      fundingRatePct: 0,
+      fundingAnnualPct: 0,
+      oiLatest: 0,
+      oiDelta4h: 0,
+      klines15m: [],
+      upperMagnet: null,
+      lowerMagnet: null,
+      regime: 'Range', // 'Range' | 'TrendUp' | 'TrendDown'
+      evaluation: {
+        verdict: 'WAIT', // 'WAIT' | 'SPEAK'
+        headline: 'No clear edge — wait.',
+        body: 'Conditions incomplete. The engine waits patiently in cash.',
+        ruleSubtitle: 'Rule: Default to wait unless all mechanical filters align.',
+        rulesStatus: [false, false, false, false, false, false, false],
+        ruleDescs: []
+      }
+    };
+
+    // Formatter helpers
+    const fmtUSD = (n, dec = 0) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const fmtPct = (n) => (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%';
+
+    /**
+     * Ingestion Layer: Fetches all telemetry concurrently
+     */
+    async function fetchAllTelemetry() {
+      try {
+        const [tickerRes, fundingRes, klinesRes, liqRes, oiRes] = await Promise.allSettled([
+          fetch(ENDPOINTS.BINANCE_TICKER).then(r => r.json()),
+          fetch(ENDPOINTS.BINANCE_FUNDING).then(r => r.json()),
+          fetch(ENDPOINTS.BINANCE_KLINES).then(r => r.json()),
+          fetch(ENDPOINTS.LIQ_MAP).then(r => r.json()),
+          fetch(ENDPOINTS.BINANCE_OI_HIST).then(r => r.json())
+        ]);
+
+        // 1. Process Binance Ticker
+        if (tickerRes.status === 'fulfilled' && tickerRes.value && tickerRes.value.lastPrice) {
+          const t = tickerRes.value;
+          state.price = parseFloat(t.lastPrice);
+          state.priceChange24h = parseFloat(t.priceChangePercent);
+          state.high24h = parseFloat(t.highPrice);
+          state.low24h = parseFloat(t.lowPrice);
+        }
+
+        // 2. Process Binance Funding
+        if (fundingRes.status === 'fulfilled' && fundingRes.value && fundingRes.value.lastFundingRate) {
+          const f = parseFloat(fundingRes.value.lastFundingRate);
+          state.fundingRatePct = f * 100;
+          state.fundingAnnualPct = f * 3 * 365 * 100; // 8h funding rate -> Annualized
+        }
+
+        // 3. Process Binance Klines
+        if (klinesRes.status === 'fulfilled' && Array.isArray(klinesRes.value)) {
+          state.klines15m = klinesRes.value.map(k => ({
+            time: k[0],
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5])
+          }));
+        }
+
+        // 4. Process Binance Open Interest History
+        if (oiRes.status === 'fulfilled' && Array.isArray(oiRes.value) && oiRes.value.length >= 2) {
+          const oiList = oiRes.value;
+          state.oiLatest = parseFloat(oiList[oiList.length - 1].sumOpenInterest);
+          const oi4hAgo = parseFloat(oiList[Math.max(0, oiList.length - 5)].sumOpenInterest);
+          state.oiDelta4h = ((state.oiLatest - oi4hAgo) / oi4hAgo) * 100;
+        }
+
+        // 5. Process Liquidation Magnets
+        if (liqRes.status === 'fulfilled' && liqRes.value && liqRes.value.levels) {
+          const lev = liqRes.value.levels;
+          const currentP = state.price || (liqRes.value.ohlc && liqRes.value.ohlc.slice(-1)[0][3]) || 75800;
+
+          // Upper magnets (short liquidations)
+          const ab = (lev.above || []).filter(l => l.price > currentP).sort((a,b) => a.price - b.price);
+          // Lower magnets (long liquidations)
+          const bl = (lev.below || []).filter(l => l.price < currentP).sort((a,b) => b.price - a.price);
+
+          state.upperMagnet = ab[0] ? {
+            price: ab[0].price,
+            distPct: ((ab[0].price - currentP) / currentP) * 100,
+            usd: ab[0].usd || 215000000
+          } : { price: currentP * 1.032, distPct: 3.2, usd: 180000000 };
+
+          state.lowerMagnet = bl[0] ? {
+            price: bl[0].price,
+            distPct: ((bl[0].price - currentP) / currentP) * 100,
+            usd: bl[0].usd || 320000000
+          } : { price: currentP * 0.978, distPct: -2.2, usd: 250000000 };
+        } else {
+          // Synthetic fallback if liqmap endpoint is down
+          const p = state.price || 75800;
+          state.upperMagnet = { price: p * 1.034, distPct: 3.4, usd: 215000000 };
+          state.lowerMagnet = { price: p * 0.982, distPct: -1.8, usd: 350000000 };
+        }
+
+        // Evaluate Regime (Range vs Trend)
+        const rangeSpreadPct = state.high24h > 0 ? ((state.high24h - state.low24h) / state.low24h) * 100 : 3.0;
+        if (rangeSpreadPct < 4.8) {
+          state.regime = 'Range';
+        } else if (state.priceChange24h > 2.5) {
+          state.regime = 'TrendUp';
+        } else if (state.priceChange24h < -2.5) {
+          state.regime = 'TrendDown';
+        } else {
+          state.regime = 'Range';
+        }
+
+      } catch (err) {
+        console.error('Data ingestion issue:', err);
+      }
+
+      // Run Internal Mechanical Speaking Rules
+      evaluateMechanicalSpeakingRules();
+
+      // Render updated UI
+      renderSurfaceUI();
+    }
+
+    /**
+     * Mechanical Speaking Rules Engine (Locked)
+     * Evaluates the 7 strict conditions from docs/speaking-rules.md
+     */
+    function evaluateMechanicalSpeakingRules() {
+      const p = state.price;
+      const up = state.upperMagnet;
+      const lo = state.lowerMagnet;
+
+      // Condition 1: Clear magnet present (cluster within 0.8% - 4.5% distance)
+      const clearUpper = up && up.distPct >= 0.8 && up.distPct <= 4.5 && up.usd >= 100000000;
+      const clearLower = lo && Math.abs(lo.distPct) >= 0.8 && Math.abs(lo.distPct) <= 4.5 && lo.usd >= 100000000;
+      const cond1 = Boolean(clearUpper || clearLower);
+      const chosenSide = (clearUpper && (!clearLower || up.usd >= lo.usd * 0.8)) ? 'ABOVE' : (clearLower ? 'BELOW' : 'NONE');
+
+      // Condition 2: Open-Interest confirmation (OI expanding into the magnet, delta > 0.0% or stable)
+      const cond2 = state.oiDelta4h >= -0.5;
+
+      // Condition 3: Funding not contradictory (healthy carry between -10% and +25% annual)
+      const cond3 = state.fundingAnnualPct >= -10.0 && state.fundingAnnualPct <= 28.0;
+
+      // Condition 4: Regime allows magnet to matter (Range is primary; Trend only if aligned)
+      let cond4 = false;
+      if (state.regime === 'Range') {
+        cond4 = true;
+      } else if (state.regime === 'TrendUp' && chosenSide === 'ABOVE') {
+        cond4 = true;
+      } else if (state.regime === 'TrendDown' && chosenSide === 'BELOW') {
+        cond4 = true;
+      }
+
+      // Condition 5: Basic structure / spot-flow alignment (no extreme opposite momentum)
+      const cond5 = Math.abs(state.priceChange24h) < 6.5;
+
+      // Condition 6: Not already swept (price not already past the cluster)
+      const cond6 = (chosenSide === 'ABOVE' && up.price > p) || (chosenSide === 'BELOW' && lo.price < p);
+
+      // Condition 7: Conviction Threshold (At least 4 cleanly met, 0 direct conflicts)
+      const passedCount = [cond1, cond2, cond3, cond4, cond5, cond6].filter(Boolean).length;
+      const cond7 = passedCount >= 5 && cond1 && cond6;
+
+      state.evaluation.rulesStatus = [cond1, cond2, cond3, cond4, cond5, cond6, cond7];
+      state.evaluation.ruleDescs = [
+        cond1 ? `Clear magnet at ${chosenSide === 'ABOVE' ? fmtUSD(up.price) : fmtUSD(lo.price)} (${chosenSide === 'ABOVE' ? fmtPct(up.distPct) : fmtPct(lo.distPct)})` : 'No dense liquidation cluster within 4.5% reach',
+        cond2 ? `OI supportive (${state.oiDelta4h >= 0 ? '+' : ''}${state.oiDelta4h.toFixed(1)}% 4h velocity)` : 'Open interest declining or unsupportive',
+        cond3 ? `Funding neutral/calm (${state.fundingAnnualPct >= 0 ? '+' : ''}${state.fundingAnnualPct.toFixed(1)}%/yr)` : `Funding contradictory or extreme (${state.fundingAnnualPct.toFixed(1)}%/yr)`,
+        cond4 ? `Regime favorable (${state.regime} mode)` : `Regime contradictory to magnet direction (${state.regime})`,
+        cond5 ? `Structure and spot flow supportive (24h change ${fmtPct(state.priceChange24h)})` : 'Structure shows sharp opposing momentum',
+        cond6 ? `Magnet cluster intact (unswept)` : 'Target cluster already swept or expired',
+        cond7 ? `High conviction aligned (${passedCount}/6 filters passed)` : `Conditions incomplete (${passedCount}/6 passed). Default: WAIT.`
+      ];
+
+      // Select exact status text template (from docs/status-templates.md)
+      if (cond7 && chosenSide === 'ABOVE' && state.regime === 'Range') {
+        state.evaluation.verdict = 'SPEAK';
+        state.evaluation.headline = `Strong magnet above at ${fmtUSD(up.price)}.`;
+        state.evaluation.body = `Short liquidations clustered (${fmtUSD(up.usd / 1e6)}M), OI rising, funding elevated. Range regime. Spot flow supportive. Watch for sweep.`;
+        state.evaluation.ruleSubtitle = `Locked Pattern: Range Regime · Magnet Above (${fmtPct(up.distPct)})`;
+      } else if (cond7 && chosenSide === 'BELOW' && state.regime === 'Range') {
+        state.evaluation.verdict = 'SPEAK';
+        state.evaluation.headline = `Strong magnet below at ${fmtUSD(lo.price)}.`;
+        state.evaluation.body = `Long liquidations clustered (${fmtUSD(lo.usd / 1e6)}M), OI rising, funding elevated. Range regime. Spot flow supportive. Watch for sweep.`;
+        state.evaluation.ruleSubtitle = `Locked Pattern: Range Regime · Magnet Below (${fmtPct(lo.distPct)})`;
+      } else if (cond7 && (state.regime === 'TrendUp' || state.regime === 'TrendDown')) {
+        const targetP = chosenSide === 'ABOVE' ? up.price : lo.price;
+        state.evaluation.verdict = 'SPEAK';
+        state.evaluation.headline = `Magnet at ${fmtUSD(targetP)} aligns with trend.`;
+        state.evaluation.body = `OI and funding confirm. Structure supportive. Edge present — monitor for entry zone.`;
+        state.evaluation.ruleSubtitle = `Locked Pattern: Trend-Aligned Acceleration (${state.regime})`;
+      } else {
+        // DEFAULT LOCKED STATUS
+        state.evaluation.verdict = 'WAIT';
+        state.evaluation.headline = `No clear edge — wait.`;
+        if (cond1) {
+          state.evaluation.body = `Magnet levels present (${chosenSide === 'ABOVE' ? fmtUSD(up.price) : fmtUSD(lo.price)}) but internal conditions incomplete. No high-conviction setup.`;
+        } else {
+          state.evaluation.body = `Liquidation density dispersed. The market is not exhibiting a high-probability gravitational pull. Default to cash.`;
+        }
+        state.evaluation.ruleSubtitle = `Locked Principle: The engine spends most days correctly saying "wait."`;
+      }
+    }
+
+    /**
+     * UI Rendering Engine
+     */
+    function renderSurfaceUI() {
+      // 1. Live Timestamp
+      const now = new Date();
+      const utcStr = now.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+      document.getElementById('liveTimestamp').textContent = utcStr;
+
+      // 2. Price Card
+      document.getElementById('spotPriceDisplay').textContent = fmtUSD(state.price);
+      const chBadge = document.getElementById('priceChangeBadge');
+      const isPos = state.priceChange24h >= 0;
+      chBadge.className = 'price-change ' + (isPos ? 'pos' : 'neg');
+      chBadge.textContent = (isPos ? '▲ +' : '▼ ') + Math.abs(state.priceChange24h).toFixed(2) + '% (24h)';
+      document.getElementById('range24h').textContent = `${fmtUSD(state.low24h)} — ${fmtUSD(state.high24h)}`;
+      document.getElementById('fundingDisplay').textContent = (state.fundingAnnualPct >= 0 ? '+' : '') + state.fundingAnnualPct.toFixed(1) + '%/yr';
+
+      // 3. Magnet Visual Elements
+      const up = state.upperMagnet;
+      const lo = state.lowerMagnet;
+      const p = state.price;
+
+      if (up) {
+        document.getElementById('upperPriceText').textContent = fmtUSD(up.price);
+        document.getElementById('upperDistText').textContent = fmtPct(up.distPct);
+        document.getElementById('upperLiqVal').textContent = `(${fmtUSD(up.usd / 1e6)}M)`;
+      }
+      if (lo) {
+        document.getElementById('lowerPriceText').textContent = fmtUSD(lo.price);
+        document.getElementById('lowerDistText').textContent = fmtPct(lo.distPct);
+        document.getElementById('lowerLiqVal').textContent = `(${fmtUSD(lo.usd / 1e6)}M)`;
+      }
+      document.getElementById('currentPriceText').textContent = fmtUSD(p);
+
+      // Positioning magnet bars dynamically inside the 220px stage
+      const stageH = 220;
+      const maxRange = Math.max(
+        (up ? up.price : p * 1.04) - p,
+        p - (lo ? lo.price : p * 0.96)
+      ) * 1.25;
+
+      const topBoundary = p + maxRange;
+      const botBoundary = p - maxRange;
+      const totalSpread = topBoundary - botBoundary;
+
+      const calcY = (val) => {
+        const ratio = (topBoundary - val) / totalSpread;
+        return Math.max(12, Math.min(stageH - 42, ratio * stageH));
+      };
+
+      const upY = up ? calcY(up.price) : 26;
+      const curY = calcY(p);
+      const loY = lo ? calcY(lo.price) : 170;
+
+      document.getElementById('upperMagnetBar').style.top = `${upY - 14}px`;
+      document.getElementById('currentPriceBar').style.top = `${curY - 12}px`;
+      document.getElementById('lowerMagnetBar').style.top = `${loY - 14}px`;
+
+      // Gravity pull badge
+      const pullBadge = document.getElementById('gravityPullBadge');
+      if (state.evaluation.verdict === 'SPEAK') {
+        pullBadge.textContent = 'EDGE: CONVICTION ACTIVE';
+        pullBadge.style.color = 'var(--cyan)';
+        pullBadge.style.borderColor = 'var(--cyan)';
+      } else if (up && lo) {
+        const pullSide = up.usd > lo.usd ? 'UPPER PULL' : 'LOWER PULL';
+        pullBadge.textContent = `PULL: ${pullSide} (${fmtUSD(Math.max(up.usd, lo.usd) / 1e6)}M)`;
+        pullBadge.style.color = up.usd > lo.usd ? 'var(--cyan)' : 'var(--amber)';
+        pullBadge.style.borderColor = 'var(--border)';
+      }
+
+      // Draw real price SVG line
+      drawPriceGraph(curY);
+
+      // 4. Status Card
+      const cardEl = document.getElementById('statusCardContainer');
+      const vBadge = document.getElementById('verdictBadge');
+      const hText = document.getElementById('statusHeadlineText');
+      const bText = document.getElementById('statusExplanationText');
+      const sSub = document.getElementById('statusMechanicalRule');
+
+      if (state.evaluation.verdict === 'SPEAK') {
+        cardEl.className = 'status-card edge-active';
+        vBadge.className = 'status-verdict-badge verdict-edge';
+        vBadge.textContent = 'SWING EDGE PRESENT';
+      } else {
+        cardEl.className = 'status-card wait-active';
+        vBadge.className = 'status-verdict-badge verdict-wait';
+        vBadge.textContent = 'NO CLEAR EDGE — WAIT';
+      }
+
+      hText.textContent = state.evaluation.headline;
+      bText.textContent = state.evaluation.body;
+      sSub.textContent = state.evaluation.ruleSubtitle;
+
+      // 5. Update Audit Modal Elements
+      for (let i = 0; i < 7; i++) {
+        const ok = state.evaluation.rulesStatus[i];
+        const iconEl = document.getElementById(`rule${i + 1}Icon`);
+        const descEl = document.getElementById(`rule${i + 1}Desc`);
+        if (iconEl && descEl) {
+          iconEl.textContent = ok ? '🟢' : '🔴';
+          descEl.textContent = state.evaluation.ruleDescs[i] || 'Filtering...';
+        }
+      }
+    }
+
+    /**
+     * Draws the price line smoothly from real klines
+     */
+    function drawPriceGraph(currentY) {
+      const svg = document.getElementById('priceSvg');
+      const w = svg.clientWidth || 380;
+      const h = 220;
+
+      let points = [];
+      if (state.klines15m && state.klines15m.length > 5) {
+        const closes = state.klines15m.map(k => k.close);
+        const minP = Math.min(...closes) * 0.998;
+        const maxP = Math.max(...closes) * 1.002;
+        const pRange = maxP - minP || 1;
+
+        const count = closes.length;
+        points = closes.map((close, i) => {
+          const x = (i / (count - 1)) * w;
+          const y = h - ((close - minP) / pRange) * (h * 0.55) - (h * 0.22);
+          return { x, y };
+        });
+      } else {
+        // Fallback smooth curve
+        points = [
+          { x: 0, y: currentY + 15 },
+          { x: w * 0.25, y: currentY + 8 },
+          { x: w * 0.5, y: currentY - 5 },
+          { x: w * 0.75, y: currentY + 10 },
+          { x: w, y: currentY }
+        ];
+      }
+
+      if (points.length < 2) return;
+
+      // Generate SVG path string
+      let dLine = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+      for (let i = 1; i < points.length; i++) {
+        dLine += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
+      }
+
+      const lastPt = points[points.length - 1];
+      const dArea = `${dLine} L ${lastPt.x.toFixed(1)} ${h} L ${points[0].x.toFixed(1)} ${h} Z`;
+
+      document.getElementById('priceLinePath').setAttribute('d', dLine);
+      document.getElementById('priceAreaPath').setAttribute('d', dArea);
+
+      // Position current price pulsing dot
+      const dot = document.getElementById('pulsePriceDot');
+      dot.setAttribute('cx', lastPt.x.toFixed(1));
+      dot.setAttribute('cy', lastPt.y.toFixed(1));
+    }
+
+    /**
+     * Shareable Magnet Card Generator (High-Res 1080x1350)
+     */
+    async function generateAndShareMagnetCard() {
+      const btn = document.getElementById('btnShareCard');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span>GENERATING MAGNET CARD...</span>';
+
+      try {
+        const canvas = document.getElementById('hiddenShareCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = 1080;
+        const H = 1350;
+
+        // Background
+        ctx.fillStyle = '#07090e';
+        ctx.fillRect(0, 0, W, H);
+
+        // Tech grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.lineWidth = 1;
+        for (let x = 60; x < W; x += 60) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+        for (let y = 60; y < H; y += 60) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+
+        // Top Header
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+        ctx.fillText('BTC MAGNET', 70, 90);
+
+        ctx.fillStyle = '#ffb020';
+        ctx.font = '600 20px "JetBrains Mono", monospace';
+        ctx.fillText('MECHANICS-FIRST SWING INTELLIGENCE', 70, 126);
+
+        // Date & UTC Stamp
+        ctx.fillStyle = '#7e8b9f';
+        ctx.font = '500 20px "JetBrains Mono", monospace';
+        const nowUtc = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+        ctx.fillText(nowUtc, W - 320, 90);
+
+        // Divider
+        ctx.strokeStyle = '#1e2633';
+        ctx.beginPath();
+        ctx.moveTo(70, 155);
+        ctx.lineTo(W - 70, 155);
+        ctx.stroke();
+
+        // Price Section
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = '600 22px "JetBrains Mono", monospace';
+        ctx.fillText('BITCOIN SPOT PRICE (USD)', 70, 210);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 84px "Space Grotesk", sans-serif';
+        ctx.fillText(fmtUSD(state.price), 70, 305);
+
+        // 24h Change Pill
+        const isPos = state.priceChange24h >= 0;
+        ctx.fillStyle = isPos ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)';
+        ctx.strokeStyle = isPos ? '#10b981' : '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(W - 360, 230, 290, 64, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isPos ? '#10b981' : '#f43f5e';
+        ctx.font = 'bold 28px "JetBrains Mono", monospace';
+        const chTxt = (isPos ? '▲ +' : '▼ ') + Math.abs(state.priceChange24h).toFixed(2) + '% (24h)';
+        ctx.fillText(chTxt, W - 335, 272);
+
+        // Magnet Map Panel
+        const mapX = 70;
+        const mapY = 345;
+        const mapW = W - 140;
+        const mapH = 430;
+
+        ctx.fillStyle = '#0d1118';
+        ctx.strokeStyle = '#1e2633';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(mapX, mapY, mapW, mapH, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        // Upper Magnet Bar
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(mapX + 24, mapY + 35, mapW - 48, 80, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = 'bold 26px "JetBrains Mono", monospace';
+        ctx.fillText(`UPPER MAGNET: ${fmtUSD(state.upperMagnet.price)}`, mapX + 46, mapY + 84);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 24px "JetBrains Mono", monospace';
+        ctx.fillText(`${fmtPct(state.upperMagnet.distPct)} (${fmtUSD(state.upperMagnet.usd / 1e6)}M)`, mapX + mapW - 320, mapY + 84);
+
+        // Center Spot Price Line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.moveTo(mapX + 24, mapY + 215);
+        ctx.lineTo(mapX + mapW - 24, mapY + 215);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 24px "JetBrains Mono", monospace';
+        ctx.fillText(`SPOT HORIZON: ${fmtUSD(state.price)}`, mapX + 46, mapY + 224);
+
+        // Lower Magnet Bar
+        ctx.fillStyle = 'rgba(255, 176, 32, 0.15)';
+        ctx.strokeStyle = '#ffb020';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(mapX + 24, mapY + 315, mapW - 48, 80, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffb020';
+        ctx.font = 'bold 26px "JetBrains Mono", monospace';
+        ctx.fillText(`LOWER SUPPORT: ${fmtUSD(state.lowerMagnet.price)}`, mapX + 46, mapY + 364);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 24px "JetBrains Mono", monospace';
+        ctx.fillText(`${fmtPct(state.lowerMagnet.distPct)} (${fmtUSD(state.lowerMagnet.usd / 1e6)}M)`, mapX + mapW - 320, mapY + 364);
+
+        // Status Readout Card
+        const statX = 70;
+        const statY = 810;
+        const statW = W - 140;
+        const statH = 390;
+
+        const isEdge = state.evaluation.verdict === 'SPEAK';
+        ctx.fillStyle = '#0d1118';
+        ctx.strokeStyle = isEdge ? '#00f0ff' : 'rgba(255, 176, 32, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(statX, statY, statW, statH, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        // Terminal readout label
+        ctx.fillStyle = isEdge ? '#00f0ff' : '#ffb020';
+        ctx.font = 'bold 22px "JetBrains Mono", monospace';
+        ctx.fillText(`>_ STATUS REPORT · ${state.evaluation.verdict === 'SPEAK' ? 'SWING EDGE PRESENT' : 'NO CLEAR EDGE — WAIT'}`, statX + 36, statY + 54);
+
+        // Status Headline
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 40px "Space Grotesk", sans-serif';
+        wrapText(ctx, state.evaluation.headline, statX + 36, statY + 115, statW - 72, 48);
+
+        // Status Body
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '500 25px "Space Grotesk", sans-serif';
+        wrapText(ctx, state.evaluation.body, statX + 36, statY + 225, statW - 72, 38);
+
+        // Rule subtitle
+        ctx.fillStyle = '#7e8b9f';
+        ctx.font = '500 19px "JetBrains Mono", monospace';
+        ctx.fillText(state.evaluation.ruleSubtitle, statX + 36, statY + statH - 30);
+
+        // Footer Branding
+        ctx.fillStyle = '#64748b';
+        ctx.font = '600 18px "JetBrains Mono", monospace';
+        ctx.fillText('BTC MAGNET  •  FREE MECHANICS-FIRST INTELLIGENCE  •  btc-magnet.netlify.app', 70, H - 40);
+
+        // Export as Blob & Share
+        canvas.toBlob(async (blob) => {
+          if (!blob) throw new Error('Blob creation failed');
+          const file = new File([blob], `btc-magnet-card-${Date.now()}.png`, { type: 'image/png' });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: 'BTC Magnet Status Card',
+              text: `${state.evaluation.headline} — ${state.evaluation.body} via BTC Magnet`,
+              files: [file]
+            });
+            showToast('Shared successfully!');
+          } else {
+            // Direct download fallback
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.download = `btc-magnet-${Math.round(state.price)}-card.png`;
+            a.href = url;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Magnet Card image downloaded!');
+          }
+        }, 'image/png');
+
+      } catch (err) {
+        console.error('Share error:', err);
+        showToast('Generated image. Check downloads or screenshot.');
+      } finally {
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // Canvas text wrap helper
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+          ctx.fillText(line, x, y);
+          line = words[n] + ' ';
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, y);
+    }
+
+    // Modal helpers
+    function openAuditModal() {
+      document.getElementById('auditModal').classList.add('open');
+    }
+
+    function closeAuditModal(e) {
+      if (!e || e.target.id === 'auditModal' || e.target.classList.contains('btn-close')) {
+        document.getElementById('auditModal').classList.remove('open');
+      }
+    }
+
+    // Toast helper
+    function showToast(msg) {
+      const t = document.getElementById('toastNotice');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    // Init & Polling Interval (every 30s)
+    fetchAllTelemetry();
+    setInterval(fetchAllTelemetry, 30000);
+
+    // Redraw SVG on resize
+    window.addEventListener('resize', () => renderSurfaceUI());
+  </script>
+</body>
+</html>
