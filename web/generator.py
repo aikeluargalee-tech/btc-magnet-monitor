@@ -11,7 +11,7 @@ class WebGenerator:
         os.makedirs(output_dir, exist_ok=True)
 
     def generate(self, payload: Dict[str, Any]) -> Tuple[str, str]:
-        # 1. Write raw JSON feed for the mobile app
+        # 1. Write raw JSON feed for the mobile app and third-party consumers
         json_path = os.path.join(self.output_dir, "regime.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
@@ -44,6 +44,12 @@ class WebGenerator:
         notes = regime.get("notes", "")
         data_quality = regime.get("data_quality", "LIVE")
 
+        # Plain-English Explanations for Beginners (95% User Base)
+        plain_verdict = regime.get("plain_english_verdict", "Analyzing current market conditions...")
+        why_points = regime.get("why_points", [])
+        why_sizing = regime.get("why_sizing_reason", f"Deploying {sizing*100:.0f}% of available cash based on regime risk parameters.")
+        why_stop = regime.get("why_stop_reason", f"Safety stop anchored at ${stop_price:,.2f} ({stop_dist:.2f}% distance).")
+
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
 
@@ -62,25 +68,30 @@ class WebGenerator:
             badge_border = "border-amber-500/30"
             badge_text = "text-amber-400"
             pill_tag = "Data Incomplete • Stand Aside"
-            button_style = "bg-amber-500 text-black font-semibold"
         elif "USDT -> BTC" in rotation:
             badge_bg = "bg-emerald-500/10"
             badge_border = "border-emerald-500/30"
             badge_text = "text-emerald-400"
             pill_tag = "Buy Spot (Accumulate)"
-            button_style = "bg-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20"
         elif "BTC -> USDT" in rotation:
             badge_bg = "bg-rose-500/10"
             badge_border = "border-rose-500/30"
             badge_text = "text-rose-400"
             pill_tag = "Defensive Exit (Harvest to Cash)"
-            button_style = "bg-rose-500 text-white font-semibold shadow-lg shadow-rose-500/20"
         else:
             badge_bg = "bg-amber-500/10"
             badge_border = "border-amber-500/30"
             badge_text = "text-amber-400"
             pill_tag = "Hold 100% Cash Reserve"
-            button_style = "bg-zinc-800 text-zinc-200 font-semibold"
+
+        # Why Points HTML List
+        why_points_html = "".join([
+            f"""<div class='flex items-start gap-3 p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/70'>
+                 <span class='w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0 mt-0.5'>{idx+1}</span>
+                 <p class='text-xs sm:text-sm text-zinc-300 leading-relaxed font-normal'>{pt}</p>
+               </div>"""
+            for idx, pt in enumerate(why_points)
+        ])
 
         matched_html = "".join([f"<li class='flex items-start gap-2.5 text-zinc-300 text-sm'><span class='text-emerald-400 font-semibold mt-0.5'>✓</span><span class='leading-relaxed'>{item}</span></li>" for item in regime.get("matched_criteria", [])])
 
@@ -127,7 +138,7 @@ class WebGenerator:
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-zinc-700/60">v1.4</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-zinc-700/60">v1.5</span>
           </div>
           <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Radar</p>
         </div>
@@ -210,6 +221,50 @@ class WebGenerator:
             {"✓ Approved (Within 1% Risk Budget)" if risk.get("risk_budget_ok") else "⚠️ Warning: Exceeds Risk Limit"}
           </div>
           <p class="text-xs text-zinc-300 leading-relaxed pt-1">{risk.get("actionable_trade_instruction", "")}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plain-English Breakdown Card (For 95% Beginners) -->
+    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-sm space-y-6 shadow-xl">
+      <div class="border-b border-zinc-800 pb-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Plain English</span>
+          <span class="text-xs text-zinc-500 font-medium">(No Jargon Required)</span>
+        </div>
+        <h3 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          Why This Recommendation?
+        </h3>
+        <div class="mt-3 p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 flex items-start gap-3">
+          <span class="text-2xl">💡</span>
+          <p class="text-sm sm:text-base text-zinc-200 font-medium leading-relaxed">
+            {plain_verdict}
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- 3 Key Reasons -->
+        <div class="lg:col-span-2 space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">The 3 Key Market Factors Driving This Call</div>
+          <div class="space-y-2.5">
+            {why_points_html}
+          </div>
+        </div>
+
+        <!-- Sizing and Safety Net Column -->
+        <div class="space-y-3.5">
+          <!-- Why Sizing -->
+          <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80 space-y-1.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Why This Exact Sizing?</div>
+            <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
+          </div>
+
+          <!-- Where is Safety Net -->
+          <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80 space-y-1.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-rose-400">Where Is Your Safety Net?</div>
+            <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_stop}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -362,6 +417,31 @@ class WebGenerator:
         <ul class="space-y-2">
           {matched_html}
         </ul>
+      </div>
+    </div>
+
+    <!-- About & How It Works (Educational Section for Beginners) -->
+    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 space-y-4">
+      <h3 class="text-lg font-bold text-white">About BTC Magnet Monitor</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs text-zinc-300 leading-relaxed">
+        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
+          <strong class="text-emerald-400 block font-semibold text-sm">1. Purpose: Spot Swing Trading</strong>
+          <p>
+            Designed exclusively for spot Bitcoin swing traders who hold USDT cash or BTC (never leverage, never futures shorting). It tells you when it is statistically favorable to deploy cash into BTC, and when to rotate back to USDT cash to preserve gains.
+          </p>
+        </div>
+        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
+          <strong class="text-amber-400 block font-semibold text-sm">2. The Machinery: Positioning Mechanics</strong>
+          <p>
+            Rather than drawing lines or lagging chart indicators, the engine tracks order book depth, taker volume deltas (CVD), open interest leverage changes, and liquidation pools across major exchanges to diagnose the true market regime.
+          </p>
+        </div>
+        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
+          <strong class="text-cyan-400 block font-semibold text-sm">3. Zero Data Guesswork</strong>
+          <p>
+            Runs completely automated every 30 minutes via GitHub Actions. All metrics are fetched live from institutional public APIs. If feeds are unavailable, the engine withholds its recommendation to keep your capital safe.
+          </p>
+        </div>
       </div>
     </div>
 

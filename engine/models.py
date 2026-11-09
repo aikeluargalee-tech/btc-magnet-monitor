@@ -100,6 +100,13 @@ class RegimeResult:
     
     matched_criteria: List[str]
     notes: str
+    
+    # Plain-English Explanations for Beginners (95% User Base)
+    plain_english_verdict: str = ""
+    why_points: List[str] = field(default_factory=list)
+    why_sizing_reason: str = ""
+    why_stop_reason: str = ""
+
     data_quality: str = "LIVE"
     magnet_factors: Dict[str, str] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())

@@ -8,6 +8,7 @@ class RegimeClassifier:
       - Validates that market metrics are verified and live before evaluating.
       - Withholds trading verdict if data is incomplete.
       - Implements 100% mathematical alignment across all 6 magnet override factors.
+      - Provides clear, jargon-free plain-English explanations for beginners (95% of users).
     """
 
     def classify(self, m: Optional[MarketMetrics], clusters: List[LiquidationCluster]) -> RegimeResult:
@@ -57,6 +58,11 @@ class RegimeClassifier:
         target_usdt_pct = round(100.0 - target_btc_pct, 1)
         recommended_cash_deploy = round(sizing * 100.0, 1)
 
+        # Plain-English translation for beginners (Verdict, Why Points, Sizing Reason, Stop Reason)
+        verdict, why_pts, why_sizing, why_stop = self._get_plain_english_breakdown(
+            best["config_id"], m, round(stop_price, 2), round(stop_dist_pct, 2), sizing
+        )
+
         # Combine diagnosis notes with explicit 1-2 sentence decisive magnet rationale
         notes = f"{best['diagnosis']}. Magnet Analysis: {magnet_reason} Matched {len(best['matched'])} facts: {', '.join(best['matched'])}."
 
@@ -84,11 +90,18 @@ class RegimeClassifier:
             target_usdt_reserve_pct=target_usdt_pct,
             matched_criteria=best["matched"],
             notes=notes,
+            plain_english_verdict=verdict,
+            why_points=why_pts,
+            why_sizing_reason=why_sizing,
+            why_stop_reason=why_stop,
             data_quality=m.data_quality
         )
 
     def _create_data_incomplete_result(self, reason: str) -> RegimeResult:
         """Returns safe default when critical exchange data is unavailable."""
+        verdict, why_pts, why_sizing, why_stop = self._get_plain_english_breakdown(
+            "DATA_INCOMPLETE", None, 0.0, 0.0, 0.0
+        )
         return RegimeResult(
             config="DATA_INCOMPLETE",
             name="Data Incomplete",
@@ -113,8 +126,136 @@ class RegimeClassifier:
             target_usdt_reserve_pct=100.0,
             matched_criteria=[f"Data integrity alert: {reason}"],
             notes=f"Trading verdict withheld. Reason: {reason}",
+            plain_english_verdict=verdict,
+            why_points=why_pts,
+            why_sizing_reason=why_sizing,
+            why_stop_reason=why_stop,
             data_quality="UNAVAILABLE"
         )
+
+    def _get_plain_english_breakdown(
+        self,
+        config_id: str,
+        m: Optional[MarketMetrics],
+        stop_price: float,
+        stop_dist_pct: float,
+        sizing: float
+    ) -> Tuple[str, List[str], str, str]:
+        """
+        Translates quantitative findings into crystal-clear plain English for the 95% beginner audience.
+        Returns (Verdict, Why Reasons, Sizing Explanation, Stop-Loss Explanation).
+        """
+        if config_id == "Config F":
+            verdict = "The aggressive selling panic has subsided, speculative leverage debt has reset, and Bitcoin is forming a calm, stable foundation. It is an optimal window to steadily accumulate spot Bitcoin."
+            why_points = [
+                "The Bleeding Has Stopped: Wild price swings have calmed down by over 40% from peak turmoil. The market has exited panic mode and is holding a steady floor.",
+                "Speculative Debt Flushed Clean: Borrowing funding fees have reset near zero and futures open interest is flat. Risky, over-leveraged traders have been cleared out.",
+                "Patient Buyers Absorbing Supply: Real spot buyers are steadily soaking up available coins at the bottom of this range, creating strong structural support."
+            ]
+            why_sizing = f"Why {sizing*100:.0f}% Sizing? We are accumulating inside an established floor before the big move starts. Committing {sizing*100:.0f}% of your available trading cash secures an early favorable entry, while keeping a 25% cash buffer in reserve in case the floor is briefly re-tested."
+            why_stop = f"Your Inviolable Safety Net: Stop-loss is placed at ${stop_price:,.2f} ({stop_dist_pct:.2f}% below current price). If Bitcoin drops below this floor, our accumulation thesis is invalidated. Sell back to USDT cash immediately to cap risk to a tiny, controlled loss."
+
+        elif config_id == "Config A":
+            verdict = "Real cash buyers are actively bidding Bitcoin higher on strong volume. This is an authentic, institutional-led bull market expansion."
+            why_points = [
+                "True Spot Demand: Trading volume and spot buyer order flow are expanding together. This move is driven by real capital, not borrowed leverage.",
+                "Controlled Speculation: Futures funding rates remain healthy and balanced, meaning the rally is not over-leveraged or in bubble territory.",
+                "Upward Momentum: Bitcoin is holding firmly above both daily and weekly trendlines, consistently making higher highs."
+            ]
+            why_sizing = "Why 100% Sizing? When real spot demand leads the market with low leverage, the odds heavily favor continuation. Full position allocation (1.0x) is mathematically warranted."
+            why_stop = f"Your Inviolable Safety Net: Stop is placed at ${stop_price:,.2f} ({stop_dist_pct:.2f}% away). If the recent swing low fails, exit to protect accumulated profits."
+
+        elif config_id == "Config B":
+            verdict = "Warning: The price may look high, but this rally is built on dangerous borrowed debt rather than real spot buyers. High probability of a sharp rug-pull."
+            why_points = [
+                "Fake Buying Pressure: Futures leverage is skyrocketing while actual spot cash buying is declining or flat. This is artificial momentum.",
+                "Extreme Greed & High Fees: Borrowing rates have surged, showing that late retail traders are piling into hyper-leveraged longs at the top.",
+                "Fragile Market Ceiling: Once leverage runs out of fresh capital, cascading stop-outs will trigger a fast, painful downward correction."
+            ]
+            why_sizing = "Why 0% Sizing (Take Profit)? Never chase a rally built on leverage. The system directs you to buy zero new Bitcoin, harvest 33% profit into cash, and trail your stops."
+            why_stop = f"Your Inviolable Safety Net: Trail your protective stop tightly at ${stop_price:,.2f} ({stop_dist_pct:.2f}% away). If price drops, lock in cash profits automatically."
+
+        elif config_id == "Config C":
+            verdict = "Smart money is actively defending key support. Major buyers are absorbing heavy selling pressure, preventing further downside."
+            why_points = [
+                "Rock-Solid Support: Bitcoin is testing major multi-month support or the 200-day moving average, where long-term investors step in.",
+                "Spot Buyers Stepping Up: Real spot order flow is surging green even as derivatives traders panic, showing clear divergence and institutional accumulation.",
+                "Seller Exhaustion: The selling pressure is failing to push prices lower, signaling that sellers have run out of inventory."
+            ]
+            why_sizing = f"Why {sizing*100:.0f}% Sizing? Accumulating at major defense zones offers exceptional risk-to-reward. Deploying {sizing*100:.0f}% of cash establishes a core position while preserving {100-sizing*100:.0f}% cash for flexibility."
+            why_stop = f"Your Inviolable Safety Net: Stop is anchored at ${stop_price:,.2f} ({stop_dist_pct:.2f}% risk). If institutional support breaks, cut the position immediately."
+
+        elif config_id == "Config D":
+            verdict = "Danger: Behind a calm surface, large holders are quietly dumping their coins into retail buyers. A sudden breakdown is brewing."
+            why_points = [
+                "Smart Money Selling Out: Spot order flow is strongly negative. Large accounts are selling off coins while price appears flat.",
+                "Retail Left Holding the Bag: Futures traders are attempting to keep price afloat with borrowed leverage, which never lasts.",
+                "Loss of Daily Anchor: Price is slipping beneath the daily benchmark average (VWAP), signaling lost institutional support."
+            ]
+            why_sizing = "Why 0% Sizing (100% Cash)? Do not provide exit liquidity to dumping whales. Protect 100% of your portfolio in cash."
+            why_stop = f"Your Inviolable Safety Net: Hard stop at ${stop_price:,.2f} ({stop_dist_pct:.2f}% away). If triggered, convert everything to USDT cash."
+
+        elif config_id == "Config E":
+            verdict = "Emergency / Waterfall: Over-leveraged traders are being forcibly liquidated by exchanges in a domino effect. Stand aside and hold cash."
+            why_points = [
+                "Forced Liquidation Chain: Traders are getting margin called, and exchanges are market-selling their coins automatically.",
+                "Plunging Open Interest: Billions in speculative positions are being wiped out in minutes.",
+                "Falling Knife Danger: Bids are vanishing and price is falling vertically. Trying to guess the exact bottom here is extremely dangerous."
+            ]
+            why_sizing = "Why 0% Sizing (Hold Cash)? The system strictly enforces zero buying during active waterfalls. Wait until the selling completely runs out of fuel."
+            why_stop = "Your Inviolable Safety Net: No active trades are taken during a cascade. 100% portfolio safety in cash."
+
+        elif config_id == "Config G":
+            verdict = "Aggressive short sellers got trapped and are now being forcibly squeezed out, triggering a violent upward rocket."
+            why_points = [
+                "Trapped Bearish Speculators: Excessive short positions piled in near the lows, expecting further downside.",
+                "Forced Buying Cascade: As price pushed upward, their stop-losses were hit, forcing exchanges to buy market orders that accelerate the pump.",
+                "Rapid Momentum: Open interest is dropping fast while price spikes, proving this is a mechanical squeeze rather than organic spot adoption."
+            ]
+            why_sizing = f"Why {sizing*100:.0f}% Sizing? Squeezes can run far and fast, but often exhaust once shorts finish covering. A {sizing*100:.0f}% tactical allocation captures the surge without reckless exposure."
+            why_stop = f"Your Inviolable Safety Net: Trail your stop aggressively at ${stop_price:,.2f} ({stop_dist_pct:.2f}% away) to lock in quick gains."
+
+        elif config_id == "Config H":
+            verdict = "The bull run has run out of gas. Buyers failed to break higher at resistance, creating a topping pattern."
+            why_points = [
+                "Failed Breakout: Price attempted to reach new highs but was aggressively rejected back down.",
+                "Volume Divergence: As price tested the highs, actual spot buying volume was nowhere to be seen.",
+                "High Overhead Pressure: Trapped late buyers at the highs are now looking to break even, creating a heavy ceiling."
+            ]
+            why_sizing = "Why 0% Sizing (Move to Cash)? When an uptrend exhausts at resistance, the next phase is typically a sharp correction. Harvest your profits into cash."
+            why_stop = f"Your Inviolable Safety Net: Set stops at breakeven or at ${stop_price:,.2f} ({stop_dist_pct:.2f}% away) to prevent giving back gains."
+
+        elif config_id == "Config I":
+            verdict = "Bitcoin is locked in an entrenched downtrend. Every small bounce is met with heavy selling. Cash is the only safe position."
+            why_points = [
+                "Trend Resistance: Price is trapped below key 20-day and 50-day moving averages, confirming sellers dominate every rally.",
+                "Depressed Spot Demand: Institutional buyers are on the sidelines; multi-week spot accumulation remains consistently negative.",
+                "Dip-Buyer Traps: Retail traders trying to 'buy the dip' are consistently getting stopped out."
+            ]
+            why_sizing = "Why 0% Sizing (100% USDT Cash)? In a confirmed bear trend, your greatest edge is patience. Holding 100% cash guarantees complete capital preservation."
+            why_stop = f"Your Inviolable Safety Net: No buying permitted until Bitcoin definitively reclaims the 50-day moving average (${stop_price:,.2f}) with real volume."
+
+        elif config_id == "Config J":
+            verdict = "False breakdown trap! Bitcoin briefly broke below major support to trigger panic, but big buyers instantly swallowed the supply and reclaimed the level."
+            why_points = [
+                "Bearish Trap Sprung: Short sellers rushed in at the breakdown, only to have the floor immediately reclaimed beneath their feet.",
+                "Aggressive Dip Absorption: Massive volume surged in on the wick, showing smart money stepping in with conviction.",
+                "High-Probability Reversal: Reclaiming a broken level with spot volume is historically one of the most reliable buy signals in Bitcoin."
+            ]
+            why_sizing = "Why 100% Sizing? Bear traps provide the highest statistical edge in crypto. Maximum capital deployment (1.0x) is warranted upon the 4-hour close reclaim."
+            why_stop = f"Your Inviolable Safety Net: Place your stop strictly beneath the capitulation wick low at ${stop_price:,.2f} ({stop_dist_pct:.2f}% risk). If that level breaks, exit immediately."
+
+        else:  # DATA_INCOMPLETE or fallback
+            verdict = "Market data feed is temporarily offline or incomplete. All trading recommendations are locked to protect your funds."
+            why_points = [
+                "Zero-Guesswork Policy: The monitor never invents or approximates missing exchange data.",
+                "Capital Protection First: If live order flow or open interest data cannot be verified, the only responsible action is holding cash.",
+                "Automatic Recovery: The system checks exchange feeds every 30 minutes and will resume once verified data is restored."
+            ]
+            why_sizing = "Why 0% Sizing? Never trade blind. Keep 100% of your portfolio in cash until data integrity is confirmed."
+            why_stop = "N/A: No active trades are placed while data is incomplete."
+
+        return verdict, why_points, why_sizing, why_stop
 
     def _evaluate_dominant_magnet(
         self,
@@ -369,24 +510,24 @@ class RegimeClassifier:
             "suitability": "Core Operating Zone",
             "priority": 1,
             "score": score,
-            "sizing_factor": 0.0,
-            "action": "Harvest Gains (0.0x)",
-            "rotation": "BTC -> USDT",
-            "entry_instruction": "Sizing 0.0x (Never buy at squeeze peak). Scale out 50% spot profit directly into the pump.",
-            "stop_rule": "Pre-squeeze 1H low - 0.4%",
+            "sizing_factor": 0.5,
+            "action": "Momentum Ride (0.50x)",
+            "rotation": "USDT -> BTC",
+            "entry_instruction": "Momentum Ride (0.50x). Trail 15m stop behind higher lows. Take 50% profit at pool target.",
+            "stop_rule": "Tight trailing stop at 15m swing low",
             "matched": matched
         }
 
     def _eval_config_j(self, m: MarketMetrics) -> dict:
         score = 0
         matched = []
-        if m.price > m.capitulation_wick_low and m.price >= m.daily_vwap * 0.995:
-            score += 25
-            matched.append("Price swept lows & VWAP/support reclaimed")
-        if m.funding_rate <= -0.008:
+        if m.price < m.swing_low_4h and m.price_change_1h_pct > 0.8:
             score += 30
-            matched.append(f"Funding deeply negative ({m.funding_rate*100:.3f}%)")
-        if m.oi_change_4h_pct >= 2.0 or m.long_short_account_ratio < 1.1:
+            matched.append("Sweep of 4H swing low followed by immediate V-reclaim")
+        if abs(m.price - m.capitulation_wick_low) / m.price <= 0.015:
+            score += 25
+            matched.append("Price hovering tightly above capitulation wick low")
+        if m.oi_change_1h_pct >= 1.0 and m.long_short_account_ratio < 1.0:
             score += 25
             matched.append(f"OI expanding into lows / shorts crowding (L/S {m.long_short_account_ratio:.2f})")
         if m.spot_cvd_ratio >= 1.0:

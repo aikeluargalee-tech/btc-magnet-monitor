@@ -76,6 +76,7 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         self.assertEqual(result.sizing_factor, 0.0)
         self.assertEqual(result.rotation, "Remain USDT")
         self.assertFalse(result.risk_budget_ok)
+        self.assertTrue(len(result.plain_english_verdict) > 0)
 
     def test_risk_manager_privacy_percentage_sizing(self):
         """Ensure risk manager outputs percentages and does NOT assume arbitrary $10,000 wallet."""
@@ -101,6 +102,14 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         self.assertIn("LOWER", result.dominant_magnet_reason)
         # Ensure all 6 factors are in dictionary
         self.assertEqual(len(result.magnet_factors), 6)
+
+    def test_plain_english_breakdown_populated(self):
+        """Verify plain-English explanation fields are populated for beginners."""
+        result = self.classifier.classify(self.mock_metrics, self.mock_clusters)
+        self.assertTrue(len(result.plain_english_verdict) > 20)
+        self.assertEqual(len(result.why_points), 3)
+        self.assertTrue(len(result.why_sizing_reason) > 10)
+        self.assertTrue(len(result.why_stop_reason) > 10)
 
 if __name__ == "__main__":
     unittest.main()
