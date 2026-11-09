@@ -42,6 +42,7 @@ class WebGenerator:
         dom_magnet = regime.get("dominant_magnet", "Neutral")
         dom_reason = regime.get("dominant_magnet_reason", dom_magnet)
         notes = regime.get("notes", "")
+        data_quality = regime.get("data_quality", "LIVE")
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
@@ -56,7 +57,13 @@ class WebGenerator:
         f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
 
         # Modern Black Background Accent Styles
-        if "USDT -> BTC" in rotation:
+        if cfg == "DATA_INCOMPLETE":
+            rotation_badge_bg = "bg-amber-950/60"
+            rotation_border = "border-amber-500/60"
+            rotation_text = "text-amber-400"
+            pill_tag = "DATA INCOMPLETE / STAND ASIDE"
+            hero_glow = "shadow-[0_0_40px_-10px_rgba(245,158,11,0.2)]"
+        elif "USDT -> BTC" in rotation:
             rotation_badge_bg = "bg-emerald-950/60"
             rotation_border = "border-emerald-500/60"
             rotation_text = "text-emerald-400"
@@ -82,9 +89,10 @@ class WebGenerator:
         spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
         oi_change_24h = metrics.get("oi_change_24h_pct", 0.0)
         basis = metrics.get("futures_basis_annualized", 0.0)
-        atr = metrics.get("atr", 0.0)
         ls_ratio = metrics.get("long_short_account_ratio", 1.0)
         current_oi = metrics.get("open_interest", 0.0)
+        spot_source = metrics.get("spot_data_source", "Binance Vision API")
+        futures_source = metrics.get("futures_data_source", "Deribit & Kraken Futures")
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -119,7 +127,7 @@ class WebGenerator:
         <div>
           <h1 class="font-bold text-base tracking-tight text-white flex items-center gap-2">
             BTC MAGNET MONITOR
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v1.2</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v1.3</span>
           </h1>
           <p class="text-xs text-zinc-400">Observable Positioning Mechanics &amp; Regime Radar</p>
         </div>
@@ -130,18 +138,18 @@ class WebGenerator:
           <div class="text-[10px] font-mono uppercase text-zinc-400">BTC Spot Price</div>
           <div class="text-sm font-bold mono text-white">${price:,.2f}</div>
         </div>
-        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-emerald-950/50 text-emerald-400 border border-emerald-800/60">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>LIVE AUTO-SCAN</span>
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium {'bg-emerald-950/50 text-emerald-400 border border-emerald-800/60' if data_quality == 'LIVE' else 'bg-amber-950/50 text-amber-400 border border-amber-800/60'}">
+          <span class="w-1.5 h-1.5 rounded-full {'bg-emerald-400' if data_quality == 'LIVE' else 'bg-amber-400'} animate-pulse"></span>
+          <span>{data_quality} DATA FEED</span>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- Status Bar -->
+  <!-- Data Provenance & Status Bar -->
   <div class="border-b border-zinc-900 bg-zinc-950 px-4 py-1.5 text-xs text-zinc-400">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
-      <div>FEED: BINANCE SPOT + DERIBIT/KRAKEN FUTURES &bull; CADENCE: EVERY 30 MIN</div>
+      <div>SOURCES: {spot_source} &bull; {futures_source} &bull; CADENCE: 30M</div>
       <div>LAST SCAN: {data.get("timestamp", "")[:19]} UTC</div>
     </div>
   </div>
@@ -165,7 +173,7 @@ class WebGenerator:
           </h2>
         </div>
 
-        <!-- Big Spot Rotation Directive Box -->
+        <!-- Spot Rotation Directive Box -->
         <div class="p-4 rounded-xl border {rotation_border} {rotation_badge_bg} flex flex-col items-center justify-center min-w-[270px]">
           <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
             Spot Rotation Directive
@@ -203,14 +211,14 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- Liquidation Magnet Module -->
+    <!-- Liquidation Magnet Module (Explicitly labeled as Modeled Pools) -->
     <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
         <div>
           <h3 class="text-base font-bold text-white flex items-center gap-2">
-            🧲 Liquidation Magnet Proximity
+            🧲 Modeled Liquidity Pools (Algorithmic Leverage Estimates)
           </h3>
-          <p class="text-xs text-zinc-400">Mechanical liquidity pools &amp; forced stop concentrations</p>
+          <p class="text-xs text-zinc-400">Estimated forced stop clusters anchored to 4H swing extremes (10x, 25x, 50x, 100x)</p>
         </div>
         <div class="px-3 py-1.5 rounded-lg border border-amber-600/50 bg-amber-950/40 text-amber-300 text-xs font-mono">
           <span class="text-zinc-400">DOMINANT MAGNET:</span> <strong>{dom_reason}</strong>
@@ -221,7 +229,7 @@ class WebGenerator:
         <!-- Upper Short Magnet -->
         <div class="bg-black p-4 rounded-lg border border-zinc-800">
           <div class="flex items-center justify-between text-xs mb-2">
-            <span class="text-rose-400 font-bold uppercase tracking-wide">▲ Upper Short Liquidation Magnet</span>
+            <span class="text-rose-400 font-bold uppercase tracking-wide">▲ Upper Short Liquidity Pool</span>
             <span class="mono font-semibold text-white bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
               +{upper_c.get('distance_pct', 0.0):.2f}% (+{upper_c.get('distance_atr', 0.0):.2f} ATR)
             </span>
@@ -230,7 +238,7 @@ class WebGenerator:
             ${upper_c.get('price_level', 0.0):,.2f}
           </div>
           <div class="text-xs text-zinc-400 mt-1">
-            Est. Liquidation Volume: <span class="font-bold text-slate-200 mono">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span>
+            Modeled Liquidity Pool: <span class="font-bold text-slate-200 mono">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span> <span class="text-[10px] text-zinc-500">(Estimate)</span>
           </div>
           <div class="w-full bg-zinc-900 h-1.5 rounded-full mt-3 overflow-hidden">
             <div class="bg-rose-500 h-full rounded-full" style="width: min(100%, {max(15, upper_c.get('distance_pct', 1.0) * 15)}%);"></div>
@@ -240,7 +248,7 @@ class WebGenerator:
         <!-- Lower Long Magnet -->
         <div class="bg-black p-4 rounded-lg border border-zinc-800">
           <div class="flex items-center justify-between text-xs mb-2">
-            <span class="text-emerald-400 font-bold uppercase tracking-wide">▼ Lower Long Liquidation Magnet</span>
+            <span class="text-emerald-400 font-bold uppercase tracking-wide">▼ Lower Long Liquidity Pool</span>
             <span class="mono font-semibold text-white bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
               -{lower_c.get('distance_pct', 0.0):.2f}% (-{lower_c.get('distance_atr', 0.0):.2f} ATR)
             </span>
@@ -249,7 +257,7 @@ class WebGenerator:
             ${lower_c.get('price_level', 0.0):,.2f}
           </div>
           <div class="text-xs text-zinc-400 mt-1">
-            Est. Liquidation Volume: <span class="font-bold text-slate-200 mono">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span>
+            Modeled Liquidity Pool: <span class="font-bold text-slate-200 mono">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span> <span class="text-[10px] text-zinc-500">(Estimate)</span>
           </div>
           <div class="w-full bg-zinc-900 h-1.5 rounded-full mt-3 overflow-hidden">
             <div class="bg-emerald-500 h-full rounded-full" style="width: min(100%, {max(15, lower_c.get('distance_pct', 1.0) * 15)}%);"></div>
@@ -305,7 +313,7 @@ class WebGenerator:
         <div class="bg-black p-3 rounded-lg border border-zinc-800">
           <div class="text-[10px] font-mono text-zinc-400 uppercase">Spot CVD Ratio</div>
           <div class="text-lg font-bold mono text-white mt-1">{spot_cvd_ratio:.2f}</div>
-          <div class="text-[10px] text-zinc-500">Taker Volume Delta</div>
+          <div class="text-[10px] text-zinc-500">Candle Taker Delta</div>
         </div>
 
         <div class="bg-black p-3 rounded-lg border border-zinc-800">

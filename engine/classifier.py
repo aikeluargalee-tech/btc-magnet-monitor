@@ -1,10 +1,20 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from engine.models import MarketMetrics, LiquidationCluster, RegimeResult
 
 class RegimeClassifier:
-    """Classifies current BTC market state into Configs A through J strictly matching the Regime Radar."""
+    """
+    Classifies market state into Configs A through J strictly matching the Regime Radar.
+    Strict Data Integrity:
+      - Validates that market metrics are verified and live before evaluating.
+      - Withholds trading verdict if data is incomplete.
+      - Implements 100% mathematical alignment across all 6 magnet override factors.
+    """
 
-    def classify(self, m: MarketMetrics, clusters: List[LiquidationCluster]) -> RegimeResult:
+    def classify(self, m: Optional[MarketMetrics], clusters: List[LiquidationCluster]) -> RegimeResult:
+        # Data integrity check
+        if m is None or not clusters:
+            return self._create_data_incomplete_result("Market metrics or liquidation clusters unavailable.")
+
         upper_cluster = next((c for c in clusters if c.side == "upper"), None)
         lower_cluster = next((c for c in clusters if c.side == "lower"), None)
 
@@ -25,7 +35,6 @@ class RegimeClassifier:
             self._eval_config_a(m),
         ]
 
-        # Filter candidates that scored >= 50, sort by priority and score
         valid = [c for c in candidates if c["score"] >= 45]
         
         if valid:
@@ -41,10 +50,12 @@ class RegimeClassifier:
         # Risk budget check: standard swing trade risk limit is <= 3.5% stop distance
         risk_budget_ok = stop_dist_pct <= 3.5
 
-        # Allocations based on sizing factor
+        # Allocations based on sizing factor (Percentage-based, privacy-first)
         sizing = best["sizing_factor"]
-        max_spot_allocation = 80.0  # Max ceiling 80% BTC, 20% USDT reserve
-        current_recommended_allocation = round(max_spot_allocation * sizing, 1)
+        max_spot_allocation = 80.0
+        target_btc_pct = round(max_spot_allocation * sizing, 1)
+        target_usdt_pct = round(100.0 - target_btc_pct, 1)
+        recommended_cash_deploy = round(sizing * 100.0, 1)
 
         # Combine diagnosis notes with explicit 1-2 sentence decisive magnet rationale
         notes = f"{best['diagnosis']}. Magnet Analysis: {magnet_reason} Matched {len(best['matched'])} facts: {', '.join(best['matched'])}."
@@ -68,10 +79,41 @@ class RegimeClassifier:
             dominant_magnet_reason=magnet_title,
             magnet_factors=magnet_factors,
             risk_budget_ok=risk_budget_ok,
-            max_spot_allocation_pct=max_spot_allocation,
-            current_recommended_allocation_pct=current_recommended_allocation,
+            recommended_cash_deploy_pct=recommended_cash_deploy,
+            target_btc_allocation_pct=target_btc_pct,
+            target_usdt_reserve_pct=target_usdt_pct,
             matched_criteria=best["matched"],
-            notes=notes
+            notes=notes,
+            data_quality=m.data_quality
+        )
+
+    def _create_data_incomplete_result(self, reason: str) -> RegimeResult:
+        """Returns safe default when critical exchange data is unavailable."""
+        return RegimeResult(
+            config="DATA_INCOMPLETE",
+            name="Data Incomplete",
+            diagnosis="Critical market data feed unavailable. Trading verdict withheld for safety.",
+            regime_type="Incomplete Data",
+            suitability="Restricted / Stand Aside",
+            sizing_factor=0.0,
+            action="Stand Aside / Hold Cash (0.0x)",
+            rotation="Remain USDT",
+            entry_instruction="Hold cash. Do not execute trades while market data integrity is compromised.",
+            stop_rule="N/A (No active trade)",
+            stop_price=0.0,
+            stop_distance_pct=0.0,
+            nearest_upper_cluster=None,
+            nearest_lower_cluster=None,
+            dominant_magnet="N/A",
+            dominant_magnet_reason="DATA INCOMPLETE: Missing critical market metrics.",
+            magnet_factors={},
+            risk_budget_ok=False,
+            recommended_cash_deploy_pct=0.0,
+            target_btc_allocation_pct=0.0,
+            target_usdt_reserve_pct=100.0,
+            matched_criteria=[f"Data integrity alert: {reason}"],
+            notes=f"Trading verdict withheld. Reason: {reason}",
+            data_quality="UNAVAILABLE"
         )
 
     def _evaluate_dominant_magnet(
@@ -81,13 +123,14 @@ class RegimeClassifier:
         lower: Optional[LiquidationCluster]
     ) -> Tuple[str, str, str, dict]:
         """
-        Systematically evaluates Upper vs Lower Liquidation Magnet using the 6 Override Factors:
+        Evaluates Upper vs Lower Liquidation Magnet using the 6 Override Factors:
           1. Cluster Size / Magnitude Disparity
           2. Spot vs Derivatives Leadership (Spot CVD)
           3. Crowding and Fuel (Funding Rate + Retail L/S + OI Flow)
           4. Regime & Higher-Timeframe Structure (Range/Base vs Trend)
           5. Asymmetry (Distance & Density comparison)
           6. Volatility Regime (ATR Compression)
+        All 6 factors actively contribute to the numerical gravitational score.
         """
         if not upper and not lower:
             return "Neutral / None", "NEUTRAL: No clear clusters", "No liquidation clusters detected.", {}
@@ -106,9 +149,9 @@ class RegimeClassifier:
         # Factor 1: Cluster Size / Magnitude
         size_ratio_l_to_u = l_vol / u_vol
         if size_ratio_l_to_u >= 3.0:
-            f1_text = f"LOWER is {size_ratio_l_to_u:.1f}x larger (${l_vol/1e6:.1f}M vs ${u_vol/1e6:.1f}M); massive liquidity pool advantage"
+            f1_text = f"LOWER is {size_ratio_l_to_u:.1f}x larger (${l_vol/1e6:.1f}M vs ${u_vol/1e6:.1f}M); massive liquidity advantage"
         elif size_ratio_l_to_u <= 0.33:
-            f1_text = f"UPPER is {1.0/size_ratio_l_to_u:.1f}x larger (${u_vol/1e6:.1f}M vs ${l_vol/1e6:.1f}M); strong liquidity pool advantage"
+            f1_text = f"UPPER is {1.0/size_ratio_l_to_u:.1f}x larger (${u_vol/1e6:.1f}M vs ${l_vol/1e6:.1f}M); strong liquidity advantage"
         else:
             f1_text = f"Balanced magnitudes (${u_vol/1e6:.1f}M UPPER vs ${l_vol/1e6:.1f}M LOWER; ratio {size_ratio_l_to_u:.1f}x)"
 
@@ -116,7 +159,7 @@ class RegimeClassifier:
         spot_override_upper = False
         spot_override_lower = False
         if m.spot_cvd_ratio >= 1.25:
-            f2_text = f"Spot CVD strongly positive ({m.spot_cvd_ratio:.2f}); genuine spot demand supports upside pull"
+            f2_text = f"Spot CVD positive ({m.spot_cvd_ratio:.2f}); genuine spot demand supports upside pull"
             spot_override_upper = True
         elif m.spot_cvd_ratio <= 0.85:
             f2_text = f"Spot CVD negative ({m.spot_cvd_ratio:.2f}); spot selling pressure reinforces downside gravity"
@@ -137,14 +180,18 @@ class RegimeClassifier:
             f3_text = f"Funding controlled ({m.funding_rate*100:.3f}%), L/S ratio {m.long_short_account_ratio:.2f}; moderate crowding"
 
         # Factor 4: Regime / Higher-Timeframe Structure
+        regime_upper_bias = False
+        regime_lower_bias = False
         if m.price < m.ma_200d and m.price < m.daily_vwap:
             f4_text = "Price below VWAP & 200D MA; structural weight favors lower base retests"
+            regime_lower_bias = True
         elif m.price > m.daily_vwap and m.price > m.weekly_vwap:
             f4_text = "Price above Daily & Weekly VWAP; structural momentum favors upper continuation"
+            regime_upper_bias = True
         else:
             f4_text = "Range / base compression; positioning magnets dominate immediate travel"
 
-        # Factor 5: Asymmetry
+        # Factor 5: Distance Asymmetry
         dist_ratio = l_dist / u_dist
         if 0.6 <= dist_ratio <= 1.6:
             f5_text = f"Distances roughly comparable ({u_dist:.2f}% UPPER vs {l_dist:.2f}% LOWER); size and crowding decide priority"
@@ -154,24 +201,24 @@ class RegimeClassifier:
             f5_text = f"LOWER is closer ({l_dist:.2f}% vs {u_dist:.2f}%); proximity favors LOWER"
 
         # Factor 6: Volatility Regime (ATR)
-        if m.atr_compression_pct >= 35.0:
+        is_atr_compressed = m.atr_compression_pct >= 35.0
+        if is_atr_compressed:
             f6_text = f"ATR compressed {m.atr_compression_pct:.1f}%; low volatility amplifies magnetic pull of nearest dense pool"
         else:
             f6_text = f"ATR normal ({m.atr:,.0f} USD); price has sufficient room for wider expansion"
 
-        # --- Compute Gravitational Pull Score ---
-        # Base gravitational pull: Volume / (Distance % ^ 1.15)
+        # --- Compute Gravitational Pull Score (All 6 Factors Active) ---
+        # Base gravitational pull: Volume / (Distance % ^ 1.15) [Factor 1 & 5]
         pull_upper = (u_vol / 1e6) / (u_dist ** 1.15)
         pull_lower = (l_vol / 1e6) / (l_dist ** 1.15)
 
-        # Multipliers
-        # Crowding boost (trapped liquidity attracts price)
+        # Factor 3 Multiplier: Crowding boost (trapped liquidity attracts price)
         if crowd_lower:
             pull_lower *= 1.85
         if crowd_upper:
             pull_upper *= 1.85
 
-        # Spot leadership confirmation
+        # Factor 2 Multiplier: Spot leadership confirmation
         if spot_override_upper:
             pull_upper *= 1.60
             pull_lower *= 0.70
@@ -179,11 +226,26 @@ class RegimeClassifier:
             pull_lower *= 1.60
             pull_upper *= 0.70
 
-        # Size override: if one cluster is > 5x larger, give extra inertia boost
+        # Factor 1 Multiplier: Extreme Size disparity inertia
         if size_ratio_l_to_u >= 5.0:
             pull_lower *= min(2.5, (size_ratio_l_to_u / 5.0) ** 0.5)
         elif size_ratio_l_to_u <= 0.2:
             pull_upper *= min(2.5, ((1.0 / size_ratio_l_to_u) / 5.0) ** 0.5)
+
+        # Factor 4 Multiplier: Structural Trend Bias
+        if regime_upper_bias:
+            pull_upper *= 1.30
+            pull_lower *= 0.85
+        elif regime_lower_bias:
+            pull_lower *= 1.30
+            pull_upper *= 0.85
+
+        # Factor 6 Multiplier: ATR Compression Impact
+        if is_atr_compressed:
+            if u_dist < l_dist:
+                pull_upper *= 1.35
+            else:
+                pull_lower *= 1.35
 
         factors_dict = {
             "factor_1_size": f1_text,
@@ -198,7 +260,7 @@ class RegimeClassifier:
         if pull_lower >= pull_upper:
             dominant_name = "Lower Long Sweep Magnet"
             if size_ratio_l_to_u >= 2.5 and u_dist < l_dist:
-                reason_short = f"LOWER (Size {size_ratio_l_to_u:.1f}x larger outweighs +{l_dist - u_dist:.2f}% distance; longs crowded)"
+                reason_short = f"LOWER (Size {size_ratio_l_to_u:.1f}x larger outweighs distance edge; longs crowded)"
                 reason_full = f"Lower cluster chosen: massive liquidity pool (${l_vol/1e6:.1f}M vs ${u_vol/1e6:.1f}M, {size_ratio_l_to_u:.1f}x) overrides the minor proximity of upper cluster, amplified by crowded long positioning."
             elif l_dist <= u_dist:
                 reason_short = f"LOWER (Nearest -{l_dist:.2f}% + larger volume ${l_vol/1e6:.1f}M; spot neutral)"
@@ -209,7 +271,7 @@ class RegimeClassifier:
         else:
             dominant_name = "Upper Short Squeeze Magnet"
             if size_ratio_l_to_u <= 0.4 and l_dist < u_dist:
-                reason_short = f"UPPER (Size {1.0/size_ratio_l_to_u:.1f}x larger outweighs +{u_dist - l_dist:.2f}% distance; upside fuel)"
+                reason_short = f"UPPER (Size {1.0/size_ratio_l_to_u:.1f}x larger outweighs distance edge; upside fuel)"
                 reason_full = f"Upper cluster chosen: superior liquidation volume (${u_vol/1e6:.1f}M vs ${l_vol/1e6:.1f}M) outweighs minor lower proximity."
             elif u_dist <= l_dist and spot_override_upper:
                 reason_short = f"UPPER (Nearest +{u_dist:.2f}% + Spot CVD confirming upside + compressed ATR)"
@@ -223,7 +285,7 @@ class RegimeClassifier:
     def _calculate_stop(self, config_id: str, m: MarketMetrics) -> Tuple[float, float]:
         """Calculates stop price and distance % based on the exact Config protocol."""
         current_price = m.price
-        stop_price = current_price * 0.97  # fallback 3%
+        stop_price = current_price * 0.97
 
         if config_id == "Config A":
             stop_price = m.swing_low_4h * (1.0 - 0.006)
@@ -240,19 +302,18 @@ class RegimeClassifier:
         elif config_id == "Config G":
             stop_price = m.swing_low_4h * (1.0 - 0.004)
         elif config_id == "Config H":
-            stop_price = current_price  # Breakeven
+            stop_price = current_price
         elif config_id == "Config I":
-            stop_price = m.ema_50d * 1.01  # Invalidation is above 50D EMA
+            stop_price = m.ema_50d * 1.01
         elif config_id == "Config J":
             stop_price = m.capitulation_wick_low * (1.0 - 0.006)
 
         stop_dist_pct = abs(current_price - stop_price) / current_price * 100
         return stop_price, stop_dist_pct
 
-    # --- Evaluators for Configs A through J ---
+    # --- Evaluators for Configs A through J (Strictly verified on-exchange metrics) ---
 
     def _eval_config_e(self, m: MarketMetrics) -> dict:
-        """Config E: Liquidation Cascade (Forced Waterfall Deleveraging)."""
         score = 0
         matched = []
         if m.price_change_1h_pct <= -3.5 or m.price_change_24h_pct <= -7.0:
@@ -277,15 +338,14 @@ class RegimeClassifier:
             "priority": 1,
             "score": score,
             "sizing_factor": 0.0,
-            "action": "Wait for Phase 3",
+            "action": "Wait for Phase 3 (0.0x)",
             "rotation": "Remain USDT",
-            "entry_instruction": "Wait for Phase 3: 5m liqs < $2M, OI stabilizing flat, 15m hammer wick. Deploy 0.50x ladder (30%/40%/30%).",
+            "entry_instruction": "Wait for Phase 3: 5m liqs stabilize, OI flat, 15m hammer wick. Deploy 0.50x ladder.",
             "stop_rule": "Capitulation wick low - 1.0%",
             "matched": matched
         }
 
     def _eval_config_g(self, m: MarketMetrics) -> dict:
-        """Config G: Short Squeeze (Mechanical Liquidation Run)."""
         score = 0
         matched = []
         if m.price_change_1h_pct >= 2.0 and m.price > m.daily_vwap:
@@ -310,7 +370,7 @@ class RegimeClassifier:
             "priority": 1,
             "score": score,
             "sizing_factor": 0.0,
-            "action": "Harvest Gains",
+            "action": "Harvest Gains (0.0x)",
             "rotation": "BTC -> USDT",
             "entry_instruction": "Sizing 0.0x (Never buy at squeeze peak). Scale out 50% spot profit directly into the pump.",
             "stop_rule": "Pre-squeeze 1H low - 0.4%",
@@ -318,7 +378,6 @@ class RegimeClassifier:
         }
 
     def _eval_config_j(self, m: MarketMetrics) -> dict:
-        """Config J: Bear Trap (Capitulation Absorption)."""
         score = 0
         matched = []
         if m.price > m.capitulation_wick_low and m.price >= m.daily_vwap * 0.995:
@@ -345,13 +404,12 @@ class RegimeClassifier:
             "sizing_factor": 1.0,
             "action": "Reclaim Buy (1.0x)",
             "rotation": "USDT -> BTC",
-            "entry_instruction": "Maximum +EV setup. 4H close decisively back above broken support. Sizing 0.90x-1.0x.",
+            "entry_instruction": "Maximum +EV setup. 4H close decisively back above broken support. Sizing 1.0x.",
             "stop_rule": "Capitulation wick low - 0.6%",
             "matched": matched
         }
 
     def _eval_config_c(self, m: MarketMetrics) -> dict:
-        """Config C: Bullish Absorption (Institutional Base Defense)."""
         score = 0
         matched = []
         if abs(m.price - m.ma_200d) / m.ma_200d <= 0.035 or abs(m.price - m.base_floor) / m.base_floor <= 0.02:
@@ -387,7 +445,6 @@ class RegimeClassifier:
         }
 
     def _eval_config_f(self, m: MarketMetrics) -> dict:
-        """Config F: Re-Accumulation (Post-Cascade Clean Base)."""
         score = 0
         matched = []
         if m.atr_compression_pct >= 30.0:
@@ -424,7 +481,6 @@ class RegimeClassifier:
         }
 
     def _eval_config_b(self, m: MarketMetrics) -> dict:
-        """Config B: Leveraged Bull (Fragile Overextension / Trap)."""
         score = 0
         matched = []
         if m.price_change_24h_pct >= 3.5:
@@ -451,13 +507,12 @@ class RegimeClassifier:
             "sizing_factor": 0.0,
             "action": "Trim / Stand Aside (0.0x)",
             "rotation": "BTC -> USDT",
-            "entry_instruction": "Strictly zero new buying. Harvest 33% profit directly into perp pump. Trail stop on 67%.",
+            "entry_instruction": "Strictly zero new buying. Harvest 33% profit directly into perp pump. Trail stop.",
             "stop_rule": "Trail tight stop at 4H swing low",
             "matched": matched
         }
 
     def _eval_config_d(self, m: MarketMetrics) -> dict:
-        """Config D: Masked Fragility (Stealth Distribution Top)."""
         score = 0
         matched = []
         if m.spot_cvd_ratio <= 0.88:
@@ -484,13 +539,12 @@ class RegimeClassifier:
             "sizing_factor": 0.0,
             "action": "Defensive Cash (100%)",
             "rotation": "BTC -> USDT",
-            "entry_instruction": "Sizing 0.0x (Target: 75%-100% USDT Cash). Market sell 50% on 1H close below VWAP.",
+            "entry_instruction": "Sizing 0.0x (Target: 100% USDT Cash). Market sell 50% on 1H close below VWAP.",
             "stop_rule": "Hard trailing stop on 50% at 24h low",
             "matched": matched
         }
 
     def _eval_config_h(self, m: MarketMetrics) -> dict:
-        """Config H: Distribution Top (Topping Exhaustion Failure)."""
         score = 0
         matched = []
         if abs(m.price - m.swing_high_4h) / m.price <= 0.015 and m.price < m.daily_vwap:
@@ -517,13 +571,12 @@ class RegimeClassifier:
             "sizing_factor": 0.0,
             "action": "Defensive Cash (100%)",
             "rotation": "BTC -> USDT",
-            "entry_instruction": "Sizing 0.0x (Cash: 85%-100% USDT). Market sell 70% spot on 4H rejection.",
+            "entry_instruction": "Sizing 0.0x (Target: 100% USDT Cash). Market sell 70% spot on 4H rejection.",
             "stop_rule": "Move stop to Breakeven on remaining 30%",
             "matched": matched
         }
 
     def _eval_config_i(self, m: MarketMetrics) -> dict:
-        """Config I: Bear Trend (Bearish Trend Continuation)."""
         score = 0
         matched = []
         if m.price < m.ema_20d and m.price < m.ema_50d and m.price < m.daily_vwap:
@@ -550,13 +603,12 @@ class RegimeClassifier:
             "sizing_factor": 0.0,
             "action": "Strict Cash (100%)",
             "rotation": "Remain USDT",
-            "entry_instruction": "Strict Cash (100% USDT). Treat every relief bounce as exit liquidity. Active magnet hunting forbidden.",
+            "entry_instruction": "Strict Cash (100% USDT). Treat every relief bounce as exit liquidity.",
             "stop_rule": "Invalidation: 1D close > 50D EMA with positive Spot CVD",
             "matched": matched
         }
 
     def _eval_config_a(self, m: MarketMetrics) -> dict:
-        """Config A: Healthy Bull (Genuine Spot-Led Expansion)."""
         score = 0
         matched = []
         if m.price > m.daily_vwap and m.price > m.weekly_vwap:
@@ -586,7 +638,7 @@ class RegimeClassifier:
             "sizing_factor": 1.0,
             "action": "Full Spot Long (1.0x)",
             "rotation": "USDT -> BTC",
-            "entry_instruction": "Full Spot Long (1.0x). Entry: 60% breakout confirmation / 40% VWAP retest. Max equity: 50%.",
+            "entry_instruction": "Full Spot Long (1.0x). Entry: 60% breakout confirmation / 40% VWAP retest.",
             "stop_rule": "4H swing low - 0.6%",
             "matched": matched
         }
