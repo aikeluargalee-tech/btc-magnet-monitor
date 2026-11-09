@@ -83,10 +83,11 @@ class RegimeResult:
     stop_price: float
     stop_distance_pct: float
     
-    # Magnetic Clusters
+    # Magnetic Clusters & Multi-Factor Preference
     nearest_upper_cluster: Optional[LiquidationCluster]
     nearest_lower_cluster: Optional[LiquidationCluster]
     dominant_magnet: str
+    dominant_magnet_reason: str
     
     # Risk Management Rules
     risk_budget_ok: bool
@@ -95,6 +96,7 @@ class RegimeResult:
     
     matched_criteria: List[str]
     notes: str
+    magnet_factors: Dict[str, str] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:

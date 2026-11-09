@@ -40,10 +40,20 @@ class WebGenerator:
         stop_dist = regime.get("stop_distance_pct", 0.0)
         entry_inst = regime.get("entry_instruction", "")
         dom_magnet = regime.get("dominant_magnet", "Neutral")
+        dom_reason = regime.get("dominant_magnet_reason", dom_magnet)
         notes = regime.get("notes", "")
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
+
+        # 6-Factor Multi-Factor Magnet Preference Details
+        magnet_factors = regime.get("magnet_factors", {})
+        f1 = magnet_factors.get("factor_1_size", "Evaluating cluster size disparity...")
+        f2 = magnet_factors.get("factor_2_spot_leadership", "Evaluating spot vs derivatives CVD...")
+        f3 = magnet_factors.get("factor_3_crowding_fuel", "Evaluating funding and positioning crowding...")
+        f4 = magnet_factors.get("factor_4_regime_structure", "Evaluating regime structure...")
+        f5 = magnet_factors.get("factor_5_asymmetry", "Evaluating cluster distance asymmetry...")
+        f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
 
         # IBM Retro Phosphor Palette
         # Classic IBM 3270: Green Phosphor (#00ff66) / Amber Phosphor (#ffb000) / Red Alert (#ff3b30)
@@ -237,15 +247,15 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- Liquidation Magnet Module (ASCII Style) -->
+    <!-- Liquidation Magnet Module (ASCII Style + 6-Factor Logic Sub-Panel) -->
     <div class="border border-[#00ff66]/40 p-5 bg-[#020b06]">
       <div class="flex flex-wrap items-center justify-between border-b border-[#1a3a2a] pb-3 mb-4 gap-2">
         <div class="font-bold text-sm tracking-wider flex items-center gap-2">
-          <span>[+] LIQUIDATION MAGNET PROXIMITY CALCULATOR</span>
-          <span class="text-xs text-[#00e5ff] font-normal">// MECHANICAL LEVERAGE POOLS</span>
+          <span>[+] LIQUIDATION MAGNET PROXIMITY &amp; GRAVITATIONAL OVERRIDE</span>
+          <span class="text-xs text-[#00e5ff] font-normal">// 6-FACTOR CHECKLIST</span>
         </div>
-        <div class="text-xs border border-[#ffb000] px-2 py-0.5 text-[#ffb000] bg-[#1a1200]">
-          DOMINANT GRAVITATIONAL MAGNET: <strong class="underline">{dom_magnet}</strong>
+        <div class="text-xs border border-[#ffb000] px-2.5 py-1 text-[#ffb000] bg-[#1a1200] max-w-full">
+          DOMINANT MAGNET: <strong class="underline text-white font-bold">{dom_reason}</strong>
         </div>
       </div>
 
@@ -284,6 +294,45 @@ class WebGenerator:
           <div class="mt-3 text-xs text-[#00ff66] font-mono">
             PULL: [{("=" * int(min(20, max(2, lower_c.get('distance_pct', 1.0) * 3)))).ljust(20, "-")}]
           </div>
+        </div>
+      </div>
+
+      <!-- Explicit 6-Factor Magnet Preference Override Sub-Panel -->
+      <div class="mt-4 border border-[#1a3a2a] p-4 bg-black/80 font-mono text-xs">
+        <div class="flex flex-wrap items-center justify-between text-[#00e5ff] border-b border-[#1a3a2a] pb-2 mb-3 gap-2">
+          <span class="font-bold tracking-wider">[+] MAGNET PREFERENCE LOGIC // 6 OVERRIDE FACTORS IN HIERARCHY</span>
+          <span class="text-[10px] text-slate-400">ORDER: 1.SIZE &gt; 2.SPOT_CVD &gt; 3.CROWDING &gt; 4.REGIME &gt; 5.ASYMMETRY &gt; 6.ATR</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-[11px] text-slate-300">
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 1. CLUSTER SIZE / MAGNITUDE:</strong>
+            <span class="leading-relaxed">{f1}</span>
+          </div>
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 2. SPOT VS DERIVATIVES LEADERSHIP:</strong>
+            <span class="leading-relaxed">{f2}</span>
+          </div>
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 3. CROWDING &amp; FUEL (FUNDING + OI):</strong>
+            <span class="leading-relaxed">{f3}</span>
+          </div>
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 4. REGIME / HTF STRUCTURE:</strong>
+            <span class="leading-relaxed">{f4}</span>
+          </div>
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 5. ASYMMETRY COMPARISON:</strong>
+            <span class="leading-relaxed">{f5}</span>
+          </div>
+          <div class="p-2 border border-[#112a1e] bg-[#020b06]">
+            <strong class="text-[#00ff66] block mb-0.5">&gt; 6. ATR VOLATILITY REGIME:</strong>
+            <span class="leading-relaxed">{f6}</span>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-[#1a3a2a] text-xs">
+          <span class="text-[#ffb000] font-bold">&gt;&gt;&gt; DECISIVE PREFERENCE OUTCOME:</span>
+          <span class="text-white font-bold ml-1.5">{dom_reason}</span>
         </div>
       </div>
     </div>

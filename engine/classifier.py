@@ -8,8 +8,8 @@ class RegimeClassifier:
         upper_cluster = next((c for c in clusters if c.side == "upper"), None)
         lower_cluster = next((c for c in clusters if c.side == "lower"), None)
 
-        # Determine dominant magnet based on distance, crowding, and funding
-        dominant_magnet, magnet_notes = self._evaluate_dominant_magnet(m, upper_cluster, lower_cluster)
+        # Determine dominant magnet based on the 6 override factors
+        dominant_magnet, magnet_title, magnet_reason, magnet_factors = self._evaluate_dominant_magnet(m, upper_cluster, lower_cluster)
 
         # Score all configs
         candidates = [
@@ -26,19 +26,12 @@ class RegimeClassifier:
         ]
 
         # Filter candidates that scored >= 50, sort by priority and score
-        # Priority order:
-        # Priority 1: Cascade / Squeeze extreme events (E, G)
-        # Priority 2: Absorption / Traps (J, C, F)
-        # Priority 3: Distribution / Fragility / Trend (B, D, H, I)
-        # Priority 4: Healthy Expansion (A)
         valid = [c for c in candidates if c["score"] >= 45]
         
         if valid:
-            # Sort by priority rank (lower is higher priority) then score descending
             valid.sort(key=lambda x: (x["priority"], -x["score"]))
             best = valid[0]
         else:
-            # Fallback to the highest score overall
             candidates.sort(key=lambda x: -x["score"])
             best = candidates[0]
 
@@ -53,7 +46,8 @@ class RegimeClassifier:
         max_spot_allocation = 80.0  # Max ceiling 80% BTC, 20% USDT reserve
         current_recommended_allocation = round(max_spot_allocation * sizing, 1)
 
-        notes = f"{best['diagnosis']}. {magnet_notes} Matched {len(best['matched'])} facts: {', '.join(best['matched'])}."
+        # Combine diagnosis notes with explicit 1-2 sentence decisive magnet rationale
+        notes = f"{best['diagnosis']}. Magnet Analysis: {magnet_reason} Matched {len(best['matched'])} facts: {', '.join(best['matched'])}."
 
         return RegimeResult(
             config=best["config_id"],
@@ -71,6 +65,8 @@ class RegimeClassifier:
             nearest_upper_cluster=upper_cluster,
             nearest_lower_cluster=lower_cluster,
             dominant_magnet=dominant_magnet,
+            dominant_magnet_reason=magnet_title,
+            magnet_factors=magnet_factors,
             risk_budget_ok=risk_budget_ok,
             max_spot_allocation_pct=max_spot_allocation,
             current_recommended_allocation_pct=current_recommended_allocation,
@@ -83,40 +79,146 @@ class RegimeClassifier:
         m: MarketMetrics,
         upper: Optional[LiquidationCluster],
         lower: Optional[LiquidationCluster]
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, str, str, dict]:
+        """
+        Systematically evaluates Upper vs Lower Liquidation Magnet using the 6 Override Factors:
+          1. Cluster Size / Magnitude Disparity
+          2. Spot vs Derivatives Leadership (Spot CVD)
+          3. Crowding and Fuel (Funding Rate + Retail L/S + OI Flow)
+          4. Regime & Higher-Timeframe Structure (Range/Base vs Trend)
+          5. Asymmetry (Distance & Density comparison)
+          6. Volatility Regime (ATR Compression)
+        """
         if not upper and not lower:
-            return "Neutral / None", "No clear liquidation clusters detected."
+            return "Neutral / None", "NEUTRAL: No clear clusters", "No liquidation clusters detected.", {}
         if not upper:
-            return "Lower Long Sweep Magnet", f"Nearest lower cluster at ${lower.price_level:,.0f} ({lower.distance_pct:.2f}% away)."
+            desc = f"LOWER (${lower.price_level:,.0f}, -{lower.distance_pct:.2f}%)"
+            return "Lower Long Sweep Magnet", desc, f"Only lower cluster active (${lower.estimated_vol_usd/1e6:.1f}M at ${lower.price_level:,.0f}).", {}
         if not lower:
-            return "Upper Short Squeeze Magnet", f"Nearest upper cluster at ${upper.price_level:,.0f} ({upper.distance_pct:.2f}% away)."
+            desc = f"UPPER (${upper.price_level:,.0f}, +{upper.distance_pct:.2f}%)"
+            return "Upper Short Squeeze Magnet", desc, f"Only upper cluster active (${upper.estimated_vol_usd/1e6:.1f}M at ${upper.price_level:,.0f}).", {}
 
-        # When both exist, evaluate distance, funding skew, and crowding
-        dist_diff = lower.distance_pct - upper.distance_pct
-        
-        # If funding is positive and long/short ratio is high (> 2.0), longs are crowded -> lower magnet has higher gravitational pull
-        if m.funding_rate > 0.008 and m.long_short_account_ratio > 1.8:
-            return (
-                "Lower Long Sweep Magnet",
-                f"Longs are crowded (L/S {m.long_short_account_ratio:.2f}, funding {m.funding_rate*100:.3f}%). Nearest lower long cluster at ${lower.price_level:,.0f} ({lower.distance_pct:.2f}% away, ${lower.estimated_vol_usd/1e6:.1f}M) is primary magnet."
-            )
-        # If funding is negative (< -0.005), shorts are crowded -> upper short squeeze magnet has higher pull
-        elif m.funding_rate < -0.005:
-            return (
-                "Upper Short Squeeze Magnet",
-                f"Shorts are crowded (funding negative {m.funding_rate*100:.3f}%). Nearest upper short cluster at ${upper.price_level:,.0f} ({upper.distance_pct:.2f}% away, ${upper.estimated_vol_usd/1e6:.1f}M) is primary magnet."
-            )
-        # Otherwise, shortest distance takes priority
-        elif upper.distance_pct < lower.distance_pct:
-            return (
-                "Upper Short Squeeze Magnet",
-                f"Upper cluster is closer (${upper.price_level:,.0f}, {upper.distance_pct:.2f}% away vs lower {lower.distance_pct:.2f}% away)."
-            )
+        u_dist = max(0.04, upper.distance_pct)
+        l_dist = max(0.04, lower.distance_pct)
+        u_vol = max(1000.0, upper.estimated_vol_usd)
+        l_vol = max(1000.0, lower.estimated_vol_usd)
+
+        # Factor 1: Cluster Size / Magnitude
+        size_ratio_l_to_u = l_vol / u_vol
+        if size_ratio_l_to_u >= 3.0:
+            f1_text = f"LOWER is {size_ratio_l_to_u:.1f}x larger (${l_vol/1e6:.1f}M vs ${u_vol/1e6:.1f}M); massive liquidity pool advantage"
+        elif size_ratio_l_to_u <= 0.33:
+            f1_text = f"UPPER is {1.0/size_ratio_l_to_u:.1f}x larger (${u_vol/1e6:.1f}M vs ${l_vol/1e6:.1f}M); strong liquidity pool advantage"
         else:
-            return (
-                "Lower Long Sweep Magnet",
-                f"Lower cluster is closer (${lower.price_level:,.0f}, {lower.distance_pct:.2f}% away vs upper {upper.distance_pct:.2f}% away)."
-            )
+            f1_text = f"Balanced magnitudes (${u_vol/1e6:.1f}M UPPER vs ${l_vol/1e6:.1f}M LOWER; ratio {size_ratio_l_to_u:.1f}x)"
+
+        # Factor 2: Spot vs Derivatives Leadership
+        spot_override_upper = False
+        spot_override_lower = False
+        if m.spot_cvd_ratio >= 1.25:
+            f2_text = f"Spot CVD strongly positive ({m.spot_cvd_ratio:.2f}); genuine spot demand supports upside pull"
+            spot_override_upper = True
+        elif m.spot_cvd_ratio <= 0.85:
+            f2_text = f"Spot CVD negative ({m.spot_cvd_ratio:.2f}); spot selling pressure reinforces downside gravity"
+            spot_override_lower = True
+        else:
+            f2_text = f"Spot CVD neutral ({m.spot_cvd_ratio:.2f}); not overriding cluster size or distance"
+
+        # Factor 3: Crowding & Fuel (Funding + L/S + OI)
+        crowd_lower = False
+        crowd_upper = False
+        if m.funding_rate >= 0.008 and m.long_short_account_ratio >= 1.70:
+            crowd_lower = True
+            f3_text = f"Longs crowded (L/S {m.long_short_account_ratio:.2f}, funding {m.funding_rate*100:.3f}%); trapped longs provide fuel below"
+        elif m.funding_rate <= -0.005:
+            crowd_upper = True
+            f3_text = f"Shorts crowded (funding negative {m.funding_rate*100:.3f}%); short liquidations provide upside fuel"
+        else:
+            f3_text = f"Funding controlled ({m.funding_rate*100:.3f}%), L/S ratio {m.long_short_account_ratio:.2f}; moderate crowding"
+
+        # Factor 4: Regime / Higher-Timeframe Structure
+        if m.price < m.ma_200d and m.price < m.daily_vwap:
+            f4_text = "Price below VWAP & 200D MA; structural weight favors lower base retests"
+        elif m.price > m.daily_vwap and m.price > m.weekly_vwap:
+            f4_text = "Price above Daily & Weekly VWAP; structural momentum favors upper continuation"
+        else:
+            f4_text = "Range / base compression; positioning magnets dominate immediate travel"
+
+        # Factor 5: Asymmetry
+        dist_ratio = l_dist / u_dist
+        if 0.6 <= dist_ratio <= 1.6:
+            f5_text = f"Distances roughly comparable ({u_dist:.2f}% UPPER vs {l_dist:.2f}% LOWER); size and crowding decide priority"
+        elif dist_ratio > 1.6:
+            f5_text = f"UPPER is closer ({u_dist:.2f}% vs {l_dist:.2f}%); proximity favors UPPER unless size disparity is extreme"
+        else:
+            f5_text = f"LOWER is closer ({l_dist:.2f}% vs {u_dist:.2f}%); proximity favors LOWER"
+
+        # Factor 6: Volatility Regime (ATR)
+        if m.atr_compression_pct >= 35.0:
+            f6_text = f"ATR compressed {m.atr_compression_pct:.1f}%; low volatility amplifies magnetic pull of nearest dense pool"
+        else:
+            f6_text = f"ATR normal ({m.atr:,.0f} USD); price has sufficient room for wider expansion"
+
+        # --- Compute Gravitational Pull Score ---
+        # Base gravitational pull: Volume / (Distance % ^ 1.15)
+        pull_upper = (u_vol / 1e6) / (u_dist ** 1.15)
+        pull_lower = (l_vol / 1e6) / (l_dist ** 1.15)
+
+        # Multipliers
+        # Crowding boost (trapped liquidity attracts price)
+        if crowd_lower:
+            pull_lower *= 1.85
+        if crowd_upper:
+            pull_upper *= 1.85
+
+        # Spot leadership confirmation
+        if spot_override_upper:
+            pull_upper *= 1.60
+            pull_lower *= 0.70
+        elif spot_override_lower:
+            pull_lower *= 1.60
+            pull_upper *= 0.70
+
+        # Size override: if one cluster is > 5x larger, give extra inertia boost
+        if size_ratio_l_to_u >= 5.0:
+            pull_lower *= min(2.5, (size_ratio_l_to_u / 5.0) ** 0.5)
+        elif size_ratio_l_to_u <= 0.2:
+            pull_upper *= min(2.5, ((1.0 / size_ratio_l_to_u) / 5.0) ** 0.5)
+
+        factors_dict = {
+            "factor_1_size": f1_text,
+            "factor_2_spot_leadership": f2_text,
+            "factor_3_crowding_fuel": f3_text,
+            "factor_4_regime_structure": f4_text,
+            "factor_5_asymmetry": f5_text,
+            "factor_6_atr_volatility": f6_text,
+        }
+
+        # Decision
+        if pull_lower >= pull_upper:
+            dominant_name = "Lower Long Sweep Magnet"
+            if size_ratio_l_to_u >= 2.5 and u_dist < l_dist:
+                reason_short = f"LOWER (Size {size_ratio_l_to_u:.1f}x larger outweighs +{l_dist - u_dist:.2f}% distance; longs crowded)"
+                reason_full = f"Lower cluster chosen: massive liquidity pool (${l_vol/1e6:.1f}M vs ${u_vol/1e6:.1f}M, {size_ratio_l_to_u:.1f}x) overrides the minor proximity of upper cluster, amplified by crowded long positioning."
+            elif l_dist <= u_dist:
+                reason_short = f"LOWER (Nearest -{l_dist:.2f}% + larger volume ${l_vol/1e6:.1f}M; spot neutral)"
+                reason_full = f"Lower cluster chosen: nearest distance (-{l_dist:.2f}%) combined with superior volume density (${l_vol/1e6:.1f}M)."
+            else:
+                reason_short = f"LOWER (Downside gravity score {pull_lower:.0f} vs {pull_upper:.0f}; crowding fuel below)"
+                reason_full = f"Lower cluster chosen based on aggregate gravitational pull ({pull_lower:.0f} vs {pull_upper:.0f}) and trapped long leverage."
+        else:
+            dominant_name = "Upper Short Squeeze Magnet"
+            if size_ratio_l_to_u <= 0.4 and l_dist < u_dist:
+                reason_short = f"UPPER (Size {1.0/size_ratio_l_to_u:.1f}x larger outweighs +{u_dist - l_dist:.2f}% distance; upside fuel)"
+                reason_full = f"Upper cluster chosen: superior liquidation volume (${u_vol/1e6:.1f}M vs ${l_vol/1e6:.1f}M) outweighs minor lower proximity."
+            elif u_dist <= l_dist and spot_override_upper:
+                reason_short = f"UPPER (Nearest +{u_dist:.2f}% + Spot CVD confirming upside + compressed ATR)"
+                reason_full = f"Upper cluster chosen: nearest proximity (+{u_dist:.2f}%) reinforced by positive spot CVD leadership."
+            else:
+                reason_short = f"UPPER (Nearest +{u_dist:.2f}% vs -{l_dist:.2f}%; compressed ATR favors path of least resistance)"
+                reason_full = f"Upper cluster chosen as path of least resistance in compressed ATR regime."
+
+        return dominant_name, reason_short, reason_full, factors_dict
 
     def _calculate_stop(self, config_id: str, m: MarketMetrics) -> Tuple[float, float]:
         """Calculates stop price and distance % based on the exact Config protocol."""
