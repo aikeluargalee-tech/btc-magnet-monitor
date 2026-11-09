@@ -45,24 +45,25 @@ class WebGenerator:
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
 
-        # Theme accent color
+        # IBM Retro Phosphor Palette
+        # Classic IBM 3270: Green Phosphor (#00ff66) / Amber Phosphor (#ffb000) / Red Alert (#ff3b30)
         if "USDT -> BTC" in rotation:
-            accent_color = "#10b981"  # Emerald Green
-            rotation_bg = "rgba(16, 185, 129, 0.15)"
-            rotation_border = "#10b981"
-            rotation_badge = "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+            theme_color = "#00ff66"  # IBM Green Phosphor
+            theme_glow = "rgba(0, 255, 102, 0.4)"
+            status_tag = "[BUY / ACCUMULATE]"
+            box_style = "border-[#00ff66] shadow-[0_0_20px_rgba(0,255,102,0.25)] text-[#00ff66]"
         elif "BTC -> USDT" in rotation:
-            accent_color = "#ef4444"  # Rose Red
-            rotation_bg = "rgba(239, 68, 68, 0.15)"
-            rotation_border = "#ef4444"
-            rotation_badge = "bg-rose-500/20 text-rose-400 border-rose-500/40"
+            theme_color = "#ff3333"  # IBM Alert Red
+            theme_glow = "rgba(255, 51, 51, 0.4)"
+            status_tag = "[SELL / DEFENSIVE]"
+            box_style = "border-[#ff3333] shadow-[0_0_20px_rgba(255,51,51,0.25)] text-[#ff3333]"
         else:
-            accent_color = "#f59e0b"  # Amber
-            rotation_bg = "rgba(245, 158, 11, 0.15)"
-            rotation_border = "#f59e0b"
-            rotation_badge = "bg-amber-500/20 text-amber-400 border-amber-500/40"
+            theme_color = "#ffb000"  # IBM Amber Phosphor
+            theme_glow = "rgba(255, 176, 0, 0.4)"
+            status_tag = "[HOLD / 100% CASH]"
+            box_style = "border-[#ffb000] shadow-[0_0_20px_rgba(255,176,0,0.25)] text-[#ffb000]"
 
-        matched_html = "".join([f"<li class='flex items-center gap-2'><span class='text-emerald-400'>✓</span> {item}</li>" for item in regime.get("matched_criteria", [])])
+        matched_html = "".join([f"<div class='leading-relaxed'>&gt; [OK] {item}</div>" for item in regime.get("matched_criteria", [])])
 
         price = metrics.get("price", 0.0)
         funding_rate = metrics.get("funding_rate", 0.0) * 100
@@ -71,217 +72,295 @@ class WebGenerator:
         basis = metrics.get("futures_basis_annualized", 0.0)
         atr = metrics.get("atr", 0.0)
         ls_ratio = metrics.get("long_short_account_ratio", 1.0)
+        current_oi = metrics.get("open_interest", 0.0)
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BTC Magnet | Liquidation & Regime Radar</title>
+  <title>IBM 3270 // BTC MAGNET MONITOR</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
+    :root {{
+      --phosphor-green: #00ff66;
+      --phosphor-amber: #ffb000;
+      --phosphor-cyan: #00e5ff;
+      --ibm-blue: #0f62fe;
+      --crt-bg: #030708;
+    }}
     body {{
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #0b0f17;
-      color: #e2e8f0;
+      font-family: 'IBM Plex Mono', 'Share Tech Mono', monospace;
+      background-color: var(--crt-bg);
+      color: #00ff66;
+      text-shadow: 0 0 4px rgba(0, 255, 102, 0.45);
     }}
-    .mono {{
-      font-family: 'JetBrains Mono', monospace;
+    /* CRT Scanlines Overlay */
+    body::before {{
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 999;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+      opacity: 0.85;
     }}
-    .glow-box {{
-      box-shadow: 0 0 35px -5px {accent_color}25;
+    /* Subtle CRT Flicker & Glow */
+    .crt-glow {{
+      text-shadow: 0 0 6px {theme_glow};
+    }}
+    .ibm-border {{
+      border: 1px solid #1a3a2a;
+      background-color: rgba(3, 15, 10, 0.85);
+    }}
+    .ibm-header-bar {{
+      background: linear-gradient(90deg, #003318 0%, #001f0f 100%);
+      border-bottom: 1px solid #00ff66;
+    }}
+    @keyframes blink {{
+      0%, 49% {{ opacity: 1; }}
+      50%, 100% {{ opacity: 0; }}
+    }}
+    .cursor-blink {{
+      animation: blink 1s infinite;
+    }}
+    /* Scrollbar */
+    ::-webkit-scrollbar {{
+      width: 6px;
+      height: 6px;
+    }}
+    ::-webkit-scrollbar-track {{
+      background: #020504;
+    }}
+    ::-webkit-scrollbar-thumb {{
+      background: #00ff66;
     }}
   </style>
 </head>
-<body class="min-h-screen bg-[#0b0f17] text-slate-100 pb-16 antialiased">
+<body class="min-h-screen pb-12 antialiased selection:bg-[#00ff66] selection:text-black">
 
-  <!-- Navigation / Header -->
-  <header class="border-b border-slate-800/80 bg-[#0e1422]/90 backdrop-blur sticky top-0 z-50 px-4 py-3">
-    <div class="max-w-5xl mx-auto flex items-center justify-between">
+  <!-- IBM 3270 Mainframe Header -->
+  <header class="border-b border-[#00ff66]/40 bg-[#020b06] px-4 py-2 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between text-xs gap-2">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-xl shadow-lg shadow-rose-500/20">
-          🧲
-        </div>
-        <div>
-          <h1 class="font-extrabold text-lg leading-tight tracking-tight flex items-center gap-2">
-            BTC MAGNET <span class="text-xs px-2 py-0.5 rounded-full font-mono font-medium bg-slate-800 text-slate-400 border border-slate-700">v1.0</span>
-          </h1>
-          <p class="text-xs text-slate-400">Observable Positioning Mechanics</p>
-        </div>
+        <span class="bg-[#00ff66] text-black font-bold px-2 py-0.5 tracking-wider">IBM-3270</span>
+        <span class="text-[#00ff66] font-bold tracking-widest text-sm">BTC MAGNET MONITOR // SYSTEM/370</span>
+        <span class="hidden sm:inline text-slate-500">|</span>
+        <span class="hidden sm:inline text-[#00e5ff] text-[11px]">DISP: 80x25 HIGH-RES</span>
       </div>
-
-      <div class="flex items-center gap-3">
-        <div class="text-right hidden sm:block">
-          <div class="text-xs text-slate-400 font-mono">BTC SPOT PRICE</div>
-          <div class="text-base font-bold mono text-white">${price:,.2f}</div>
-        </div>
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE SCANNER
+      <div class="flex items-center gap-4 text-xs">
+        <span class="text-[#00ff66] hidden sm:inline">SPOT: <strong class="text-white text-sm">${price:,.2f}</strong></span>
+        <span class="border border-[#00ff66]/60 px-2 py-0.5 text-[#00ff66] bg-[#002211] flex items-center gap-1.5">
+          <span class="w-2 h-2 bg-[#00ff66] rounded-full inline-block cursor-blink"></span> ONLINE
         </span>
       </div>
     </div>
   </header>
 
-  <main class="max-w-5xl mx-auto px-4 pt-6 space-y-6">
+  <!-- Sub-Header Status Line -->
+  <div class="bg-[#010804] border-b border-[#1a3a2a] px-4 py-1.5 text-[11px] text-[#00ff66]/70">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div>TERMINAL ADDR: 0xBTC_MAG // CHANNEL: BINANCE+DERIBIT_FEED // AUTOSCAN: 30M</div>
+      <div>UTC: {data.get("timestamp", "")[:19]}Z</div>
+    </div>
+  </div>
 
-    <!-- Primary Action Hero Card -->
-    <div class="rounded-2xl border border-slate-800 bg-[#121929] p-6 glow-box">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+  <main class="max-w-6xl mx-auto px-4 pt-6 space-y-6">
+
+    <!-- Top ASCII Banner -->
+    <pre class="text-[9px] sm:text-[11px] leading-[11px] sm:leading-[13px] text-[#00ff66] overflow-x-auto whitespace-pre font-bold border border-[#1a3a2a] p-3 bg-[#010a05]">
+ ██████╗ ████████╗ ██████╗    ███╗   ███╗ █████╗  ██████╗ ███╗   ██╗███████╗████████╗
+ ██╔══██╗╚══██╔══╝██╔════╝    ████╗ ████║██╔══██╗██╔════╝ ████╗  ██║██╔════╝╚══██╔══╝
+ ██████╔╝   ██║   ██║         ██╔████╔██║███████║██║  ███╗██╔██╗ ██║█████╗     ██║   
+ ██╔══██╗   ██║   ██║         ██║╚██╔╝██║██╔══██║██║   ██║██║╚██╗██║██╔══╝     ██║   
+ ██████╔╝   ██║   ╚██████╗    ██║ └───██║██║  ██║╚██████╔╝██║ ╚████║███████╗   ██║   
+ ╚═════╝    ╚═╝    ╚═════╝    ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝   
+ [QUANTITATIVE MICROSTRUCTURE REGIME DIAGNOSTIC & OBSERVABLE POSITIONING SYSTEM]
+    </pre>
+
+    <!-- Main Diagnostic Frame -->
+    <div class="border-2 {box_style} p-5 bg-[#020d07] crt-glow">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-current pb-4">
         <div>
-          <div class="flex items-center gap-2 mb-2">
-            <span class="px-3 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider bg-slate-800 border border-slate-700 text-slate-300">
-              {cfg}
-            </span>
-            <span class="px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-800/80 text-slate-400">
-              {regime.get("suitability", "Active")}
-            </span>
+          <div class="text-xs tracking-widest uppercase opacity-80 mb-1">
+            &gt;&gt;&gt; ACTIVE REGIME CLASSIFICATION // FACT MATRIX &lt;&lt;&lt;
           </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            {name}: <span class="text-slate-300 font-normal">{diagnosis}</span>
+          <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+            <span class="bg-current text-black px-2 py-0.5 font-black text-xl sm:text-2xl">{cfg}</span>
+            <span>{name}</span>
           </h2>
+          <div class="text-sm mt-1 text-slate-300">
+            DIAGNOSIS: <span class="font-bold underline text-white">{diagnosis}</span> | TIER: <span class="text-[#00e5ff]">{regime.get("suitability", "Active")}</span>
+          </div>
         </div>
 
-        <!-- Big Rotation Badge -->
-        <div class="p-4 rounded-xl border flex flex-col items-center justify-center min-w-[240px]" style="background-color: {rotation_bg}; border-color: {rotation_border};">
-          <div class="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1">SPOT ROTATION DIRECTIVE</div>
-          <div class="text-xl sm:text-2xl font-black mono text-white flex items-center gap-2">
-            {rotation}
+        <!-- Big Retro Rotation Directive Box -->
+        <div class="border-2 border-current p-4 bg-black/60 flex flex-col items-center justify-center min-w-[280px]">
+          <div class="text-[11px] tracking-widest uppercase font-bold text-slate-300 mb-1">
+            SPOT ROTATION DIRECTIVE
           </div>
-          <div class="text-xs font-mono text-slate-300 mt-1">Sizing Factor: <span class="font-bold text-white">{sizing}x</span></div>
+          <div class="text-2xl font-black tracking-wider text-white">
+            &gt; {rotation} &lt;
+          </div>
+          <div class="text-xs font-bold mt-1 text-slate-200">
+            SIZING FACTOR: <span class="bg-current text-black px-1.5 py-0.5">{sizing}x</span> {status_tag}
+          </div>
         </div>
       </div>
 
-      <!-- Protocol Action & Stop Details -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6">
-        <div class="bg-[#0b0f17] p-4 rounded-xl border border-slate-800">
-          <div class="text-xs text-slate-400 font-mono uppercase mb-1">ACTION PROTOCOL</div>
-          <div class="text-base font-bold text-white mb-1">{action}</div>
-          <p class="text-xs text-slate-400 leading-relaxed">{entry_inst}</p>
+      <!-- Action Protocol & Stop Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5">
+        <div class="border border-[#1a3a2a] p-3 bg-black/50">
+          <div class="text-xs text-[#00e5ff] font-bold uppercase mb-1">&gt; 01. ACTION PROTOCOL</div>
+          <div class="text-sm font-bold text-white mb-1.5">{action}</div>
+          <div class="text-xs text-slate-300 leading-relaxed">{entry_inst}</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-4 rounded-xl border border-slate-800">
-          <div class="text-xs text-slate-400 font-mono uppercase mb-1">INVIOLABLE STOP-LOSS</div>
-          <div class="text-base font-bold mono text-rose-400 mb-1">${stop_price:,.2f} ({stop_dist:.2f}% dist)</div>
-          <p class="text-xs text-slate-400 leading-relaxed">{stop_rule}</p>
+        <div class="border border-[#1a3a2a] p-3 bg-black/50">
+          <div class="text-xs text-[#ff3333] font-bold uppercase mb-1">&gt; 02. INVIOLABLE STOP-LOSS</div>
+          <div class="text-sm font-bold text-[#ff3333] mb-1.5">${stop_price:,.2f} ({stop_dist:.2f}% DIST)</div>
+          <div class="text-xs text-slate-300 leading-relaxed">{stop_rule}</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-4 rounded-xl border border-slate-800">
-          <div class="text-xs text-slate-400 font-mono uppercase mb-1">RISK BUDGET VERIFICATION</div>
-          <div class="text-base font-bold mb-1 flex items-center gap-2 {'text-emerald-400' if risk.get('risk_budget_ok') else 'text-rose-400'}">
-            {"✓ APPROVED (Fits Budget)" if risk.get("risk_budget_ok") else "⚠️ WARNING / REJECTED"}
+        <div class="border border-[#1a3a2a] p-3 bg-black/50">
+          <div class="text-xs text-[#ffb000] font-bold uppercase mb-1">&gt; 03. RISK BUDGET VALIDATION</div>
+          <div class="text-sm font-bold mb-1.5 {'text-[#00ff66]' if risk.get('risk_budget_ok') else 'text-[#ff3333]'}">
+            {"[STATUS: PASSED / RISK OK]" if risk.get("risk_budget_ok") else "[STATUS: REJECTED / OVERBUDGET]"}
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">{risk.get("actionable_trade_instruction", "")}</p>
+          <div class="text-xs text-slate-300 leading-relaxed">{risk.get("actionable_trade_instruction", "")}</div>
         </div>
       </div>
     </div>
 
-    <!-- Liquidation Magnet Module -->
-    <div class="rounded-2xl border border-slate-800 bg-[#121929] p-6">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            🧲 Liquidation Magnet Proximity
-          </h3>
-          <p class="text-xs text-slate-400">Mechanical liquidity pools & forced stop clusters</p>
+    <!-- Liquidation Magnet Module (ASCII Style) -->
+    <div class="border border-[#00ff66]/40 p-5 bg-[#020b06]">
+      <div class="flex flex-wrap items-center justify-between border-b border-[#1a3a2a] pb-3 mb-4 gap-2">
+        <div class="font-bold text-sm tracking-wider flex items-center gap-2">
+          <span>[+] LIQUIDATION MAGNET PROXIMITY CALCULATOR</span>
+          <span class="text-xs text-[#00e5ff] font-normal">// MECHANICAL LEVERAGE POOLS</span>
         </div>
-        <span class="px-3 py-1 rounded-full text-xs font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
-          DOMINANT: {dom_magnet}
-        </span>
+        <div class="text-xs border border-[#ffb000] px-2 py-0.5 text-[#ffb000] bg-[#1a1200]">
+          DOMINANT GRAVITATIONAL MAGNET: <strong class="underline">{dom_magnet}</strong>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Upper Short Cluster -->
-        <div class="bg-[#0b0f17] p-4 rounded-xl border border-slate-800 relative overflow-hidden">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-mono font-bold text-rose-400 uppercase tracking-wider">▲ UPPER SHORT LIQUIDATION MAGNET</span>
-            <span class="text-xs mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">+{upper_c.get('distance_pct', 0.0):.2f}% ({upper_c.get('distance_atr', 0.0):.2f} ATR)</span>
+        <!-- Upper Short Magnet -->
+        <div class="border border-[#ff3333]/50 p-4 bg-[#0a0202]">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-[#ff3333] font-bold">&gt;&gt; UPPER SHORT LIQUIDATION MAGNET</span>
+            <span class="bg-[#ff3333] text-black font-bold px-1.5">+{upper_c.get('distance_pct', 0.0):.2f}% (+{upper_c.get('distance_atr', 0.0):.2f} ATR)</span>
           </div>
-          <div class="text-2xl font-extrabold mono text-white">${upper_c.get('price_level', 0.0):,.2f}</div>
-          <div class="text-xs text-slate-400 mt-1">Est. Liquidation Density: <span class="font-bold text-slate-200 mono">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
-          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div class="bg-rose-500 h-full rounded-full" style="width: min(100%, {max(15, upper_c.get('distance_pct', 1.0) * 15)}%);"></div>
+          <div class="text-3xl font-bold text-white mb-1">
+            ${upper_c.get('price_level', 0.0):,.2f}
+          </div>
+          <div class="text-xs text-slate-400">
+            EST. LIQUIDATION VOLUME: <span class="text-[#ff3333] font-bold">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M USD</span>
+          </div>
+          <!-- ASCII Progress Bar -->
+          <div class="mt-3 text-xs text-[#ff3333] font-mono">
+            PULL: [{("=" * int(min(20, max(2, upper_c.get('distance_pct', 1.0) * 3)))).ljust(20, "-")}]
           </div>
         </div>
 
-        <!-- Lower Long Cluster -->
-        <div class="bg-[#0b0f17] p-4 rounded-xl border border-slate-800 relative overflow-hidden">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">▼ LOWER LONG LIQUIDATION MAGNET</span>
-            <span class="text-xs mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">-{lower_c.get('distance_pct', 0.0):.2f}% ({lower_c.get('distance_atr', 0.0):.2f} ATR)</span>
+        <!-- Lower Long Magnet -->
+        <div class="border border-[#00ff66]/50 p-4 bg-[#010c05]">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-[#00ff66] font-bold">&gt;&gt; LOWER LONG LIQUIDATION MAGNET</span>
+            <span class="bg-[#00ff66] text-black font-bold px-1.5">-{lower_c.get('distance_pct', 0.0):.2f}% (-{lower_c.get('distance_atr', 0.0):.2f} ATR)</span>
           </div>
-          <div class="text-2xl font-extrabold mono text-white">${lower_c.get('price_level', 0.0):,.2f}</div>
-          <div class="text-xs text-slate-400 mt-1">Est. Liquidation Density: <span class="font-bold text-slate-200 mono">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
-          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div class="bg-emerald-500 h-full rounded-full" style="width: min(100%, {max(15, lower_c.get('distance_pct', 1.0) * 15)}%);"></div>
+          <div class="text-3xl font-bold text-white mb-1">
+            ${lower_c.get('price_level', 0.0):,.2f}
+          </div>
+          <div class="text-xs text-slate-400">
+            EST. LIQUIDATION VOLUME: <span class="text-[#00ff66] font-bold">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M USD</span>
+          </div>
+          <!-- ASCII Progress Bar -->
+          <div class="mt-3 text-xs text-[#00ff66] font-mono">
+            PULL: [{("=" * int(min(20, max(2, lower_c.get('distance_pct', 1.0) * 3)))).ljust(20, "-")}]
           </div>
         </div>
       </div>
     </div>
 
     <!-- Microstructure Telemetry Grid -->
-    <div class="rounded-2xl border border-slate-800 bg-[#121929] p-6">
-      <h3 class="text-lg font-bold text-white mb-4">Market Microstructure Telemetry</h3>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Spot CVD Ratio</div>
-          <div class="text-lg font-bold mono text-white mt-1">{spot_cvd_ratio:.2f}</div>
-          <div class="text-[10px] text-slate-400">Taker Buy/Sell</div>
+    <div class="border border-[#00ff66]/40 p-5 bg-[#020b06]">
+      <div class="text-xs font-bold uppercase tracking-wider text-[#00e5ff] mb-4 pb-2 border-b border-[#1a3a2a]">
+        &gt; SYSTEM TELEMETRY GAUGES // 6-FACTOR POSITIONING MATRIX
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+        
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">SPOT CVD RATIO</div>
+          <div class="text-lg font-bold text-white mt-1">{spot_cvd_ratio:.2f}</div>
+          <div class="text-[10px] text-[#00ff66]">Taker Vol Delta</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Perp CVD Trend</div>
-          <div class="text-lg font-bold mono text-white mt-1 capitalize">{metrics.get("perp_cvd_trend", "Flat")}</div>
-          <div class="text-[10px] text-slate-400">24h Delta Flow</div>
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">PERP CVD FLOW</div>
+          <div class="text-lg font-bold text-white mt-1 uppercase">{metrics.get("perp_cvd_trend", "Flat")}</div>
+          <div class="text-[10px] text-slate-400">Futures Delta</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Open Interest 24h</div>
-          <div class="text-lg font-bold mono {'text-emerald-400' if oi_change_24h > 0 else 'text-rose-400'} mt-1">{oi_change_24h:+.2f}%</div>
-          <div class="text-[10px] text-slate-400">Leverage Flow</div>
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">OPEN INTEREST 24H</div>
+          <div class="text-lg font-bold {'text-[#00ff66]' if oi_change_24h > 0 else 'text-[#ff3333]'} mt-1">{oi_change_24h:+.2f}%</div>
+          <div class="text-[10px] text-slate-400">{current_oi:,.0f} BTC</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Funding Rate</div>
-          <div class="text-lg font-bold mono text-white mt-1">{funding_rate:.3f}%</div>
-          <div class="text-[10px] text-slate-400">8h Perp Skew</div>
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">FUNDING (8H / ANN)</div>
+          <div class="text-lg font-bold text-white mt-1">{funding_rate:.3f}%</div>
+          <div class="text-[10px] text-[#ffb000]">{metrics.get("funding_rate_annualized", 0.0):.1f}% Ann.</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Basis (Ann.)</div>
-          <div class="text-lg font-bold mono text-white mt-1">{basis:.1f}%</div>
-          <div class="text-[10px] text-slate-400">Spot-Futures Spread</div>
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">BASIS SPREAD</div>
+          <div class="text-lg font-bold text-white mt-1">{basis:.1f}%</div>
+          <div class="text-[10px] text-slate-400">Contango/Backw</div>
         </div>
 
-        <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800">
-          <div class="text-[11px] font-mono text-slate-400 uppercase">Retail L/S Ratio</div>
-          <div class="text-lg font-bold mono text-white mt-1">{ls_ratio:.2f}</div>
+        <div class="border border-[#1a3a2a] p-3 bg-black/60">
+          <div class="text-[10px] text-slate-400 uppercase">RETAIL L/S RATIO</div>
+          <div class="text-lg font-bold text-white mt-1">{ls_ratio:.2f}</div>
           <div class="text-[10px] text-slate-400">Long Crowding</div>
         </div>
+
       </div>
     </div>
 
-    <!-- Diagnostic Rationale -->
-    <div class="rounded-2xl border border-slate-800 bg-[#121929] p-6">
-      <h3 class="text-base font-bold text-white mb-2">Diagnostic Observation & Rationale</h3>
-      <p class="text-xs text-slate-300 leading-relaxed mb-4">{notes}</p>
-      <div class="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 text-xs text-slate-300">
-        <div class="font-bold text-slate-400 uppercase font-mono mb-2">Matched Microstructure Criteria</div>
-        <ul class="space-y-1">
-          {matched_html}
-        </ul>
+    <!-- Diagnostic Observation & Evidence Log -->
+    <div class="border border-[#00ff66]/40 p-5 bg-[#020b06] text-xs">
+      <div class="font-bold text-[#00ff66] uppercase tracking-wider mb-2 pb-1 border-b border-[#1a3a2a]">
+        &gt; DIAGNOSTIC OBSERVATION LOG &amp; EVIDENCE TRACE
+      </div>
+      <p class="text-slate-300 leading-relaxed mb-4">{notes}</p>
+      
+      <div class="border border-[#1a3a2a] p-3 bg-black/70 font-mono text-[11px] text-[#00ff66] space-y-1">
+        <div class="text-slate-500 mb-1">// QUANTITATIVE FACT MATCHES //</div>
+        {matched_html}
       </div>
     </div>
 
-    <!-- API Feed Link -->
-    <div class="text-center pt-4">
-      <p class="text-xs text-slate-400">
-        Machine-readable API for mobile app: <a href="regime.json" class="text-rose-400 underline mono hover:text-rose-300">regime.json</a>
-      </p>
-      <p class="text-[11px] text-slate-400 mt-1 font-mono">Last updated: {data.get("timestamp", "")} (UTC)</p>
-    </div>
+    <!-- Retro Terminal Footer -->
+    <footer class="border-t border-[#1a3a2a] pt-4 text-center text-xs text-slate-500 space-y-2">
+      <div class="flex flex-wrap justify-center items-center gap-4 text-[11px]">
+        <span>[F1: LIVE_DATA]</span>
+        <a href="regime.json" class="text-[#00e5ff] hover:underline">[F2: REST_API: regime.json]</a>
+        <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" class="text-[#00ff66] hover:underline" target="_blank">[F3: GITHUB_REPO]</a>
+      </div>
+      <div class="text-[10px] text-slate-600">
+        IBM 3270 CRT EMULATION // ARCHITECTURE: GITHUB ACTIONS SCHEDULED CRON // HOSTED ON GITHUB PAGES CDN
+      </div>
+      <div class="text-[11px] text-[#00ff66]/70">
+        CURSOR READY <span class="cursor-blink inline-block bg-[#00ff66] w-2 h-3.5 align-middle ml-1"></span>
+      </div>
+    </footer>
 
   </main>
 </body>
