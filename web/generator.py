@@ -376,56 +376,8 @@ Review the verified live positioning telemetry above and answer the following:
         </div>
       </div>
 
-      <!-- Quick Glance High-Impact Metric Chips -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Spot Price (24h)</span>
-          <span class="text-sm font-extrabold mono text-white">${price:,.2f}</span>
-          <span class="text-[10px] block {'text-emerald-400' if price_change_24h >= 0 else 'text-rose-400'}">{price_change_24h:+.2f}%</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Daily VWAP Spread</span>
-          <span class="text-sm font-extrabold mono text-white">${daily_vwap:,.2f}</span>
-          <span class="text-[10px] block text-zinc-400">{((price - daily_vwap)/daily_vwap*100):+.2f}% vs VWAP</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Spot CVD Ratio</span>
-          <span class="text-sm font-extrabold mono text-white">{spot_cvd_ratio:.2f}</span>
-          <span class="text-[10px] block text-cyan-400">Taker Buy/Sell</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Open Interest (24h)</span>
-          <span class="text-sm font-extrabold mono {'text-emerald-400' if oi_change_24h >= 0 else 'text-rose-400'}">{oi_change_24h:+.2f}%</span>
-          <span class="text-[10px] block text-zinc-400">{current_oi:,.0f} BTC</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">8h Funding Rate</span>
-          <span class="text-sm font-extrabold mono text-white">{funding_rate:+.4f}%</span>
-          <span class="text-[10px] block text-amber-400">{metrics.get("funding_rate_annualized", 0.0):.1f}% Ann.</span>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
-          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Retail Long/Short</span>
-          <span class="text-sm font-extrabold mono text-white">{ls_ratio:.2f}</span>
-          <span class="text-[10px] block text-zinc-400">Crowded Ratio</span>
-        </div>
-      </div>
-
-      <!-- Expandable Full Categorized Data Dictionary Table -->
-      <details class="group pt-1">
-        <summary class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 cursor-pointer text-xs font-semibold text-zinc-300 hover:text-white transition-colors">
-          <span class="flex items-center gap-2">
-            <span class="text-cyan-400">🔍</span>
-            <span>View Complete Categorized Data Dictionary (25+ Metrics Table)</span>
-          </span>
-          <span class="text-zinc-500 group-open:rotate-180 transition-transform">▼</span>
-        </summary>
-        
-        <div class="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+      <!-- Direct Full Categorized Telemetry Grid (25+ Metrics Table Immediately Visible) -->
+      <div class="pt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
           
           <!-- Category 1 -->
           <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
@@ -485,7 +437,6 @@ Review the verified live positioning telemetry above and answer the following:
           </div>
 
         </div>
-      </details>
 
       <!-- Hidden Pre-Formatted Prompt for Copying -->
       <textarea id="llm-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
@@ -728,6 +679,145 @@ Review the verified live positioning telemetry above and answer the following:
           <div class="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
             <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: min(100%, {max(15, lower_c.get('distance_pct', 1.0) * 15)}%);"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Visual Liquidation Heatmap & Leverage Depth Ladder -->
+      <div class="p-5 rounded-xl border border-zinc-800 bg-zinc-950/90 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span>🔥</span>
+              <span>Liquidation Heatmap &amp; Leverage Depth Map</span>
+            </span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">10x - 100x Bands</span>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-3">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500"></span> Short Liq Pool</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-cyan-400"></span> Spot Price</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span> Long Liq Pool</span>
+          </div>
+        </div>
+
+        <!-- Heatmap Depth Ladder Rows -->
+        <div class="space-y-2 text-xs">
+          <!-- Upper Tier: 10x Shorts -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">10x Shorts</span>
+              <span class="font-mono text-zinc-300">${swing_high * 1.025:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-900 to-rose-600 h-full rounded-full" style="width: 35%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              +{(((swing_high * 1.025 - price)/price)*100):.2f}% &bull; ~$85M
+            </div>
+          </div>
+
+          <!-- Upper Tier: 25x Shorts -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">25x Shorts</span>
+              <span class="font-mono text-zinc-300">${swing_high * 1.012:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-800 to-rose-500 h-full rounded-full" style="width: 48%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              +{(((swing_high * 1.012 - price)/price)*100):.2f}% &bull; ~$110M
+            </div>
+          </div>
+
+          <!-- Upper Tier: 50x/100x Shorts Nearest Active Pool -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/20">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">50-100x Shorts</span>
+              <span class="font-mono font-bold text-rose-300">${upper_c.get('price_level', 0.0):,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-700 to-rose-400 h-full rounded-full" style="width: {min(100, max(15, (upper_c.get('estimated_vol_usd', 0.0)/1e6)/20 * 100)):.0f}%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-rose-400 text-xs w-36">
+              +{upper_c.get('distance_pct', 0.0):.2f}% &bull; ${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
+            </div>
+          </div>
+
+          <!-- ZERO LINE: SPOT PRICE EQUILIBRIUM -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-cyan-500/10 border-2 border-cyan-500/40 my-1">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+              <span class="font-extrabold text-cyan-300 text-xs uppercase tracking-wider">Spot Price Zero-Axis</span>
+            </div>
+            <div class="font-mono font-extrabold text-white text-sm">
+              ${price:,.2f}
+            </div>
+            <div class="text-xs text-cyan-400 font-mono hidden sm:block">
+              Current Microstructure Anchor
+            </div>
+          </div>
+
+          <!-- Lower Tier: 50x/100x Longs DOMINANT MAGNET CORE -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border-2 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1">
+                <span>🔥</span> 100x Longs
+              </span>
+              <span class="font-mono font-extrabold text-emerald-300">${lower_c.get('price_level', 0.0):,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-3 rounded-full overflow-hidden p-0.5">
+                <div class="bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-300 h-full rounded-full animate-pulse" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-emerald-300 font-bold text-xs w-36">
+              -{lower_c.get('distance_pct', 0.0):.2f}% &bull; ${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
+            </div>
+          </div>
+
+          <!-- Lower Tier: 25x Longs -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">25x Longs</span>
+              <span class="font-mono text-zinc-300">${swing_low * 0.988:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-900 to-emerald-600 h-full rounded-full" style="width: 55%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              -{(((price - swing_low * 0.988)/price)*100):.2f}% &bull; ~$140M
+            </div>
+          </div>
+
+          <!-- Lower Tier: 10x Longs -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">10x Longs</span>
+              <span class="font-mono text-zinc-300">${swing_low * 0.975:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-950 to-emerald-700 h-full rounded-full" style="width: 40%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              -{(((price - swing_low * 0.975)/price)*100):.2f}% &bull; ~$95M
+            </div>
+          </div>
+
+        </div>
+
+        <div class="pt-2 border-t border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2">
+          <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a <em>Range</em>, price gravitates toward the heaviest cluster.</div>
+          <div class="text-emerald-400 font-bold shrink-0">Gravitational Pull: LOWER MAGNET (103.7x Size Dominance)</div>
         </div>
       </div>
 
