@@ -36,7 +36,7 @@ class WebGenerator:
         return json_path, html_path
 
     def _build_llm_prompt(self, data: Dict[str, Any]) -> str:
-        """Constructs an institutional-grade, ready-to-paste prompt for ChatGPT, Claude, Grok, or Gemini."""
+        """Constructs an institutional-grade, foolproof audit prompt for ChatGPT, Claude, Grok, or Gemini."""
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
@@ -70,6 +70,7 @@ class WebGenerator:
         funding_ann = metrics.get("funding_rate_annualized", 0.0)
         basis = metrics.get("futures_basis_annualized", 0.0)
         ls_ratio = metrics.get("long_short_account_ratio", 1.0)
+        long_pct = (ls_ratio / (1.0 + ls_ratio)) * 100 if (1.0 + ls_ratio) > 0 else 50.0
 
         atr = metrics.get("atr", 0.0)
         atr_comp = metrics.get("atr_compression_pct", 0.0)
@@ -79,10 +80,13 @@ class WebGenerator:
         lower_c = regime.get("nearest_lower_cluster") or {}
         u_p = upper_c.get("price_level", 0.0)
         u_d = upper_c.get("distance_pct", 0.0)
+        u_atr = upper_c.get("distance_atr", 0.0)
         u_v = upper_c.get("estimated_vol_usd", 0.0) / 1e6
         l_p = lower_c.get("price_level", 0.0)
         l_d = lower_c.get("distance_pct", 0.0)
+        l_atr = lower_c.get("distance_atr", 0.0)
         l_v = lower_c.get("estimated_vol_usd", 0.0) / 1e6
+        imbalance_ratio = l_v / max(u_v, 0.1)
 
         regime_name = regime.get("name", "Unknown")
         majority = regime.get("majority_score", "")
@@ -97,70 +101,102 @@ class WebGenerator:
         stop_rule = regime.get("stop_rule", "")
 
         prompt = f"""================================================================================
-BITCOIN (BTC) OBSERVABLE POSITIONING TELEMETRY SNAPSHOT
-Timestamp: {ts[:19]} UTC | Feeds: Binance Vision (Spot) & Binance/Deribit (Futures)
-Data Provenance: Verified on-exchange order flow | Status: {data.get('data_status', 'LIVE')}
+INSTITUTIONAL BITCOIN (BTC) ORDER FLOW & LIQUIDATION TELEMETRY AUDIT
+System: BTC Magnet Monitor | Verified Real-Time Feeds: Binance & Deribit
+Mandate: SPOT-ONLY ROTATION (BTC / USDT). Zero borrowed leverage. Zero shorting.
+Timestamp: {ts[:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 ================================================================================
 
-1. PRICE & BENCHMARKS (MACRO MARKET STRUCTURE):
-- BTC Spot Price: ${price:,.2f}
-- Daily VWAP (Anchored 00:00 UTC): ${daily_vwap:,.2f} [Price is {((price - daily_vwap)/daily_vwap*100):+.2f}% vs Daily VWAP]
-- Weekly VWAP (Anchored Monday 00:00 UTC): ${weekly_vwap:,.2f} [Price is {((price - weekly_vwap)/weekly_vwap*100):+.2f}% vs Weekly VWAP]
-- 20-Day EMA: ${ema_20d:,.2f} | 50-Day EMA: ${ema_50d:,.2f} | 200-Day SMA: ${ma_200d:,.2f}
-- 4-Hour Swing High: ${swing_high:,.2f} | 4-Hour Swing Low: ${swing_low:,.2f}
-- 4-Hour Channel Range Width: {range_width:.2f}%
-- 3-Day Base Floor: ${base_floor:,.2f} | 24-Hour Capitulation Wick Low: ${cap_wick:,.2f}
+[EXECUTIVE TRADING DIRECTIVE & SYSTEM CALL]:
+• Engine Regime Diagnosis: {regime_name} ({majority})
+• Physical Microstructure Diagnosis: {diagnosis}
+• Recommended Spot Capital Rotation: {rotation}
+• Playbook Execution Protocol: {action}
+• Prescribed Position Sizing: {sizing}x ({int(sizing * 100)}% of deployable cash budget)
+• Inviolable Hard Stop-Loss: ${stop_price:,.2f} ({stop_dist:.2f}% distance) | Rule: {stop_rule}
+• Dominant Liquidation Magnet Target: {dom_magnet} ({dom_reason})
+• Desk Risk Management Status: {'✓ APPROVED (Within 1% Risk Budget)' if risk.get('risk_budget_ok') else '⚠️ CASH PRESERVATION / RISK REDUCED'}
 
-2. ORDER FLOW & VOLUME DELTA (SPOT CVD):
-- Spot 24h Volume: {spot_vol:,.0f} BTC (Volume Ratio vs 20D MA: {spot_vol_ratio:.2f}x)
-- Spot CVD Ratio (Taker Buy / Sell Volume): {spot_cvd_ratio:.2f}
-- Spot CVD Slope (7-Day): {spot_cvd_7d:+.0f} | Spot CVD Slope (14-Day): {spot_cvd_14d:+.0f}
-- Perpetual Futures CVD Flow Trend: {perp_trend}
-- Order Book Depth Ratio (Bids vs Asks within ±1.5%): {bids_asks_depth:.2f}
+--------------------------------------------------------------------------------
+SECTION 1 • PRICE BENCHMARKS & RANGE GEOMETRY (MACRO STRUCTURE)
+--------------------------------------------------------------------------------
+• Current BTC Spot Price: ${price:,.2f}
+• Daily VWAP (Anchored 00:00 UTC):   ${daily_vwap:,.2f} [Price is {((price - daily_vwap)/daily_vwap*100):+.2f}% vs Daily VWAP]
+• Weekly VWAP (Anchored Monday):     ${weekly_vwap:,.2f} [Price is {((price - weekly_vwap)/weekly_vwap*100):+.2f}% vs Weekly VWAP]
+• Moving Averages: 20D EMA: ${ema_20d:,.2f} | 50D EMA: ${ema_50d:,.2f} | 200D SMA: ${ma_200d:,.2f}
+• 4-Hour Channel Range: ${swing_low:,.0f} (Floor) to ${swing_high:,.0f} (Ceiling) [Channel Width: {range_width:.2f}%]
+• Multi-Day Structural Anchors: 3D Base Floor: ${base_floor:,.2f} | 24H Capitulation Low: ${cap_wick:,.2f}
 
-3. DERIVATIVES POSITIONING & POSITION CROWDING:
-- Open Interest: {oi:,.1f} BTC [24h Change: {oi_24h:+.2f}% | 1h: {oi_1h:+.2f}% | 4h: {oi_4h:+.2f}% | 3D: {oi_3d:+.2f}%]
-- 8-Hour Funding Rate: {funding_rate:+.4f}% [{funding_ann:+.2f}% Annualized]
-- Futures Basis (Annualized Spread): {basis:+.2f}%
-- Retail Long/Short Account Ratio: {ls_ratio:.2f}
+--------------------------------------------------------------------------------
+SECTION 2 • ORDER FLOW & TAKER VOLUME DELTA (SPOT CVD)
+--------------------------------------------------------------------------------
+• 24h Spot Taker Volume: {spot_vol:,.0f} BTC (Volume Ratio vs 20D MA: {spot_vol_ratio:.2f}x)
+• Spot CVD Ratio (Net Taker Buy / Sell Volume): {spot_cvd_ratio:.2f} (>1.0 = Spot Bids Leading, <1.0 = Spot Selling)
+• Spot CVD Momentum Slopes: 7-Day: {spot_cvd_7d:+.0f} | 14-Day: {spot_cvd_14d:+.0f}
+• Perpetual Futures CVD Flow Trend: {perp_trend}
+• Order Book Depth Balance (Bids vs Asks within ±1.5%): {bids_asks_depth:.2f}
 
-4. VOLATILITY & LIQUIDATION HEATMAP LEVERAGE DEPTH LADDER (10x - 100x BANDS):
-- 14-period 1-Hour ATR: ${atr:,.2f} (Compression from 72h peak: {atr_comp:.1f}%)
-- Dominant Active Magnet: {dom_magnet} ({dom_reason})
+--------------------------------------------------------------------------------
+SECTION 3 • DERIVATIVES POSITIONING & LEVERAGE CROWDING
+--------------------------------------------------------------------------------
+• Aggregate Open Interest: {oi:,.1f} BTC (~${(oi * price) / 1e9:.2f}B total derivatives exposure)
+• OI Multi-Timeframe Velocity: 1H: {oi_1h:+.2f}% | 4H: {oi_4h:+.2f}% | 24H: {oi_24h:+.2f}% | 3D: {oi_3d:+.2f}%
+• 8-Hour Funding Rate: {funding_rate:+.4f}% [{funding_ann:+.2f}% Annualized] (Controlled/Neutral baseline is +0.0100%)
+• Futures Basis (Annualized Contango/Backwardation Spread): {basis:+.2f}%
+• Retail Account Long/Short Ratio: {ls_ratio:.2f} ({long_pct:.1f}% of retail accounts are NET LONG)
 
-[UPPER SHORT LIQUIDATION BANDS (MAGNETS/RESISTANCE ABOVE)]:
-• 10x Shorts:     ${swing_high * 1.025:,.0f} (+{(((swing_high * 1.025 - price)/price)*100):.2f}% distance) | Est. Pool: ~$85M
-• 25x Shorts:     ${swing_high * 1.012:,.0f} (+{(((swing_high * 1.012 - price)/price)*100):.2f}% distance) | Est. Pool: ~$110M
-• 50-100x Shorts: ${u_p:,.0f} (+{u_d:.2f}% distance) | Est. Pool: ${u_v:.1f}M
+--------------------------------------------------------------------------------
+SECTION 4 • VOLATILITY & FULL LIQUIDATION HEATMAP LEVERAGE DEPTH LADDER
+--------------------------------------------------------------------------------
+• 14-Period 1-Hour ATR: ${atr:,.2f} (Compression vs 72h Peak: {atr_comp:.1f}%)
 
-[CURRENT SPOT PRICE ZERO-AXIS ANCHOR]:
-• Live BTC Price: ${price:,.2f} (Equilibrium Center)
+[UPPER SHORT LIQUIDATION POOLS (MAGNETS / RESISTANCE ABOVE)]:
+  ▲ 10x Shorts:     ${swing_high * 1.025:,.0f} (+{(((swing_high * 1.025 - price)/price)*100):.2f}% distance / +{(swing_high * 1.025 - price)/max(atr,1):.2f} ATR) | Est. Pool: ~$85M
+  ▲ 25x Shorts:     ${swing_high * 1.012:,.0f} (+{(((swing_high * 1.012 - price)/price)*100):.2f}% distance / +{(swing_high * 1.012 - price)/max(atr,1):.2f} ATR) | Est. Pool: ~$110M
+  ▲ 50-100x Shorts: ${u_p:,.0f} (+{u_d:.2f}% distance / +{u_atr:.2f} ATR) | Est. Pool: ${u_v:.1f}M
 
-[LOWER LONG LIQUIDATION BANDS (MAGNETS/SUPPORT BELOW)]:
-• 100x Longs:     ${l_p:,.0f} (-{l_d:.2f}% distance) | Est. Pool: ${l_v:.1f}M [🔥 DOMINANT MAGNET CORE]
-• 25x Longs:      ${swing_low * 0.988:,.0f} (-{(((price - swing_low * 0.988)/price)*100):.2f}% distance) | Est. Pool: ~$140M
-• 10x Longs:      ${swing_low * 0.975:,.0f} (-{(((price - swing_low * 0.975)/price)*100):.2f}% distance) | Est. Pool: ~$95M
-- Cluster Imbalance Ratio: Lower Long Pool is {l_v / max(u_v, 0.1):.1f}x larger than Upper Short Pool
+[ZERO-AXIS EQUILIBRIUM SPOT ANCHOR]:
+  ● CURRENT BTC SPOT PRICE: ${price:,.2f} (Microstructure Baseline)
+
+[LOWER LONG LIQUIDATION POOLS (MAGNETS / SUPPORT BELOW)]:
+  ▼ 100x Longs:     ${l_p:,.0f} (-{l_d:.2f}% distance / -{l_atr:.2f} ATR) | Est. Pool: ${l_v:.1f}M [🔥 DOMINANT MAGNET CORE]
+  ▼ 25x Longs:      ${swing_low * 0.988:,.0f} (-{(((price - swing_low * 0.988)/price)*100):.2f}% distance / -{(price - swing_low * 0.988)/max(atr,1):.2f} ATR) | Est. Pool: ~$140M
+  ▼ 10x Longs:      ${swing_low * 0.975:,.0f} (-{(((price - swing_low * 0.975)/price)*100):.2f}% distance / -{(price - swing_low * 0.975)/max(atr,1):.2f} ATR) | Est. Pool: ~$95M
+
+• Liquidation Imbalance Ratio: Lower Long Pool is {imbalance_ratio:.1f}x larger than Upper Short Pool.
 
 ================================================================================
-MONITOR AUTOMATED DIAGNOSIS:
-- Diagnosed Regime: {regime_name} ({majority})
-- Physical Diagnosis: {diagnosis}
-- Dominant Liquidation Magnet: {dom_magnet} ({dom_reason})
-- Recommended Rotation: {rotation}
-- Playbook Protocol: {action} (Sizing Factor: {sizing}x)
-- Inviolable Stop-Loss: ${stop_price:,.2f} ({stop_dist:.2f}% distance) | Rule: {stop_rule}
-- Risk Budget Status: {'APPROVED' if risk.get('risk_budget_ok') else 'REJECTED/DOWNSIZED'}
+INSTRUCTIONS FOR THE AI ANALYST (STRICT AUDIT MANDATE):
+You are the Chief Risk Officer and Head of Microstructure at an institutional spot trading desk.
+You are strictly bounded by a SPOT-ONLY investment mandate (USDT cash vs BTC spot). No leverage, no futures, no shorting.
 
-================================================================================
-ANALYTICAL PROMPT FOR LLM (ChatGPT / Claude / Grok / Gemini):
-Act as an institutional crypto market microstructure analyst and risk manager.
-Review the verified live positioning telemetry above and answer the following:
+Evaluate the live telemetry against the 5-Regime Radar Framework:
+1. Spot-Led Expansion: Spot CVD leading, price holding VWAP, funding normal, OI stable. (Action: 0.75x-1.0x Long)
+2. Leveraged / Fragile Upside: Price rising but Spot CVD flat/lagging, OI/funding surging. (Action: Trim/Stand aside 0.0x-0.25x)
+3. Range / Liquidation Magnet: Price bound in channel, positioning crowded, liquidation clusters dominate. (Action: Trade the Magnet 0.5x-0.75x)
+4. Cascade / Forced Deleveraging: Waterfall drop, massive long liquidations, OI crashing. (Action: 0.0x Wait, NEVER buy waterfall)
+5. Distribution / Bear Continuation: Price below key VWAPs, Spot CVD negative, weak bounces. (Action: 0.0x Cash)
+Default: Transition / Mixed (0.0x cash).
 
-1. REGIME VALIDATION: Do you agree with the engine's diagnosis of '{regime_name}' based on the verified majority observations? Why or why not?
-2. LIQUIDATION HEATMAP DYNAMICS: Given the full leverage ladder (10x-100x shorts up to ${swing_high * 1.025:,.0f} vs 10x-100x longs down to ${swing_low * 0.975:,.0f}) and the {l_v / max(u_v, 0.1):.1f}x size disparity favoring the Lower Pool (${l_v:.1f}M at ${l_p:,.0f}) alongside retail L/S ratio ({ls_ratio:.2f}), what is the path of least resistance for market maker execution algorithms?
-3. SIZING & ROTATION CRITIQUE: Evaluate the recommended rotation '{rotation}' and sizing factor '{sizing}x'. Is this allocation prudent given the current 4H range width ({range_width:.2f}%) and ATR compression ({atr_comp:.1f}%)?
-4. INVALIDATION & RISK: Critique the inviolable stop-loss at ${stop_price:,.2f} ({stop_dist:.2f}% distance). Under what specific order flow change should this position be immediately aborted?
+PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
+
+1. REGIME VERDICT & INDEPENDENT VOTE:
+   - State clearly whether you AGREE, DISAGREE, or call a different regime. Cite at least 3 specific metrics from the data above to justify your vote.
+
+2. LIQUIDATION HEATMAP PATH OF LEAST RESISTANCE:
+   - Analyze the path of least resistance between the Upper Short pools (${swing_high * 1.012:,.0f}-${swing_high * 1.025:,.0f}) and Lower Long pools (${l_p:,.0f}-${swing_low * 0.975:,.0f}).
+   - How will market maker algorithms exploit the {long_pct:.1f}% retail long bias and the {imbalance_ratio:.1f}x pool size imbalance?
+
+3. SPOT EXECUTION & SIZING DIRECTIVE:
+   - Critique the engine's suggested action: '{action}' ({sizing}x sizing).
+   - In plain English, how should a spot trader execute right now? (e.g. Accumulate support wick, wait for 1H range reclaim, or stay 100% USDT cash?)
+
+4. INVIOLABLE STOP-LOSS SAFETY CHECK:
+   - Audit the proposed stop-loss at ${stop_price:,.2f} ({stop_dist:.2f}% distance).
+   - Is this stop placed safely below the 10x/25x liquidation shelf and structural swing wicks, or does it risk getting caught in predatory slippage?
+
+5. SPECIFIC INVALIDATION & RED FLAGS:
+   - What exact microstructure change (e.g. Spot CVD collapse, sudden OI spike + funding divergence, breakdown below ${swing_low:,.0f}) would immediately invalidate this thesis and demand an emergency exit to 100% USDT cash?
 ================================================================================"""
         return prompt.strip()
 
