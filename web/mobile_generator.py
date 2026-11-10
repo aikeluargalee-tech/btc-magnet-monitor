@@ -36,6 +36,7 @@ class MobileWebGenerator:
         return """const CACHE_NAME = 'btc-magnet-mobile-v2';
 const STATIC_ASSETS = [
   './app.html',
+  './verdict.html',
   './manifest.json'
 ];
 
@@ -561,6 +562,165 @@ self.addEventListener('fetch', (e) => {
       color: var(--text-muted);
       font-family: var(--font-mono);
       opacity: 0.8;
+    }}
+
+    /* AI COPY PROMPT HELPER BOX */
+    .ai-copy-helper-box {{
+      margin-top: 10px;
+      background: rgba(0, 255, 102, 0.04);
+      border: 1px dashed rgba(0, 255, 102, 0.25);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }}
+
+    .ai-helper-icon {{
+      font-size: 14px;
+      line-height: 1;
+      margin-top: 2px;
+    }}
+
+    .ai-helper-text strong {{
+      color: #ffffff;
+    }}
+
+    /* SYSTEM VERDICT QUICK GLANCE CARD */
+    .system-verdict-summary-card {{
+      background: var(--bg-card);
+      border: 2px solid var(--info);
+      border-radius: 14px;
+      padding: 14px;
+      margin: 18px 0 14px 0;
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.12);
+    }}
+
+    .verdict-card-top-tag {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }}
+
+    .verdict-tag-left {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }}
+
+    .verdict-title-text {{
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--info);
+      letter-spacing: 0.5px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }}
+
+    .quick-glance-badge {{
+      font-size: 9px;
+      font-weight: 800;
+      background: rgba(0, 229, 255, 0.15);
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      color: var(--info);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+    }}
+
+    .verdict-summary-grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }}
+
+    .verdict-summary-item {{
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }}
+
+    .v-sum-lbl {{
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }}
+
+    .v-sum-val {{
+      font-size: 13.5px;
+      line-height: 1.25;
+      color: #ffffff;
+    }}
+
+    .v-sum-sub {{
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }}
+
+    .verdict-concise-callout {{
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid var(--info);
+      padding: 10px 12px;
+      border-radius: 4px 8px 8px 4px;
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.45;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 14px;
+    }}
+
+    .btn-subpage-verdict {{
+      width: 100%;
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.2) 0%, rgba(0, 255, 102, 0.2) 100%);
+      border: 1px solid var(--info);
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(0, 229, 255, 0.15);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }}
+
+    .btn-subpage-verdict:active {{
+      transform: scale(0.98);
+      background: var(--info);
+      color: #030804;
+    }}
+
+    .btn-subpage-left {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+
+    .btn-arrow {{
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--info);
     }}
 
     /* NEXT SCHEDULED TELEMETRY UPDATE CARD */
@@ -1508,11 +1668,81 @@ self.addEventListener('fetch', (e) => {
         <span style="font-size: 15px;">📋</span>
         <span id="copy-btn-text">Copy Data & Prompt for AI</span>
       </button>
+
+      <!-- USER GUIDANCE NOTE: EXTERNAL AI PROMPT INVITATION -->
+      <div class="ai-copy-helper-box">
+        <span class="ai-helper-icon">💡</span>
+        <div class="ai-helper-text">
+          <strong>Interactive AI Second Opinion:</strong> Users are encouraged to tap the button above to copy all live on-exchange metrics and paste them directly into their favourite AI &mdash; such as <strong>Claude, ChatGPT, Grok, DeepSeek, or Meta AI</strong> &mdash; for deep independent analysis and interactive discussion for a second verdict.
+        </div>
+      </div>
     </div>
 
-    <!-- SEPARATOR: ALGORITHMIC REFERENCE BENCHMARK -->
-    <div class="section-separator">
-      <span>Algorithmic Reference Benchmark</span>
+    <!-- ======================================================== -->
+    <!-- OUR SYSTEM VERDICT (ALGORITHMIC PLAYBOOK) — QUICK GLANCE  -->
+    <!-- ======================================================== -->
+    <div class="system-verdict-summary-card">
+      <div class="verdict-card-top-tag">
+        <div class="verdict-tag-left">
+          <span class="live-dot-mini"></span>
+          <span class="verdict-title-text">OUR SYSTEM VERDICT (ALGORITHMIC PLAYBOOK)</span>
+        </div>
+        <span class="quick-glance-badge">QUICK GLANCE</span>
+      </div>
+
+      <!-- Concise Summary Grid -->
+      <div class="verdict-summary-grid">
+        <!-- Metric 1: Macro Regime -->
+        <div class="verdict-summary-item">
+          <div class="v-sum-lbl">MACRO REGIME</div>
+          <div class="v-sum-val" style="color: {regime_accent}; font-weight: 900;">
+            {regime_icon} {regime_name}
+          </div>
+          <div class="v-sum-sub">{diagnosis}</div>
+        </div>
+
+        <!-- Metric 2: Spot Action & Sizing -->
+        <div class="verdict-summary-item">
+          <div class="v-sum-lbl">PORTFOLIO ROTATION</div>
+          <div class="v-sum-val" style="color: {'var(--primary)' if 'BTC' in rotation else 'var(--warning)'}; font-weight: 900;">
+            {'🛡️ ' if 'USDT' in rotation else '🚀 '}{rotation} ({sizing:.2f}x)
+          </div>
+          <div class="v-sum-sub">{playbook}</div>
+        </div>
+
+        <!-- Metric 3: Inviolable Safety Net -->
+        <div class="verdict-summary-item">
+          <div class="v-sum-lbl">INVIOLABLE SAFETY NET</div>
+          <div class="v-sum-val" style="color: var(--danger); font-family: var(--font-mono);">
+            ${disaster_stop:,.2f}
+          </div>
+          <div class="v-sum-sub">{disaster_dist:.2f}% Disaster Stop | Inval: ${structural_inval:,.2f}</div>
+        </div>
+
+        <!-- Metric 4: Dominant Magnet Pull -->
+        <div class="verdict-summary-item">
+          <div class="v-sum-lbl">DOMINANT LIQUIDATION MAGNET</div>
+          <div class="v-sum-val" style="color: var(--info);">
+            🧲 {dom_magnet}
+          </div>
+          <div class="v-sum-sub">{dom_reason}</div>
+        </div>
+      </div>
+
+      <!-- Concise Executive Takeaway -->
+      <div class="verdict-concise-callout">
+        <span style="font-size: 14px; line-height: 1.2;">💡</span>
+        <span><strong>Bottom Line Summary:</strong> {plain_verdict}</span>
+      </div>
+
+      <!-- Button to enter subpage for full analytical details and verdict -->
+      <a href="./verdict.html" class="btn-subpage-verdict">
+        <div class="btn-subpage-left">
+          <span>📊</span>
+          <span>View Full Analytical Details &amp; Detailed Verdict Subpage</span>
+        </div>
+        <span class="btn-arrow">&rarr;</span>
+      </a>
     </div>
 
     <!-- ======================================================== -->
@@ -2173,6 +2403,305 @@ self.addEventListener('fetch', (e) => {
     if ('serviceWorker' in navigator) {{
       navigator.serviceWorker.register('./sw.js').catch(() => {{}});
     }}
+  </script>
+</body>
+</html>"""
+
+
+    def render_verdict_subpage(self, data: Dict[str, Any]) -> str:
+        """Renders the dedicated standalone Subpage for Full Analytical Details & Verdict."""
+        regime = data.get("regime", {})
+        metrics = data.get("metrics", {})
+        risk = data.get("risk", {})
+        ts_iso = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+        spot_price = metrics.get("price", 74827.09)
+        p_chg_24h = metrics.get("price_change_24h_pct", 0.71)
+        daily_vwap = metrics.get("daily_vwap", spot_price * 0.998)
+        weekly_vwap = metrics.get("weekly_vwap", spot_price * 0.995)
+        ema_20d = metrics.get("ema_20d", spot_price * 1.025)
+        ema_50d = metrics.get("ema_50d", spot_price * 1.042)
+        ma_200d = metrics.get("ma_200d", spot_price * 0.978)
+        swing_high = metrics.get("swing_high_4h", 75568.0)
+        swing_low = metrics.get("swing_low_4h", 73750.0)
+        base_floor = metrics.get("base_floor", 73510.0)
+
+        spot_vol = metrics.get("spot_vol_24h", 14851.0)
+        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.02)
+        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.28)
+        spot_cvd_7d = metrics.get("spot_cvd_slope_7d", 1743.0)
+        spot_cvd_14d = metrics.get("spot_cvd_slope_14d", 4829.0)
+        perp_trend = metrics.get("perp_cvd_trend", "declining")
+        bids_asks_depth = metrics.get("bids_asks_depth_ratio", 1.77)
+
+        oi = metrics.get("open_interest", 9349.0)
+        oi_24h = metrics.get("oi_change_24h_pct", -0.17)
+        oi_1h = metrics.get("oi_change_1h_pct", -0.02)
+        oi_4h = metrics.get("oi_change_4h_pct", -0.05)
+        funding_rate = metrics.get("funding_rate", 0.000058) * 100.0
+        funding_rate_ann = metrics.get("funding_rate_annualized", funding_rate * 3 * 365)
+        basis = metrics.get("futures_basis_annualized", -1.22)
+        ls_ratio = metrics.get("long_short_account_ratio", 1.85)
+
+        atr = metrics.get("atr", 472.49)
+        atr_comp = metrics.get("atr_compression_pct", 74.0)
+        range_width = ((swing_high - swing_low) / max(spot_price, 1.0)) * 100
+
+        upper_c = regime.get("nearest_upper_cluster") or {}
+        lower_c = regime.get("nearest_lower_cluster") or {}
+        u_p = upper_c.get("price_level", 74880.0)
+        u_d = upper_c.get("distance_pct", 0.07)
+        u_atr = upper_c.get("distance_atr", 0.11)
+        u_vol = upper_c.get("estimated_vol_usd", 4_200_000.0) / 1e6
+
+        l_p = lower_c.get("price_level", 74760.0)
+        l_d = lower_c.get("distance_pct", 0.09)
+        l_atr = lower_c.get("distance_atr", 0.14)
+        l_vol = lower_c.get("estimated_vol_usd", 102_800_000.0) / 1e6
+
+        regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
+        regime_name = regime.get("name", "Range / Liquidation Magnet")
+        diagnosis = regime.get("diagnosis", "Positioning imbalance and forced liquidations dominate")
+        score_str = regime.get("majority_score", "3/4 observations confirmed")
+        rotation = regime.get("rotation", "USDT -> BTC")
+        sizing = regime.get("sizing_factor", 0.75)
+        action = regime.get("action", "Trade the Magnet (0.75x)")
+        playbook = regime.get("action", "Core Operating Zone — Trade the Magnet (0.75x)")
+        entry_inst = regime.get("entry_instruction", "Confirmed sweep & reclaim: 50% market spot / 50% limit at reclaimed range floor.")
+
+        stop_price = regime.get("stop_price", spot_price * 0.98)
+        stop_dist = regime.get("stop_distance_pct", 2.0)
+        disaster_stop = regime.get("disaster_stop_price", 72354.94)
+        disaster_dist = regime.get("disaster_stop_distance_pct", 3.30)
+        structural_inval = regime.get("structural_invalidation_level", 73750.00)
+        stop_rule = regime.get("stop_rule", "Structural: 1H close < 4H swing low | Inviolable: Below 200D SMA & 25x shelf -0.7%")
+
+        risk_budget_ok = risk.get("risk_budget_ok", True)
+        actionable_trade_instruction = risk.get(
+            "actionable_trade_instruction",
+            f"Deploy {int(sizing*100*0.4)}% of your available USDT cash to buy spot BTC (Strictly capped at 0.99% total portfolio risk)."
+        )
+
+        plain_verdict = regime.get(
+            "plain_english_verdict",
+            f"Bitcoin is oscillating in a defined trading range. LSCE Status: {regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}. Market makers hunt leverage on both sides."
+        )
+        why_points = regime.get("why_points", [
+            "Defined Consolidation Range: Volatility has compressed and price is trading between established floor and ceiling levels.",
+            f"Liquidation Sweep State ({regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}): The lower pool is actively monitored for genuine spot absorption.",
+            "Controlled Market Fuel: Mean-reversion toward liquidation pools is the primary statistical edge."
+        ])
+        why_sizing = regime.get(
+            "why_sizing_reason",
+            "Why 75% Sizing? Sizing is strictly tied to post-sweep absorption proof. If sweep is in progress or untested, we hold 100% cash."
+        )
+        why_stop = regime.get(
+            "why_stop_reason",
+            f"Your Safety Net: Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_dist:.2f}% away), positioned safely below the 200D SMA and 25x liquidation shelf."
+        )
+
+        imm_ratio = regime.get("immediate_imbalance_ratio", 24.5)
+        tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.70)
+        tot_l_vol = regime.get("total_ladder_lower_vol", 337.8)
+        tot_u_vol = regime.get("total_ladder_upper_vol", 199.2)
+        dom_magnet = regime.get("dominant_magnet", "Lower Long Sweep Magnet")
+        dom_reason = regime.get("dominant_magnet_reason", "LOWER (Immediate 24.5x / Ladder 1.70x; longs 64.9% crowded)")
+
+        lsce_status = regime.get("lsce_status", "SWEEP_AND_RECLAIM_CONFIRMED")
+        lsce_detail = regime.get(
+            "lsce_detail",
+            f"Lower liquidation shelf (${l_p:,.0f}) swept and reclaimed with positive spot absorption. Authorized {sizing:.2f}x entry."
+        )
+
+        # LSCE Badge formatting (Conflict Guard enforced)
+        if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
+            if sizing > 0 and "USDT -> BTC" in rotation:
+                lsce_badge_icon = "✅"
+                lsce_badge_title = f"SWEEP & RECLAIM CONFIRMED (BUY AUTHORIZED {sizing:.2f}x)"
+                lsce_badge_color = "var(--primary)"
+                lsce_badge_bg = "rgba(0, 255, 102, 0.1)"
+                lsce_badge_border = "rgba(0, 255, 102, 0.35)"
+            else:
+                lsce_badge_icon = "🛡️"
+                lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
+                lsce_badge_color = "var(--warning)"
+                lsce_badge_bg = "rgba(255, 184, 0, 0.1)"
+                lsce_badge_border = "rgba(255, 184, 0, 0.35)"
+                lsce_detail = f"Lower liquidation shelf (${l_p:,.0f}) swept, but new spot buying is strictly BLOCKED by macro regime ({regime_name}). Maintain 100% USDT Cash."
+        elif lsce_status == "SWEEP_IN_PROGRESS":
+            lsce_badge_icon = "⚠️"
+            lsce_badge_title = "SWEEP IN PROGRESS (DO NOT BUY FALLING KNIFE)"
+            lsce_badge_color = "var(--warning)"
+            lsce_badge_bg = "rgba(255, 184, 0, 0.1)"
+            lsce_badge_border = "rgba(255, 184, 0, 0.35)"
+        else:
+            lsce_badge_icon = "⏸️"
+            lsce_badge_title = "UNTESTED (MONITORING / CASH)"
+            lsce_badge_color = "var(--text-muted)"
+            lsce_badge_bg = "rgba(255, 255, 255, 0.05)"
+            lsce_badge_border = "var(--border)"
+
+        # Regime Tagline & Icon
+        if regime_id == "SPOT_LED_EXPANSION":
+            regime_icon = "🚀"
+            regime_tagline = "Genuine spot buyers in control. Favorable environment for trend-following spot longs."
+            regime_accent = "var(--primary)"
+        elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
+            regime_icon = "⚠️"
+            regime_tagline = "Advance built on dangerous borrowed futures leverage. High probability of long squeeze."
+            regime_accent = "var(--warning)"
+        elif regime_id == "CASCADE_FORCED_DELEVERAGING":
+            regime_icon = "🌊"
+            regime_tagline = "Forced margin liquidation cascade in progress. Strictly avoid buying until selling ceases."
+            regime_accent = "var(--danger)"
+        elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
+            regime_icon = "📉"
+            regime_tagline = "Structural seller control. Whales distributing into retail bounces. Cash preservation priority."
+            regime_accent = "var(--danger)"
+        elif regime_id == "RANGE_LIQUIDATION_MAGNET":
+            regime_icon = "🧲"
+            regime_tagline = "Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate."
+            regime_accent = "var(--info)"
+        else:
+            regime_icon = "⚖️"
+            regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
+            regime_accent = "var(--text-muted)"
+
+        if "USDT -> BTC" in rotation:
+            action_pill = "Buy Spot (Accumulate)"
+            action_badge_style = "background: rgba(0, 255, 102, 0.15); color: var(--primary); border: 1px solid rgba(0, 255, 102, 0.4);"
+        elif "BTC -> USDT" in rotation:
+            action_pill = "Trim Spot / Harvest to Cash"
+            action_badge_style = "background: rgba(255, 51, 68, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 68, 0.4);"
+        else:
+            action_pill = "Defensive Cash"
+            action_badge_style = "background: rgba(255, 184, 0, 0.15); color: var(--warning); border: 1px solid rgba(255, 184, 0, 0.4);"
+
+        matched_criteria = regime.get("matched_criteria", [
+            f"Defined range ({range_width:.2f}% width) & ATR compressed {atr_comp:.1f}%",
+            f"Positioning crowded (L/S {ls_ratio:.2f}, funding {funding_rate/100:.3f}%)",
+            "Clear liquidation clusters active above and below price"
+        ])
+
+        magnet_factors = regime.get("magnet_factors", {})
+        f1 = magnet_factors.get("factor_1_size", f"Immediate Tier: LOWER is {imm_ratio:.1f}x larger (${l_vol:.1f}M vs ${u_vol:.1f}M) | Total Ladder: LOWER is {tot_ratio:.2f}x (${tot_l_vol:.1f}M vs ${tot_u_vol:.1f}M)")
+        f2 = magnet_factors.get("factor_2_spot_leadership", f"Spot CVD ratio {spot_cvd_ratio:.2f} vs Perp CVD {perp_trend}")
+        f3 = magnet_factors.get("factor_3_crowding_fuel", f"Funding {funding_rate/100:.3f}%, Retail L/S {ls_ratio:.2f} ({(ls_ratio/(1+ls_ratio))*100:.1f}% long)")
+        f4 = magnet_factors.get("factor_4_regime_structure", "Range compression with downside fragility")
+        f5 = magnet_factors.get("factor_5_asymmetry", f"LOWER is {l_d:.2f}% away vs UPPER {u_d:.2f}% away")
+        f6 = magnet_factors.get("factor_6_atr_volatility", f"ATR compressed {atr_comp:.1f}%")
+
+        evidence_items_html = "".join([
+            f'<div class="evidence-item"><span class="evidence-check">✓</span><span>{item}</span></div>'
+            for item in matched_criteria
+        ])
+
+        why_points_html = "".join([
+            f'<div class="why-factor-row"><div class="why-num">{idx+1}</div><div style="color: var(--text-main);">{pt}</div></div>'
+            for idx, pt in enumerate(why_points)
+        ])
+
+        p_10x_short = swing_high * 1.025
+        d_10x_short = ((p_10x_short - spot_price) / spot_price) * 100
+        p_25x_short = swing_high * 1.012
+        d_25x_short = ((p_25x_short - spot_price) / spot_price) * 100
+
+        p_25x_long = swing_low * 0.988
+        d_25x_long = ((spot_price - p_25x_long) / spot_price) * 100
+        p_10x_long = swing_low * 0.975
+        d_10x_long = ((spot_price - p_10x_long) / spot_price) * 100
+
+        # Subpage uses the exact same styling as mobile app
+        app_full = self.render_mobile_app(data)
+        
+        # Extract the <style>...</style> block from app_full
+        style_start = app_full.find("<style>")
+        style_end = app_full.find("</style>") + 8
+        styles = app_full[style_start:style_end] if style_start != -1 else ""
+
+        # Extract benchmark content starting from STEP 1 to end of app-container
+        step1_idx = app_full.find("<!-- STEP 1")
+        if step1_idx == -1:
+            step1_idx = app_full.find("STEP 1 • MACRO REGIME DIAGNOSIS")
+            if step1_idx != -1:
+                step1_idx = app_full.rfind("<div class=\"benchmark-card", 0, step1_idx)
+
+        end_container_idx = app_full.find("</div>\n\n  <!-- TOAST NOTIFICATION -->")
+        if end_container_idx == -1:
+            end_container_idx = app_full.find("<!-- TOAST NOTIFICATION -->")
+
+        analytical_body = app_full[step1_idx:end_container_idx] if step1_idx != -1 and end_container_idx != -1 else ""
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>BTC Magnet | Full Analytical Details & Algorithmic Verdict</title>
+  <meta name="theme-color" content="#030804">
+  {styles}
+</head>
+<body class="theme-nvg">
+  <div class="app-container">
+    
+    <!-- SUBPAGE NAVIGATION HEADER -->
+    <header class="top-bar">
+      <a href="./app.html" style="display: inline-flex; align-items: center; gap: 6px; color: var(--info); text-decoration: none; font-size: 11.5px; font-weight: 800; font-family: var(--font-mono);">
+        <span>&larr;</span>
+        <span>Back to Live Cockpit</span>
+      </a>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 10px; color: var(--primary); font-family: var(--font-mono); font-weight: 700;">● FULL VERDICT</span>
+        <button class="theme-toggle-btn" id="theme-btn" onclick="cycleTheme()">NVG</button>
+      </div>
+    </header>
+
+    <!-- SUBPAGE HERO BANNER -->
+    <div style="background: var(--bg-card); border: 2px solid var(--info); border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);">
+      <div style="font-size: 9.5px; font-weight: 800; color: var(--info); font-family: var(--font-mono); letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase;">
+        PROPRIETARY ON-EXCHANGE BENCHMARK
+      </div>
+      <h1 style="font-size: 17px; font-weight: 900; color: #ffffff; margin-bottom: 6px; letter-spacing: -0.2px;">
+        Our System Verdict (Algorithmic Playbook)
+      </h1>
+      <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin: 0;">
+        Full multi-factor quantitative diagnosis, liquidation concentration mapping, and spot execution directives. Zero subjective human bias.
+      </p>
+    </div>
+
+    <!-- FULL ANALYTICAL SUITE (STEP 1, STEP 2, BOTTOM LINE, HEATMAP, SIX-FACTOR, GAUGES) -->
+    {analytical_body}
+
+    <!-- RETURN FOOTER -->
+    <div style="text-align: center; padding: 20px 0 30px 0;">
+      <a href="./app.html" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: rgba(0, 229, 255, 0.12); border: 1px solid var(--info); color: #ffffff; padding: 13px 16px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 800;">
+        <span>&larr;</span>
+        <span>Return to Live Cockpit (app.html)</span>
+      </a>
+    </div>
+
+  </div>
+
+  <script>
+    const themes = ['theme-nvg', 'theme-ibm', 'theme-slate'];
+    const themeLabels = {{ 'theme-nvg': 'NVG', 'theme-ibm': 'IBM', 'theme-slate': 'SLATE' }};
+    let currentThemeIdx = 0;
+
+    function cycleTheme() {{
+      currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+      document.body.className = themes[currentThemeIdx];
+      document.getElementById('theme-btn').textContent = themeLabels[themes[currentThemeIdx]];
+      try {{ localStorage.setItem('btc_magnet_theme', themes[currentThemeIdx]); }} catch(e) {{}}
+    }}
+
+    try {{
+      const savedTheme = localStorage.getItem('btc_magnet_theme');
+      if (savedTheme && themes.includes(savedTheme)) {{
+        currentThemeIdx = themes.indexOf(savedTheme);
+        document.body.className = savedTheme;
+        document.getElementById('theme-btn').textContent = themeLabels[savedTheme];
+      }}
+    }} catch(e) {{}}
   </script>
 </body>
 </html>"""
