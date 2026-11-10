@@ -67,7 +67,6 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Network first for regime.json to always get live data
   if (e.request.url.includes('regime.json')) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
@@ -89,6 +88,44 @@ self.addEventListener('fetch', (e) => {
 
         spot_price = metrics.get("price", 74800.0)
         p_chg_24h = metrics.get("price_change_24h_pct", 0.0)
+        daily_vwap = metrics.get("daily_vwap", spot_price * 0.998)
+        weekly_vwap = metrics.get("weekly_vwap", spot_price * 0.995)
+        ema_20d = metrics.get("ema_20d", spot_price * 1.025)
+        ema_50d = metrics.get("ema_50d", spot_price * 1.042)
+        ma_200d = metrics.get("ma_200d", spot_price * 0.978)
+        swing_high = metrics.get("swing_high_4h", spot_price * 1.015)
+        swing_low = metrics.get("swing_low_4h", spot_price * 0.985)
+        base_floor = metrics.get("base_floor", spot_price * 0.98)
+
+        spot_vol = metrics.get("spot_vol_24h", 14851.0)
+        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.02)
+        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.28)
+        spot_cvd_7d = metrics.get("spot_cvd_slope_7d", 1743.0)
+        spot_cvd_14d = metrics.get("spot_cvd_slope_14d", 4829.0)
+        perp_trend = metrics.get("perp_cvd_trend", "declining")
+        bids_asks_depth = metrics.get("bids_asks_depth_ratio", 1.77)
+
+        oi = metrics.get("open_interest", 9349.0)
+        oi_24h = metrics.get("oi_change_24h_pct", -0.17)
+        oi_1h = metrics.get("oi_change_1h_pct", -0.02)
+        oi_4h = metrics.get("oi_change_4h_pct", -0.05)
+        funding_rate = metrics.get("funding_rate", 0.000058) * 100.0
+        basis = metrics.get("futures_basis_annualized", -1.22)
+        ls_ratio = metrics.get("long_short_account_ratio", 1.85)
+
+        atr = metrics.get("atr", 472.49)
+        atr_comp = metrics.get("atr_compression_pct", 74.0)
+        range_width = ((swing_high - swing_low) / max(spot_price, 1.0)) * 100
+
+        upper_c = regime.get("nearest_upper_cluster") or {}
+        lower_c = regime.get("nearest_lower_cluster") or {}
+        u_p = upper_c.get("price_level", 74880.0)
+        u_d = upper_c.get("distance_pct", 0.07)
+        u_vol = upper_c.get("estimated_vol_usd", 4_200_000.0) / 1e6
+        l_p = lower_c.get("price_level", 74760.0)
+        l_d = lower_c.get("distance_pct", 0.09)
+        l_vol = lower_c.get("estimated_vol_usd", 102_800_000.0) / 1e6
+
         regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
         regime_name = regime.get("name", "Range / Liquidation Magnet")
         diagnosis = regime.get("diagnosis", "Positioning imbalance and forced liquidations dominate")
@@ -96,64 +133,27 @@ self.addEventListener('fetch', (e) => {
         rotation = regime.get("rotation", "Remain USDT")
         sizing = regime.get("sizing_factor", 0.0)
         action = regime.get("action", "Stand Aside (0.0x)")
-        entry_inst = regime.get("entry_instruction", "Price oscillating in range.")
 
-        # Stop Architecture
         stop_price = regime.get("stop_price", spot_price * 0.98)
         stop_dist = regime.get("stop_distance_pct", 2.0)
         disaster_stop = regime.get("disaster_stop_price", stop_price * 0.98)
         disaster_dist = regime.get("disaster_stop_distance_pct", 3.5)
-        structural_inval = regime.get("structural_invalidation_level", spot_price * 0.985)
-
-        # Liquidation Clusters
-        upper_c = regime.get("nearest_upper_cluster") or {}
-        lower_c = regime.get("nearest_lower_cluster") or {}
-        u_p = upper_c.get("price_level", spot_price * 1.01)
-        u_d = upper_c.get("distance_pct", 1.0)
-        u_vol = upper_c.get("estimated_vol_usd", 10_000_000.0) / 1e6
-        l_p = lower_c.get("price_level", spot_price * 0.99)
-        l_d = lower_c.get("distance_pct", 1.0)
-        l_vol = lower_c.get("estimated_vol_usd", 100_000_000.0) / 1e6
+        structural_inval = regime.get("structural_invalidation_level", swing_low)
 
         imm_ratio = regime.get("immediate_imbalance_ratio", 24.5)
         tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.70)
         dom_magnet = regime.get("dominant_magnet", "Lower Long Sweep Magnet")
-        dom_reason = regime.get("dominant_magnet_reason", "LOWER (Downside Skew)")
-
         lsce_status = regime.get("lsce_status", "UNTESTED")
         lsce_detail = regime.get("lsce_detail", "Monitoring active liquidation zones.")
 
-        # Order Flow Metrics
-        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
-        funding_rate_ann = metrics.get("funding_rate_annualized", 10.95)
-        funding_rate_8h = metrics.get("funding_rate", 0.0001) * 100.0
-        basis_ann = metrics.get("futures_basis_annualized", -1.2)
-        ls_ratio = metrics.get("long_short_account_ratio", 1.85)
-        oi_btc = metrics.get("open_interest", 9349.0)
-        oi_24h = metrics.get("oi_change_24h_pct", 0.0)
-        atr_comp = metrics.get("atr_compression_pct", 74.0)
-        ma_200d = metrics.get("ma_200d", spot_price * 0.97)
-
-        # Escape prompt for embedding in JS
         escaped_prompt = json.dumps(raw_llm_prompt)
-
-        # Regime styling color
-        regime_badge_style = "var(--primary)"
-        if "EXPANSION" in regime_id:
-            regime_badge_style = "#00ff66"
-        elif "CASCADE" in regime_id or "DISTRIBUTION" in regime_id:
-            regime_badge_style = "#ff4444"
-        elif "FRAGILE" in regime_id:
-            regime_badge_style = "#ffb000"
-        elif "MIXED" in regime_id:
-            regime_badge_style = "#c084fc"
 
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>BTC Magnet Monitor | Mobile Cockpit</title>
+  <title>BTC Magnet Monitor | Live Telemetry & AI Prompt Engine</title>
   
   <meta name="theme-color" content="#030804">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -162,7 +162,6 @@ self.addEventListener('fetch', (e) => {
   <link rel="manifest" href="./manifest.json">
 
   <style>
-    /* RESET & BASE */
     * {{
       box-sizing: border-box;
       margin: 0;
@@ -182,46 +181,43 @@ self.addEventListener('fetch', (e) => {
       transition: background-color 0.25s ease, color 0.25s ease;
     }}
 
-    /* THEME SYSTEM */
-    /* 1. Tactical NVG-Green (Default) */
+    /* THEMES */
     body.theme-nvg {{
       --bg-base: #030804;
-      --bg-card: rgba(6, 20, 10, 0.85);
-      --bg-card-sub: rgba(4, 14, 7, 0.95);
+      --bg-card: rgba(6, 20, 10, 0.92);
+      --bg-card-sub: rgba(4, 14, 7, 0.96);
       --border: rgba(0, 255, 102, 0.28);
       --border-bright: #00ff66;
       --primary: #00ff66;
       --primary-dim: #00a843;
       --text-muted: #6ba880;
       --text-main: #d4ffd9;
-      --glow: 0 0 14px rgba(0, 255, 102, 0.4);
+      --glow: 0 0 14px rgba(0, 255, 102, 0.35);
       --danger: #ff4d4d;
       --warning: #ffb800;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
     }}
 
-    /* 2. Vintage IBM 3270 Mainframe Amber */
     body.theme-ibm {{
       --bg-base: #0a0600;
-      --bg-card: rgba(26, 17, 0, 0.85);
-      --bg-card-sub: rgba(18, 11, 0, 0.95);
+      --bg-card: rgba(26, 17, 0, 0.92);
+      --bg-card-sub: rgba(18, 11, 0, 0.96);
       --border: rgba(255, 176, 0, 0.35);
       --border-bright: #ffb000;
       --primary: #ffb000;
       --primary-dim: #b37b00;
       --text-muted: #b08d4f;
       --text-main: #ffe8b3;
-      --glow: 0 0 14px rgba(255, 176, 0, 0.4);
+      --glow: 0 0 14px rgba(255, 176, 0, 0.35);
       --danger: #ff4444;
       --warning: #ffcc00;
       --font-mono: 'Courier New', monospace;
     }}
 
-    /* 3. Modern Institutional Slate */
     body.theme-slate {{
       --bg-base: #090d16;
-      --bg-card: rgba(15, 23, 42, 0.85);
-      --bg-card-sub: rgba(20, 30, 55, 0.95);
+      --bg-card: rgba(15, 23, 42, 0.92);
+      --bg-card-sub: rgba(20, 30, 55, 0.96);
       --border: rgba(56, 189, 248, 0.28);
       --border-bright: #38bdf8;
       --primary: #38bdf8;
@@ -234,7 +230,6 @@ self.addEventListener('fetch', (e) => {
       --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
     }}
 
-    /* MOBILE CONTAINER */
     .mobile-shell {{
       width: 100%;
       max-width: 440px;
@@ -254,7 +249,7 @@ self.addEventListener('fetch', (e) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 0 12px 0;
+      padding: 8px 0 12px 0;
       border-bottom: 1px solid var(--border);
       margin-bottom: 12px;
     }}
@@ -270,22 +265,6 @@ self.addEventListener('fetch', (e) => {
       text-transform: uppercase;
     }}
 
-    .logo-badge .magnet-icon {{
-      font-size: 16px;
-      animation: pulse-glow 2s infinite ease-in-out;
-    }}
-
-    @keyframes pulse-glow {{
-      0%, 100% {{ transform: scale(1); filter: drop-shadow(0 0 2px var(--primary)); }}
-      50% {{ transform: scale(1.12); filter: drop-shadow(0 0 8px var(--primary)); }}
-    }}
-
-    .top-actions {{
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }}
-
     .status-pill {{
       display: flex;
       align-items: center;
@@ -298,12 +277,6 @@ self.addEventListener('fetch', (e) => {
       border: 1px solid var(--primary);
       color: var(--primary);
       font-family: var(--font-mono);
-    }}
-
-    .status-pill.stale {{
-      background: rgba(255, 77, 77, 0.15);
-      border-color: var(--danger);
-      color: var(--danger);
     }}
 
     .status-dot {{
@@ -325,383 +298,221 @@ self.addEventListener('fetch', (e) => {
       font-weight: 700;
     }}
 
-    /* SPOT HERO CARD */
-    .spot-card {{
+    /* ======================================================== */
+    /* PART 1: TOP HERO — LIVE TELEMETRY DATA DICTIONARY CARD   */
+    /* ======================================================== */
+    .top-hero-dictionary {{
       background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 12px;
+      border: 1.5px solid var(--primary);
+      border-radius: 14px;
+      padding: 16px 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--glow);
       position: relative;
       overflow: hidden;
     }}
 
-    .spot-card::before {{
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--primary), transparent);
-    }}
-
-    .spot-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 4px;
-    }}
-
-    .spot-label {{
-      font-size: 11px;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: 0.5px;
-    }}
-
-    .spot-price-row {{
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }}
-
-    .spot-price {{
-      font-size: 28px;
+    .dict-badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
       font-weight: 900;
-      font-family: var(--font-mono);
-      color: #ffffff;
-      letter-spacing: -0.5px;
-    }}
-
-    .spot-chg {{
-      font-size: 13px;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-family: var(--font-mono);
-    }}
-
-    .spot-chg.pos {{ background: rgba(0, 255, 102, 0.15); color: #00ff66; }}
-    .spot-chg.neg {{ background: rgba(255, 77, 77, 0.15); color: #ff4d4d; }}
-
-    .benchmarks-row {{
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 6px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px dashed rgba(255,255,255,0.08);
-      font-size: 10px;
-      font-family: var(--font-mono);
-    }}
-
-    .bench-item {{
-      display: flex;
-      flex-direction: column;
-    }}
-
-    .bench-name {{
-      color: var(--text-muted);
-      font-size: 9px;
       text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--primary);
+      margin-bottom: 2px;
     }}
 
-    .bench-val {{
-      font-weight: 700;
+    .dict-sub-feed {{
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }}
+
+    .dict-headline {{
+      font-size: 17px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+    }}
+
+    .dict-lead-text {{
+      font-size: 11.5px;
       color: var(--text-main);
-      margin-top: 1px;
-    }}
-
-    /* REGIME DIRECTIVE HERO CARD */
-    .regime-card {{
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px;
+      line-height: 1.45;
       margin-bottom: 12px;
     }}
 
-    .regime-badge-header {{
+    .hero-btn-row {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 14px;
+    }}
+
+    .btn-copy-prompt {{
+      background: var(--primary);
+      color: #030804;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 14px rgba(0, 255, 102, 0.4);
+      transition: transform 0.1s ease;
+    }}
+
+    .btn-copy-prompt:active {{
+      transform: scale(0.97);
+    }}
+
+    .btn-share-prompt {{
+      background: var(--bg-card-sub);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }}
+
+    /* 4 CATEGORIES GRID */
+    .dict-categories-stack {{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }}
+
+    .dict-cat-card {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }}
+
+    .dict-cat-header {{
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+    }}
+
+    .cat-title-1 {{ color: #38bdf8; }}
+    .cat-title-2 {{ color: #00ff66; }}
+    .cat-title-3 {{ color: #ffb000; }}
+    .cat-title-4 {{ color: #ff4d4d; }}
+
+    .dict-rows {{
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }}
+
+    .dict-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      line-height: 1.25;
+    }}
+
+    .dict-lbl {{
+      color: var(--text-muted);
+    }}
+
+    .dict-val {{
+      font-weight: 700;
+      color: #ffffff;
+    }}
+
+    .dict-val.accent {{ color: var(--primary); }}
+    .dict-val.warn {{ color: var(--warning); }}
+    .dict-val.danger {{ color: var(--danger); }}
+
+    /* SECTION DIVIDER */
+    .section-separator {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0 10px 0;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.0px;
+    }}
+
+    .section-separator::before, .section-separator::after {{
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }}
+
+    /* REGIME REFERENCE CARD (BELOW TOP HERO) */
+    .regime-summary-card {{
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }}
+
+    .regime-pill-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
     }}
 
     .regime-pill {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
+      gap: 5px;
+      font-size: 11px;
       font-weight: 900;
-      padding: 5px 10px;
+      padding: 4px 8px;
       border-radius: 6px;
-      background: rgba(255,255,255,0.05);
       border: 1px solid var(--primary);
       color: var(--primary);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }}
 
-    .regime-score {{
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-    }}
-
-    .regime-diag {{
-      font-size: 12px;
-      line-height: 1.4;
-      color: var(--text-main);
-      margin-bottom: 12px;
-    }}
-
-    .directive-grid {{
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 8px;
-      margin-bottom: 10px;
-    }}
-
-    .directive-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-    }}
-
-    .dir-label {{
-      font-size: 9px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      font-weight: 700;
-      margin-bottom: 2px;
-    }}
-
-    .dir-val {{
-      font-size: 13px;
-      font-weight: 800;
-      color: #ffffff;
-      font-family: var(--font-mono);
-    }}
-
-    /* HERO ACTION CARD: AI CO-PILOT */
-    .ai-action-card {{
-      background: linear-gradient(145deg, rgba(6, 20, 10, 0.95), rgba(10, 35, 18, 0.85));
-      border: 1.5px solid var(--primary);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 12px;
-      box-shadow: var(--glow);
-      position: relative;
-    }}
-
-    .ai-card-title {{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }}
-
-    .ai-title-text {{
-      font-size: 12px;
-      font-weight: 900;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }}
-
-    .ai-notice {{
-      font-size: 10px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      line-height: 1.35;
-    }}
-
-    .ai-buttons-row {{
-      display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 8px;
-    }}
-
-    .btn-ai-primary {{
-      background: var(--primary);
-      color: #030804;
-      border: none;
-      border-radius: 8px;
-      padding: 11px 12px;
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: transform 0.1s ease, filter 0.15s ease;
-      letter-spacing: 0.3px;
-      box-shadow: 0 2px 10px rgba(0, 255, 102, 0.3);
-    }}
-
-    .btn-ai-primary:active {{
-      transform: scale(0.97);
-    }}
-
-    .btn-ai-secondary {{
-      background: var(--bg-card-sub);
-      color: var(--text-main);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 11px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-    }}
-
-    .btn-ai-secondary:active {{
-      transform: scale(0.97);
-    }}
-
-    .disclaimer-banner {{
-      font-size: 9.5px;
-      color: var(--text-muted);
-      margin-top: 8px;
-      text-align: center;
-      display: block;
-      font-style: italic;
-    }}
-
-    /* LIQUIDATION RADAR & DUAL HORIZON */
-    .radar-card {{
+    /* DUAL STOPS & LSCE CARD */
+    .dual-stops-card {{
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       margin-bottom: 12px;
-    }}
-
-    .card-title {{
-      font-size: 11px;
-      text-transform: uppercase;
-      font-weight: 800;
-      color: var(--text-muted);
-      letter-spacing: 0.6px;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }}
-
-    .ladder-bar-wrap {{
-      margin: 10px 0 12px 0;
-    }}
-
-    .ladder-labels {{
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      margin-bottom: 5px;
-    }}
-
-    .ladder-bar {{
-      height: 8px;
-      border-radius: 999px;
-      background: #1e293b;
-      display: flex;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.1);
-    }}
-
-    .ladder-fill-lower {{
-      background: #00ff66;
-      transition: width 0.4s ease;
-    }}
-
-    .ladder-fill-upper {{
-      background: #ff4444;
-      transition: width 0.4s ease;
-    }}
-
-    .cluster-detail-grid {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 8px;
-    }}
-
-    .cluster-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-family: var(--font-mono);
-    }}
-
-    .cluster-box.lower {{ border-left: 3px solid #00ff66; }}
-    .cluster-box.upper {{ border-left: 3px solid #ff4444; }}
-
-    .cluster-tag {{
-      font-size: 9px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 700;
-    }}
-
-    .cluster-px {{
-      font-size: 13px;
-      font-weight: 800;
-      color: #ffffff;
-      margin: 2px 0;
-    }}
-
-    .cluster-sub {{
-      font-size: 10px;
-      color: var(--text-muted);
-    }}
-
-    /* LSCE & DUAL STOPS */
-    .lsce-card {{
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 12px;
-    }}
-
-    .lsce-badge-row {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }}
-
-    .lsce-pill {{
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 10.5px;
-      font-weight: 800;
-      font-family: var(--font-mono);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border);
-      color: var(--text-main);
     }}
 
     .stops-grid {{
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 8px;
+      margin-top: 6px;
     }}
 
     .stop-box {{
@@ -715,38 +526,7 @@ self.addEventListener('fetch', (e) => {
     .stop-box.structural {{ border-top: 2px solid var(--warning); }}
     .stop-box.disaster {{ border-top: 2px solid var(--danger); }}
 
-    /* MICROSTRUCTURE GRID */
-    .metrics-micro-grid {{
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-bottom: 14px;
-    }}
-
-    .micro-metric-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px;
-      text-align: center;
-      font-family: var(--font-mono);
-    }}
-
-    .micro-lbl {{
-      font-size: 8.5px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      font-weight: 700;
-    }}
-
-    .micro-val {{
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--text-main);
-      margin-top: 2px;
-    }}
-
-    /* TOAST NOTIFICATION */
+    /* TOAST */
     .toast-overlay {{
       position: fixed;
       bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
@@ -754,7 +534,7 @@ self.addEventListener('fetch', (e) => {
       transform: translateX(-50%) translateY(100px);
       background: var(--primary);
       color: #030804;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 12px;
       padding: 10px 18px;
       border-radius: 999px;
@@ -771,103 +551,19 @@ self.addEventListener('fetch', (e) => {
     .toast-overlay.active {{
       transform: translateX(-50%) translateY(0);
     }}
-
-    /* EDUCATIONAL MODAL SHEET */
-    .modal-backdrop {{
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.75);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
-    }}
-
-    .modal-backdrop.active {{
-      opacity: 1;
-      pointer-events: auto;
-    }}
-
-    .modal-sheet {{
-      position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%) translateY(100%);
-      width: 100%;
-      max-width: 440px;
-      max-height: 85vh;
-      background: var(--bg-card);
-      border-top: 2px solid var(--primary);
-      border-radius: 20px 20px 0 0;
-      z-index: 1001;
-      padding: 20px 18px 30px 18px;
-      overflow-y: auto;
-      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.05);
-      color: var(--text-main);
-    }}
-
-    .modal-sheet.active {{
-      transform: translateX(-50%) translateY(0);
-    }}
-
-    .modal-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-    }}
-
-    .modal-title {{
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--primary);
-      text-transform: uppercase;
-    }}
-
-    .modal-close-btn {{
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 18px;
-      cursor: pointer;
-      font-weight: 900;
-      padding: 4px;
-    }}
-
-    .regime-item-desc {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 11.5px;
-      line-height: 1.45;
-    }}
-
-    .regime-item-title {{
-      font-weight: 800;
-      color: #ffffff;
-      margin-bottom: 3px;
-    }}
   </style>
 </head>
 <body class="theme-nvg">
 
   <div class="mobile-shell">
 
-    <!-- TOP BAR -->
+    <!-- TOP HEADER -->
     <div class="top-bar">
       <div class="logo-badge">
-        <span class="magnet-icon">🧲</span>
+        <span style="font-size: 16px;">🧲</span>
         <span>BTC Magnet</span>
       </div>
-      <div class="top-actions">
+      <div style="display: flex; align-items: center; gap: 8px;">
         <div id="live-indicator" class="status-pill">
           <div class="status-dot"></div>
           <span id="live-age-text">LIVE</span>
@@ -876,178 +572,153 @@ self.addEventListener('fetch', (e) => {
       </div>
     </div>
 
-    <!-- 1. SPOT HERO CARD -->
-    <div class="spot-card">
-      <div class="spot-header">
-        <span class="spot-label">Bitcoin Spot (BTC/USDT)</span>
-        <span id="data-status-badge" style="font-size: 10px; font-weight: 700; color: var(--primary);">VERIFIED FEED</span>
+    <!-- ======================================================== -->
+    <!-- PART 1: TOP HERO — REQUESTED DATA DICTIONARY & AI PROMPT -->
+    <!-- ======================================================== -->
+    <div class="top-hero-dictionary">
+      <div class="dict-badge">
+        <span>📊</span>
+        <span>LIVE TELEMETRY DATA DICTIONARY • AI PROMPT ENGINE</span>
       </div>
-      <div class="spot-price-row">
-        <div id="spot-price" class="spot-price">${spot_price:,.2f}</div>
-        <div id="spot-chg" class="spot-chg {'pos' if p_chg_24h >= 0 else 'neg'}">{p_chg_24h:+.2f}%</div>
+      <div class="dict-sub-feed">(Real-Time On-Exchange Feeds)</div>
+
+      <h1 class="dict-headline">Analyze Market Data with Your Own AI</h1>
+      <p class="dict-lead-text">
+        Don't rely blindly on our verdict. Click below to copy the verified live market positioning metrics and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
+      </p>
+
+      <!-- Prominent Hero Copy Button -->
+      <div class="hero-btn-row">
+        <button class="btn-copy-prompt" onclick="copyAIPrompt()">
+          <span style="font-size: 15px;">📋</span>
+          <span>Copy Prompt for AI (ChatGPT / Grok)</span>
+        </button>
+        <button class="btn-share-prompt" onclick="shareAIPrompt()" title="Share directly to AI app">
+          <span>📤</span>
+        </button>
       </div>
-      <div class="benchmarks-row">
-        <div class="bench-item">
-          <span class="bench-name">Daily VWAP</span>
-          <span id="vwap-val" class="bench-val">${metrics.get('daily_vwap', spot_price*0.996):,.0f}</span>
+
+      <!-- 4 Organized Categories -->
+      <div class="dict-categories-stack">
+
+        <!-- 1. Price & Structure -->
+        <div class="dict-cat-card">
+          <div class="dict-cat-header cat-title-1">
+            <span>1. Price & Structure</span>
+            <span style="font-size: 9px; color: var(--text-muted);">MACRO HORIZON</span>
+          </div>
+          <div class="dict-rows">
+            <div class="dict-row"><span class="dict-lbl">Spot Price:</span><span id="d-spot-px" class="dict-val" style="color: #ffffff; font-weight: 900;">${spot_price:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Daily VWAP:</span><span id="d-vwap" class="dict-val">${daily_vwap:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Weekly VWAP:</span><span id="d-w-vwap" class="dict-val">${weekly_vwap:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">20D EMA:</span><span id="d-ema20" class="dict-val">${ema_20d:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">50D EMA:</span><span id="d-ema50" class="dict-val">${ema_50d:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">200D SMA:</span><span id="d-sma200" class="dict-val">${ma_200d:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">4H Swing Range:</span><span id="d-range" class="dict-val">${swing_low:,.0f} - ${swing_high:,.0f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">3D Base Floor:</span><span id="d-floor" class="dict-val">${base_floor:,.2f}</span></div>
+          </div>
         </div>
-        <div class="bench-item">
-          <span class="bench-name">200D SMA</span>
-          <span id="sma200-val" class="bench-val">${ma_200d:,.0f}</span>
+
+        <!-- 2. Order Flow & CVD -->
+        <div class="dict-cat-card">
+          <div class="dict-cat-header cat-title-2">
+            <span>2. Order Flow & CVD</span>
+            <span style="font-size: 9px; color: var(--text-muted);">SPOT ABSORPTION</span>
+          </div>
+          <div class="dict-rows">
+            <div class="dict-row"><span class="dict-lbl">Spot CVD Ratio:</span><span id="d-cvd-ratio" class="dict-val accent">{spot_cvd_ratio:.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">24h Spot Volume:</span><span id="d-spot-vol" class="dict-val">{spot_vol:,.0f} BTC</span></div>
+            <div class="dict-row"><span class="dict-lbl">Volume / 20D MA:</span><span id="d-vol-ratio" class="dict-val">{spot_vol_ratio:.2f}x</span></div>
+            <div class="dict-row"><span class="dict-lbl">7D Spot CVD Slope:</span><span id="d-cvd-7d" class="dict-val">{spot_cvd_7d:+.0f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">14D Spot CVD Slope:</span><span id="d-cvd-14d" class="dict-val">{spot_cvd_14d:+.0f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Perp CVD Trend:</span><span id="d-perp-trend" class="dict-val" style="text-transform: capitalize;">{perp_trend}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Order Depth Ratio:</span><span id="d-depth-ratio" class="dict-val">{bids_asks_depth:.2f}</span></div>
+          </div>
         </div>
-        <div class="bench-item">
-          <span class="bench-name">4H Range</span>
-          <span id="range-val" class="bench-val">{atr_comp:.1f}% ATR</span>
+
+        <!-- 3. Derivatives Crowding -->
+        <div class="dict-cat-card">
+          <div class="dict-cat-header cat-title-3">
+            <span>3. Derivatives Crowding</span>
+            <span style="font-size: 9px; color: var(--text-muted);">LEVERAGE EXPOSURE</span>
+          </div>
+          <div class="dict-rows">
+            <div class="dict-row"><span class="dict-lbl">Open Interest:</span><span id="d-oi" class="dict-val">{oi:,.0f} BTC</span></div>
+            <div class="dict-row"><span class="dict-lbl">OI 24h Change:</span><span id="d-oi-24h" class="dict-val">{oi_24h:+.2f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">OI 1h Change:</span><span id="d-oi-1h" class="dict-val">{oi_1h:+.2f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">OI 4h Change:</span><span id="d-oi-4h" class="dict-val">{oi_4h:+.2f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">Funding Rate (8h):</span><span id="d-funding" class="dict-val">{funding_rate:+.4f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">Futures Basis Ann.:</span><span id="d-basis" class="dict-val">{basis:+.2f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">Retail Long/Short:</span><span id="d-ls-ratio" class="dict-val warn">{ls_ratio:.2f}</span></div>
+          </div>
         </div>
+
+        <!-- 4. Volatility & Magnets -->
+        <div class="dict-cat-card">
+          <div class="dict-cat-header cat-title-4">
+            <span>4. Volatility & Magnets</span>
+            <span style="font-size: 9px; color: var(--text-muted);">LIQUIDITY DEPTH</span>
+          </div>
+          <div class="dict-rows">
+            <div class="dict-row"><span class="dict-lbl">1H ATR:</span><span id="d-atr" class="dict-val">${atr:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">ATR Compression:</span><span id="d-atr-comp" class="dict-val">{atr_comp:.1f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">4H Channel Width:</span><span id="d-width" class="dict-val">{range_width:.2f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">Upper Short Pool:</span><span id="d-upper-px" class="dict-val danger">${u_p:,.0f} (+{u_d:.2f}%)</span></div>
+            <div class="dict-row"><span class="dict-lbl">Upper Pool Volume:</span><span id="d-upper-vol" class="dict-val">${u_vol:.1f}M</span></div>
+            <div class="dict-row"><span class="dict-lbl">Lower Long Pool:</span><span id="d-lower-px" class="dict-val accent">${l_p:,.0f} (-{l_d:.2f}%)</span></div>
+            <div class="dict-row"><span class="dict-lbl">Lower Pool Volume:</span><span id="d-lower-vol" class="dict-val">${l_vol:.1f}M</span></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- 2. REGIME DIRECTIVE HERO CARD -->
-    <div class="regime-card">
-      <div class="regime-badge-header">
-        <div id="regime-pill" class="regime-pill" style="border-color: {regime_badge_style}; color: {regime_badge_style};">
+    <!-- SEPARATOR: ALGORITHMIC REFERENCE BENCHMARK -->
+    <div class="section-separator">
+      <span>Algorithmic Reference Benchmark</span>
+    </div>
+
+    <!-- REGIME DIAGNOSIS SUMMARY -->
+    <div class="regime-summary-card">
+      <div class="regime-pill-header">
+        <div class="regime-pill">
           <span id="regime-name">{regime_name}</span>
         </div>
-        <span id="majority-score" class="regime-score">{score_str}</span>
+        <span id="majority-score" style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">{score_str}</span>
       </div>
-      <div id="regime-diag" class="regime-diag">{diagnosis}</div>
-
-      <div class="directive-grid">
-        <div class="directive-box">
-          <div class="dir-label">Spot Rotation</div>
-          <div id="rotation-val" class="dir-val" style="color: var(--primary);">{rotation}</div>
-        </div>
-        <div class="directive-box">
-          <div class="dir-label">Capital Sizing</div>
-          <div id="sizing-val" class="dir-val">{sizing:.2f}x Cash</div>
-        </div>
+      <div id="regime-diag" style="font-size: 12px; color: var(--text-main); line-height: 1.4; margin-bottom: 8px;">
+        {diagnosis}
       </div>
-      <div style="font-size: 11px; color: var(--text-muted); line-height: 1.35;" id="entry-inst">
-        👉 {entry_inst}
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--font-mono); font-size: 11px;">
+        <div style="background: var(--bg-card-sub); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);">
+          <div style="font-size: 9px; color: var(--text-muted);">Rotation</div>
+          <div id="rotation-val" style="font-weight: 800; color: var(--primary);">{rotation}</div>
+        </div>
+        <div style="background: var(--bg-card-sub); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);">
+          <div style="font-size: 9px; color: var(--text-muted);">Sizing</div>
+          <div id="sizing-val" style="font-weight: 800; color: #ffffff;">{sizing:.2f}x Cash</div>
+        </div>
       </div>
     </div>
 
-    <!-- 3. HERO CALL-TO-ACTION: AI CO-PILOT AUDIT -->
-    <div class="ai-action-card">
-      <div class="ai-card-title">
-        <div class="ai-title-text">
-          <span>🤖</span>
-          <span>Independent AI Audit</span>
-        </div>
-        <span style="font-size: 9px; font-weight: 800; color: var(--primary); text-transform: uppercase;">Zero Trust</span>
+    <!-- DUAL INVIOLABLE STOPS -->
+    <div class="dual-stops-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Inviolable Dual Stops</span>
+        <span id="lsce-pill" style="font-size: 10px; font-family: var(--font-mono); color: var(--text-main);">[{lsce_status}]</span>
       </div>
-      <div class="ai-notice">
-        Never trade on black-box verdicts alone. Tap below to export verified institutional telemetry and audit this setup with Claude, Grok, or ChatGPT.
-      </div>
-      <div class="ai-buttons-row">
-        <button class="btn-ai-primary" onclick="copyAIPrompt()">
-          <span>📋</span>
-          <span>Copy Live AI Prompt</span>
-        </button>
-        <button class="btn-ai-secondary" onclick="shareAIPrompt()">
-          <span>📤</span>
-          <span>Share to AI</span>
-        </button>
-      </div>
-      <span class="disclaimer-banner">
-        ⚠️ Algorithmic reference benchmark only. Always conduct independent verification before allocating capital.
-      </span>
-    </div>
-
-    <!-- 4. LIQUIDATION HORIZON & DUAL DEPTH LADDER -->
-    <div class="radar-card">
-      <div class="card-title">
-        <span>Liquidation Gravitational Horizon</span>
-        <span id="dom-magnet-badge" style="color: var(--primary); font-family: var(--font-mono); font-size: 10px;">{dom_magnet}</span>
-      </div>
-
-      <div class="ladder-bar-wrap">
-        <div class="ladder-labels">
-          <span style="color: #00ff66;">Lower Longs ({imm_ratio:.1f}x)</span>
-          <span style="color: #ff4444;">Upper Shorts (1.0x)</span>
-        </div>
-        <div class="ladder-bar">
-          <div id="ladder-fill-l" class="ladder-fill-lower" style="width: 70%;"></div>
-          <div id="ladder-fill-u" class="ladder-fill-upper" style="width: 30%;"></div>
-        </div>
-      </div>
-
-      <div class="cluster-detail-grid">
-        <div class="cluster-box lower">
-          <div class="cluster-tag">Macro Long Floor (Swing)</div>
-          <div id="lower-px" class="cluster-px">${l_p:,.0f}</div>
-          <div id="lower-sub" class="cluster-sub">-{abs(l_d):.2f}% | ~${l_vol:.1f}M Pool</div>
-        </div>
-        <div class="cluster-box upper">
-          <div class="cluster-tag">Short Squeeze Ceiling</div>
-          <div id="upper-px" class="cluster-px">${u_p:,.0f}</div>
-          <div id="upper-sub" class="cluster-sub">+{abs(u_d):.2f}% | ~${u_vol:.1f}M Pool</div>
-        </div>
-      </div>
-
-      <div style="margin-top: 10px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); display: flex; justify-content: space-between;">
-        <span>Immediate 100x Skew: <strong style="color: #ffffff;">{imm_ratio:.1f}x</strong></span>
-        <span>Full 10-100x Ladder: <strong style="color: #ffffff;">{tot_ratio:.2f}x</strong></span>
-      </div>
-    </div>
-
-    <!-- 5. LSCE SWEEP ENGINE & DUAL INVIOLABLE STOPS -->
-    <div class="lsce-card">
-      <div class="lsce-badge-row">
-        <span class="spot-label">LSCE Sweep Engine</span>
-        <span id="lsce-pill" class="lsce-pill">[{lsce_status}]</span>
-      </div>
-      <div id="lsce-detail" style="font-size: 11.5px; color: var(--text-main); line-height: 1.35; margin-bottom: 8px;">
-        {lsce_detail}
-      </div>
-
       <div class="stops-grid">
         <div class="stop-box structural">
-          <div class="cluster-tag">Structural Stop</div>
-          <div id="s-stop-px" class="cluster-px" style="color: var(--warning);">${structural_inval:,.0f}</div>
-          <div id="s-stop-dist" class="cluster-sub">1H Close Floor</div>
+          <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;">Structural Stop</div>
+          <div id="s-stop-px" style="font-size: 13px; font-weight: 800; color: var(--warning);">${structural_inval:,.0f}</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">1H Close Floor</div>
         </div>
         <div class="stop-box disaster">
-          <div class="cluster-tag">Inviolable Disaster Stop</div>
-          <div id="d-stop-px" class="cluster-px" style="color: var(--danger);">${disaster_stop:,.0f}</div>
-          <div id="d-stop-dist" class="cluster-sub">-{disaster_dist:.2f}% (Below 200D)</div>
+          <div style="font-size: 8.5px; color: var(--text-muted); text-transform: uppercase;">Disaster Hard Stop</div>
+          <div id="d-stop-px" style="font-size: 13px; font-weight: 800; color: var(--danger);">${disaster_stop:,.0f}</div>
+          <div id="d-stop-dist" style="font-size: 9.5px; color: var(--text-muted);">-{disaster_dist:.2f}% (Below 200D)</div>
         </div>
       </div>
-    </div>
-
-    <!-- 6. MICROSTRUCTURE MATRIX -->
-    <div class="metrics-micro-grid">
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Spot CVD</div>
-        <div id="cvd-val" class="micro-val">{spot_cvd_ratio:.2f}x</div>
-      </div>
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Funding / 8h</div>
-        <div id="funding-val" class="micro-val">{funding_rate_8h:+.4f}%</div>
-      </div>
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Retail L/S</div>
-        <div id="ls-val" class="micro-val">{ls_ratio:.2f}</div>
-      </div>
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Basis / yr</div>
-        <div id="basis-val" class="micro-val">{basis_ann:+.1f}%</div>
-      </div>
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Open Interest</div>
-        <div id="oi-val" class="micro-val">{oi_btc:,.0f} B</div>
-      </div>
-      <div class="micro-metric-box">
-        <div class="micro-lbl">Risk Budget</div>
-        <div class="micro-val" style="color: #00ff66;">1.0% MAX</div>
-      </div>
-    </div>
-
-    <!-- FOOTER LINK -->
-    <div style="text-align: center; margin-top: 10px;">
-      <button onclick="openEducationalSheet()" style="background: none; border: 1px solid var(--border); color: var(--primary); padding: 8px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; cursor: pointer;">
-        📖 Read 5-Regime Reference Playbook
-      </button>
     </div>
 
   </div>
@@ -1058,53 +729,7 @@ self.addEventListener('fetch', (e) => {
     <span id="toast-msg">AI Prompt copied to clipboard!</span>
   </div>
 
-  <!-- EDUCATIONAL REGIME MODAL SHEET -->
-  <div id="modal-backdrop" class="modal-backdrop" onclick="closeEducationalSheet()"></div>
-  <div id="modal-sheet" class="modal-sheet">
-    <div class="modal-header">
-      <div class="modal-title">The 5 Market Regimes</div>
-      <button class="modal-close-btn" onclick="closeEducationalSheet()">✕</button>
-    </div>
-    
-    <div class="regime-item-desc" style="border-left: 3px solid #00ff66;">
-      <div class="regime-item-title" style="color: #00ff66;">1. Spot-Led Expansion (High Edge)</div>
-      Genuine institutional demand driving price upward. Spot CVD leading, price above VWAPs, leverage calm.
-      <br><strong>Sizing:</strong> 0.75x - 1.00x Spot | <strong>Prohibited:</strong> Premature fading or shorting.
-    </div>
-
-    <div class="regime-item-desc" style="border-left: 3px solid #ffb000;">
-      <div class="regime-item-title" style="color: #ffb000;">2. Leveraged / Fragile Upside (Vulnerable)</div>
-      Breakout driven by perpetual futures borrowing while spot buyers are absent. Long squeeze trap forming.
-      <br><strong>Sizing:</strong> 0.00x - 0.25x (Take profit) | <strong>Prohibited:</strong> FOMO spot buying at highs.
-    </div>
-
-    <div class="regime-item-desc" style="border-left: 3px solid var(--primary);">
-      <div class="regime-item-title" style="color: var(--primary);">3. Range / Liquidation Magnet (Core Operating Zone)</div>
-      Price oscillating between bounds. Market makers run liquidity pools above and below.
-      <br><strong>Sizing:</strong> 0.50x - 0.75x on confirmed sweep-and-reclaim | <strong>Prohibited:</strong> Breakout trading.
-    </div>
-
-    <div class="regime-item-desc" style="border-left: 3px solid #ff4444;">
-      <div class="regime-item-title" style="color: #ff4444;">4. Cascade / Forced Deleveraging (Lethal)</div>
-      Waterfall long liquidation cascade. Massive margin calls triggering automatic market selling.
-      <br><strong>Sizing:</strong> Strictly 0.00x (100% USDT Cash) | <strong>Prohibited:</strong> Knife-catching.
-    </div>
-
-    <div class="regime-item-desc" style="border-left: 3px solid #f43f5e;">
-      <div class="regime-item-title" style="color: #f43f5e;">5. Distribution / Bear Continuation</div>
-      Persistent institutional selling, negative spot volume delta, lower lows below moving averages.
-      <br><strong>Sizing:</strong> 0.00x Cash | <strong>Prohibited:</strong> Dip buying without structural base.
-    </div>
-
-    <div style="text-align: center; margin-top: 14px;">
-      <button onclick="closeEducationalSheet()" style="background: var(--bg-card-sub); border: 1px solid var(--border); color: #ffffff; padding: 8px 20px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
-        Close Playbook
-      </button>
-    </div>
-  </div>
-
   <script>
-    // STORE EMBEDDED PROMPT TEMPLATE
     let currentAIPrompt = {escaped_prompt};
     let lastSnapshotTime = new Date("{ts_iso}");
 
@@ -1120,7 +745,6 @@ self.addEventListener('fetch', (e) => {
       try {{ localStorage.setItem('btc_magnet_theme', themes[currentThemeIdx]); }} catch(e) {{}}
     }}
 
-    // LOAD SAVED THEME
     try {{
       const savedTheme = localStorage.getItem('btc_magnet_theme');
       if (savedTheme && themes.includes(savedTheme)) {{
@@ -1137,7 +761,6 @@ self.addEventListener('fetch', (e) => {
         if (navigator.vibrate) navigator.vibrate(50);
         showToast("📋 AI Prompt copied! Paste into Claude / ChatGPT / Grok");
       }} catch (err) {{
-        // Fallback for older webviews
         const ta = document.createElement('textarea');
         ta.value = currentAIPrompt;
         document.body.appendChild(ta);
@@ -1148,12 +771,12 @@ self.addEventListener('fetch', (e) => {
       }}
     }}
 
-    // SHARE AI PROMPT (NATIVE OS SHARE SHEET)
+    // SHARE AI PROMPT
     async function shareAIPrompt() {{
       if (navigator.share) {{
         try {{
           await navigator.share({{
-            title: 'BTC Liquidation & Regime Telemetry Audit',
+            title: 'BTC Telemetry Data Dictionary & AI Audit',
             text: currentAIPrompt
           }});
         }} catch(e) {{
@@ -1164,7 +787,6 @@ self.addEventListener('fetch', (e) => {
       }}
     }}
 
-    // SHOW TOAST
     function showToast(msg) {{
       const toast = document.getElementById('toast');
       document.getElementById('toast-msg').textContent = msg;
@@ -1174,18 +796,7 @@ self.addEventListener('fetch', (e) => {
       }}, 3200);
     }}
 
-    // EDUCATIONAL SHEET MODAL
-    function openEducationalSheet() {{
-      document.getElementById('modal-backdrop').classList.add('active');
-      document.getElementById('modal-sheet').classList.add('active');
-    }}
-
-    function closeEducationalSheet() {{
-      document.getElementById('modal-backdrop').classList.remove('active');
-      document.getElementById('modal-sheet').classList.remove('active');
-    }}
-
-    // STALENESS SENTINEL (DATA AGE TRACKER)
+    // STALENESS SENTINEL
     function updateDataAge() {{
       const now = new Date();
       const diffMs = now - lastSnapshotTime;
@@ -1207,7 +818,7 @@ self.addEventListener('fetch', (e) => {
     setInterval(updateDataAge, 10000);
     updateDataAge();
 
-    // LIVE REST API POLLING (Auto-Refresh every 45s with cache-busting)
+    // LIVE POLLING (every 45s)
     async function pollLiveFeed() {{
       try {{
         const url = './regime.json?t=' + Date.now();
@@ -1217,34 +828,30 @@ self.addEventListener('fetch', (e) => {
         if (data.timestamp) lastSnapshotTime = new Date(data.timestamp);
         updateDataAge();
 
-        // Update Spot Price
-        if (data.metrics && data.metrics.price) {{
-          document.getElementById('spot-price').textContent = '$' + Number(data.metrics.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        }}
-        if (data.metrics && data.metrics.price_change_24h_pct !== undefined) {{
-          const chg = data.metrics.price_change_24h_pct;
-          const chgEl = document.getElementById('spot-chg');
-          chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-          chgEl.className = 'spot-chg ' + (chg >= 0 ? 'pos' : 'neg');
-        }}
+        const m = data.metrics || {{}};
+        const r = data.regime || {{}};
 
-        // Update Directives
-        if (data.regime) {{
-          if (data.regime.name) document.getElementById('regime-name').textContent = data.regime.name;
-          if (data.regime.diagnosis) document.getElementById('regime-diag').textContent = data.regime.diagnosis;
-          if (data.regime.rotation) document.getElementById('rotation-val').textContent = data.regime.rotation;
-          if (data.regime.sizing_factor !== undefined) document.getElementById('sizing-val').textContent = data.regime.sizing_factor.toFixed(2) + 'x Cash';
-          if (data.regime.entry_instruction) document.getElementById('entry-inst').textContent = '👉 ' + data.regime.entry_instruction;
-          if (data.regime.lsce_status) document.getElementById('lsce-pill').textContent = '[' + data.regime.lsce_status + ']';
-          if (data.regime.lsce_detail) document.getElementById('lsce-detail').textContent = data.regime.lsce_detail;
-        }}
+        if (m.price) document.getElementById('d-spot-px').textContent = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.daily_vwap) document.getElementById('d-vwap').textContent = '$' + Number(m.daily_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.weekly_vwap) document.getElementById('d-w-vwap').textContent = '$' + Number(m.weekly_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.ema_20d) document.getElementById('d-ema20').textContent = '$' + Number(m.ema_20d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.ema_50d) document.getElementById('d-ema50').textContent = '$' + Number(m.ema_50d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.ma_200d) document.getElementById('d-sma200').textContent = '$' + Number(m.ma_200d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        
+        if (m.spot_cvd_ratio !== undefined) document.getElementById('d-cvd-ratio').textContent = Number(m.spot_cvd_ratio).toFixed(2);
+        if (m.funding_rate !== undefined) document.getElementById('d-funding').textContent = (m.funding_rate * 100 >= 0 ? '+' : '') + (m.funding_rate * 100).toFixed(4) + '%';
+        if (m.open_interest !== undefined) document.getElementById('d-oi').textContent = Number(m.open_interest).toLocaleString('en-US', {{maximumFractionDigits: 0}}) + ' BTC';
+        
+        if (r.name) document.getElementById('regime-name').textContent = r.name;
+        if (r.diagnosis) document.getElementById('regime-diag').textContent = r.diagnosis;
+        if (r.rotation) document.getElementById('rotation-val').textContent = r.rotation;
+        if (r.sizing_factor !== undefined) document.getElementById('sizing-val').textContent = r.sizing_factor.toFixed(2) + 'x Cash';
       }} catch (err) {{
         console.warn('Poll failed:', err);
       }}
     }}
     setInterval(pollLiveFeed, 45000);
 
-    // REGISTER SERVICE WORKER
     if ('serviceWorker' in navigator) {{
       navigator.serviceWorker.register('./sw.js').catch(() => {{}});
     }}
