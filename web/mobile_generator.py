@@ -195,6 +195,13 @@ self.addEventListener('fetch', (e) => {
         playbook = regime.get("action", "Core Operating Zone — Trade the Magnet (0.75x)")
         entry_inst = regime.get("entry_instruction", "Confirmed sweep & reclaim: 50% market spot / 50% limit at reclaimed range floor.")
 
+        if "USDT -> BTC" in rotation:
+            action_pill = "Buy Spot (Accumulate)"
+        elif "BTC -> USDT" in rotation:
+            action_pill = "Trim Spot / Harvest to Cash"
+        else:
+            action_pill = "Defensive Cash"
+
         stop_price = regime.get("stop_price", spot_price * 0.98)
         stop_dist = regime.get("stop_distance_pct", 2.0)
         disaster_stop = regime.get("disaster_stop_price", 72354.94)
@@ -1987,7 +1994,7 @@ self.addEventListener('fetch', (e) => {
 
 
     def render_verdict_subpage(self, data: Dict[str, Any]) -> str:
-        """Renders the dedicated standalone Subpage for Full Analytical Details & Verdict."""
+        """Renders the dedicated, plain-English, 7-card numbered subpage for the Algorithmic Verdict."""
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
@@ -2047,6 +2054,13 @@ self.addEventListener('fetch', (e) => {
         playbook = regime.get("action", "Core Operating Zone — Trade the Magnet (0.75x)")
         entry_inst = regime.get("entry_instruction", "Confirmed sweep & reclaim: 50% market spot / 50% limit at reclaimed range floor.")
 
+        if "USDT -> BTC" in rotation:
+            action_pill = "Buy Spot (Accumulate)"
+        elif "BTC -> USDT" in rotation:
+            action_pill = "Trim Spot / Harvest to Cash"
+        else:
+            action_pill = "Defensive Cash"
+
         stop_price = regime.get("stop_price", spot_price * 0.98)
         stop_dist = regime.get("stop_distance_pct", 2.0)
         disaster_stop = regime.get("disaster_stop_price", 72354.94)
@@ -2065,17 +2079,17 @@ self.addEventListener('fetch', (e) => {
             f"Bitcoin is oscillating in a defined trading range. LSCE Status: {regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}. Market makers hunt leverage on both sides."
         )
         why_points = regime.get("why_points", [
-            "Defined Consolidation Range: Volatility has compressed and price is trading between established floor and ceiling levels.",
-            f"Liquidation Sweep State ({regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}): The lower pool is actively monitored for genuine spot absorption.",
-            "Controlled Market Fuel: Mean-reversion toward liquidation pools is the primary statistical edge."
+            "Sub-VWAP Trend: Price remains pinned beneath Daily and Weekly VWAP benchmarks with 20D/50D EMA overhead resistance.",
+            "Depressed Volume Participation: Spot volume is running below the 20D moving average; bounces lack aggressive institutional taker buy volume.",
+            "Defensive Capital Preservation: Preserving USDT cash in 100% reserve until authenticated Spot CVD and market structure reclaim occur."
         ])
         why_sizing = regime.get(
             "why_sizing_reason",
-            "Why 75% Sizing? Sizing is strictly tied to post-sweep absorption proof. If sweep is in progress or untested, we hold 100% cash."
+            "Capital preservation is paramount. Sizing is strictly tied to confirmed on-exchange spot absorption."
         )
         why_stop = regime.get(
             "why_stop_reason",
-            f"Your Safety Net: Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_dist:.2f}% away), positioned safely below the 200D SMA and 25x liquidation shelf."
+            f"Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_dist:.2f}% away), positioned safely below key institutional support."
         )
 
         imm_ratio = regime.get("immediate_imbalance_ratio", 24.5)
@@ -2086,12 +2100,8 @@ self.addEventListener('fetch', (e) => {
         dom_reason = regime.get("dominant_magnet_reason", "LOWER (Immediate 24.5x / Ladder 1.70x; longs 64.9% crowded)")
 
         lsce_status = regime.get("lsce_status", "SWEEP_AND_RECLAIM_CONFIRMED")
-        lsce_detail = regime.get(
-            "lsce_detail",
-            f"Lower liquidation shelf (${l_p:,.0f}) swept and reclaimed with positive spot absorption. Authorized {sizing:.2f}x entry."
-        )
 
-        # LSCE Badge formatting (Conflict Guard enforced)
+        # Conflict Guard formatting
         if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
             if sizing > 0 and "USDT -> BTC" in rotation:
                 lsce_badge_icon = "✅"
@@ -2099,6 +2109,7 @@ self.addEventListener('fetch', (e) => {
                 lsce_badge_color = "var(--primary)"
                 lsce_badge_bg = "rgba(0, 255, 102, 0.1)"
                 lsce_badge_border = "rgba(0, 255, 102, 0.35)"
+                lsce_detail = f"Lower liquidation shelf (${l_p:,.0f}) swept and reclaimed with positive spot absorption. Authorized {sizing:.2f}x entry."
             else:
                 lsce_badge_icon = "🛡️"
                 lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
@@ -2112,12 +2123,14 @@ self.addEventListener('fetch', (e) => {
             lsce_badge_color = "var(--warning)"
             lsce_badge_bg = "rgba(255, 184, 0, 0.1)"
             lsce_badge_border = "rgba(255, 184, 0, 0.35)"
+            lsce_detail = f"Liquidation cascade active near ${l_p:,.0f}. Awaiting reversal verification."
         else:
             lsce_badge_icon = "⏸️"
             lsce_badge_title = "UNTESTED (MONITORING / CASH)"
             lsce_badge_color = "var(--text-muted)"
             lsce_badge_bg = "rgba(255, 255, 255, 0.05)"
             lsce_badge_border = "var(--border)"
+            lsce_detail = "Liquidity shelf remains untested. No entry triggered."
 
         # Regime Tagline & Icon
         if regime_id == "SPOT_LED_EXPANSION":
@@ -2145,20 +2158,10 @@ self.addEventListener('fetch', (e) => {
             regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
             regime_accent = "var(--text-muted)"
 
-        if "USDT -> BTC" in rotation:
-            action_pill = "Buy Spot (Accumulate)"
-            action_badge_style = "background: rgba(0, 255, 102, 0.15); color: var(--primary); border: 1px solid rgba(0, 255, 102, 0.4);"
-        elif "BTC -> USDT" in rotation:
-            action_pill = "Trim Spot / Harvest to Cash"
-            action_badge_style = "background: rgba(255, 51, 68, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 68, 0.4);"
-        else:
-            action_pill = "Defensive Cash"
-            action_badge_style = "background: rgba(255, 184, 0, 0.15); color: var(--warning); border: 1px solid rgba(255, 184, 0, 0.4);"
-
         matched_criteria = regime.get("matched_criteria", [
-            f"Defined range ({range_width:.2f}% width) & ATR compressed {atr_comp:.1f}%",
-            f"Positioning crowded (L/S {ls_ratio:.2f}, funding {funding_rate/100:.3f}%)",
-            "Clear liquidation clusters active above and below price"
+            f"Price below Daily VWAP, 20D EMA, and 50D EMA",
+            f"Spot volume depressed ({spot_vol_ratio:.2f}x 20D MA)",
+            f"Positioning crowded (L/S {ls_ratio:.2f}, funding {funding_rate/100:.3f}%)"
         ])
 
         magnet_factors = regime.get("magnet_factors", {})
@@ -2168,16 +2171,6 @@ self.addEventListener('fetch', (e) => {
         f4 = magnet_factors.get("factor_4_regime_structure", "Range compression with downside fragility")
         f5 = magnet_factors.get("factor_5_asymmetry", f"LOWER is {l_d:.2f}% away vs UPPER {u_d:.2f}% away")
         f6 = magnet_factors.get("factor_6_atr_volatility", f"ATR compressed {atr_comp:.1f}%")
-
-        evidence_items_html = "".join([
-            f'<div class="evidence-item"><span class="evidence-check">✓</span><span>{item}</span></div>'
-            for item in matched_criteria
-        ])
-
-        why_points_html = "".join([
-            f'<div class="why-factor-row"><div class="why-num">{idx+1}</div><div style="color: var(--text-main);">{pt}</div></div>'
-            for idx, pt in enumerate(why_points)
-        ])
 
         p_10x_short = swing_high * 1.025
         d_10x_short = ((p_10x_short - spot_price) / spot_price) * 100
@@ -2189,492 +2182,534 @@ self.addEventListener('fetch', (e) => {
         p_10x_long = swing_low * 0.975
         d_10x_long = ((spot_price - p_10x_long) / spot_price) * 100
 
-        # Subpage uses the exact same styling as mobile app
+        # Build evidence checklist rows
+        evidence_html = "".join([
+            f'''<div class="factor-num-row">
+              <span style="color: var(--primary); font-weight: 900; font-size: 13px;">✓</span>
+              <span style="color: var(--text-main);">{item}</span>
+            </div>'''
+            for item in matched_criteria
+        ])
+
+        # Build Why Points rows
+        why_points_html = "".join([
+            f'''<div class="factor-num-row">
+              <div class="factor-num-circle">{idx+1}</div>
+              <div style="color: var(--text-main);">{pt}</div>
+            </div>'''
+            for idx, pt in enumerate(why_points)
+        ])
+
+        # Extract styles from render_mobile_app
         app_full = self.render_mobile_app(data)
-        
-        # Extract the <style>...</style> block from app_full
-        style_start = app_full.find("<style>")
-        style_end = app_full.find("</style>") + 8
-        styles = app_full[style_start:style_end] if style_start != -1 else ""
-
-        # Extract benchmark content starting from STEP 1 to end of app-container
-        step1_idx = app_full.find("<!-- STEP 1")
-        if step1_idx == -1:
-            step1_idx = app_full.find("STEP 1 • MACRO REGIME DIAGNOSIS")
-            if step1_idx != -1:
-                step1_idx = app_full.rfind("<div class=\"benchmark-card", 0, step1_idx)
-
-        end_container_idx = app_full.find("</div>\n\n  <!-- TOAST NOTIFICATION -->")
-        if end_container_idx == -1:
-            end_container_idx = app_full.find("<!-- TOAST NOTIFICATION -->")
-
-        analytical_body = app_full[step1_idx:end_container_idx] if step1_idx != -1 and end_container_idx != -1 else ""
+        s_start = app_full.find("<style>")
+        s_end = app_full.find("</style>") + 8
+        styles = app_full[s_start:s_end] if s_start != -1 else ""
 
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>BTC Magnet | Full Analytical Details & Algorithmic Verdict</title>
+  <title>BTC Magnet | Our System Verdict (Algorithmic Playbook)</title>
   <meta name="theme-color" content="#030804">
   {styles}
+  <style>
+    /* EXTRA STYLES FOR NUMBERED VERDICT CARDS */
+    .verdict-subpage-hero {{
+      background: linear-gradient(180deg, rgba(255, 184, 0, 0.08) 0%, rgba(10, 17, 13, 0.95) 100%);
+      border: 2px solid #ffb800;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 0 24px rgba(255, 184, 0, 0.15);
+    }}
+
+    .hero-badge {{
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #ffb800;
+      font-family: var(--font-mono);
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }}
+
+    .hero-title {{
+      font-size: 18px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+      line-height: 1.2;
+    }}
+
+    .hero-subtitle {{
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin: 0;
+    }}
+
+    .numbered-card {{
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }}
+
+    .numbered-card.card-border-gold {{
+      border: 2px solid #ffb800;
+      box-shadow: 0 0 20px rgba(255, 184, 0, 0.12);
+    }}
+
+    .numbered-card.card-border-cyan {{
+      border: 1.5px solid var(--info);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
+    }}
+
+    .numbered-card.card-border-danger {{
+      border: 1.5px solid var(--danger);
+      box-shadow: 0 0 20px rgba(255, 51, 68, 0.1);
+    }}
+
+    .card-num-header {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }}
+
+    .card-num-badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }}
+
+    .card-plain-title {{
+      font-size: 15.5px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 4px;
+      letter-spacing: -0.2px;
+    }}
+
+    .card-plain-sub {{
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }}
+
+    .factor-num-row {{
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+    }}
+
+    .factor-num-circle {{
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 229, 255, 0.15);
+      color: var(--info);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }}
+
+    .btn-return-cockpit {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, rgba(255, 184, 0, 0.22) 0%, rgba(255, 140, 0, 0.16) 100%);
+      border: 1.5px solid #ffb800;
+      color: #ffffff;
+      padding: 14px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      box-shadow: 0 4px 16px rgba(255, 184, 0, 0.22);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }}
+
+    .btn-return-cockpit:active {{
+      transform: scale(0.98);
+      background: #ffb800;
+      color: #030804;
+    }}
+  </style>
 </head>
 <body class="theme-nvg">
   <div class="app-container">
     
     <!-- SUBPAGE NAVIGATION HEADER -->
     <header class="top-bar">
-      <a href="./app.html" style="display: inline-flex; align-items: center; gap: 6px; color: var(--info); text-decoration: none; font-size: 11.5px; font-weight: 800; font-family: var(--font-mono);">
+      <a href="./app.html" style="display: inline-flex; align-items: center; gap: 6px; color: #ffb800; text-decoration: none; font-size: 11.5px; font-weight: 800; font-family: var(--font-mono);">
         <span>&larr;</span>
-        <span>Back to Live Cockpit</span>
+        <span>Return to Live Cockpit</span>
       </a>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 10px; color: var(--primary); font-family: var(--font-mono); font-weight: 700;">● FULL VERDICT</span>
+        <span style="font-size: 10px; color: #ffb800; font-family: var(--font-mono); font-weight: 700;">● DETAILED VERDICT</span>
         <button class="theme-toggle-btn" id="theme-btn" onclick="cycleTheme()">NVG</button>
       </div>
     </header>
 
     <!-- SUBPAGE HERO BANNER -->
-    <div style="background: var(--bg-card); border: 2px solid var(--info); border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);">
-      <div style="font-size: 9.5px; font-weight: 800; color: var(--info); font-family: var(--font-mono); letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase;">
-        PROPRIETARY ON-EXCHANGE BENCHMARK
-      </div>
-      <h1 style="font-size: 17px; font-weight: 900; color: #ffffff; margin-bottom: 6px; letter-spacing: -0.2px;">
-        Our System Verdict (Algorithmic Playbook)
-      </h1>
-      <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin: 0;">
-        Full multi-factor quantitative diagnosis, liquidation concentration mapping, and spot execution directives. Zero subjective human bias.
+    <div class="verdict-subpage-hero">
+      <div class="hero-badge">OUR SYSTEM VERDICT • STEP-BY-STEP PLAYBOOK</div>
+      <h1 class="hero-title">Quantitative Proof &amp; Analytical Playbook</h1>
+      <p class="hero-subtitle">
+        Everything below is computed deterministically from verified on-exchange order flow, liquidation depth, and funding rates. Follow the 7 numbered cards below to understand the exact market state and risk directives.
       </p>
     </div>
 
-    <!-- FULL ANALYTICAL SUITE (STEP 1, STEP 2, BOTTOM LINE, HEATMAP, SIX-FACTOR, GAUGES) -->
     <!-- ======================================================== -->
-    <!-- STEP 1 • MACRO REGIME DIAGNOSIS                          -->
+    <!-- CARD 1: ACTION & PORTFOLIO ROTATION DIRECTIVE            -->
     <!-- ======================================================== -->
-    <div class="benchmark-card highlight-cyan">
-      <div class="step-header">
-        <div class="step-tag" style="color: var(--info);">
-          <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--info);"></span>
-          <span>STEP 1 • MACRO REGIME DIAGNOSIS</span>
+    <div class="numbered-card card-border-gold">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: #ffb800;">
+          <span>🎯</span>
+          <span>CARD 1 • ACTION &amp; ROTATION DIRECTIVE</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">{score_str}</span>
-          <a href="https://aikeluargalee-tech.github.io/btc-magnet-monitor/regimes.html" class="subpage-link" target="_blank">
-            <span>Learn About 5 Regimes</span>
-            <span>&rarr;</span>
-          </a>
+        <span class="quick-glance-badge" style="background: rgba(255, 184, 0, 0.15); border-color: rgba(255, 184, 0, 0.4); color: #ffb800;">MANDATE</span>
+      </div>
+      <div class="card-plain-title">What should you do with your portfolio right now?</div>
+      <div class="card-plain-sub">Strict spot-only execution. Zero borrowed leverage, zero futures gambling, zero shorting.</div>
+
+      <!-- Action Box -->
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 4px;">RECOMMENDED ROTATION</div>
+        <div style="font-size: 17px; font-weight: 900; color: {'var(--primary)' if 'BTC' in rotation else '#ffb800'}; margin-bottom: 2px;">
+          {'🛡️ ' if 'USDT' in rotation else '🚀 '}{rotation}
         </div>
+        <div style="font-size: 12px; color: var(--text-main);">{action_pill} • Sizing: {sizing:.2f}x</div>
       </div>
 
-      <!-- Active Regime Hero Banner -->
-      <div class="regime-hero-banner">
-        <div class="regime-pill-badge" style="background: rgba(0, 229, 255, 0.15); color: var(--info); border: 1px solid rgba(0, 229, 255, 0.35);">
-          <span>{regime_icon}</span>
-          <span id="regime-name">{regime_name}</span>
-        </div>
-        <div class="regime-diag-title" id="regime-diag">
-          {diagnosis}
-        </div>
-        <div class="regime-tagline">
-          {regime_tagline}
-        </div>
+      <!-- Protocol Instruction -->
+      <div style="background: rgba(255, 255, 255, 0.02); border-left: 3px solid #ffb800; padding: 10px 12px; border-radius: 4px 8px 8px 4px; font-size: 12px; color: var(--text-main); line-height: 1.45; margin-bottom: 10px;">
+        <strong>Playbook Protocol:</strong> {entry_inst}
       </div>
 
-      <!-- Methodology Box -->
-      <div class="methodology-box">
-        <div style="font-weight: 800; color: #ffffff; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <span>🧠</span>
-          <span>How the Regime Engine Works:</span>
+      <!-- Plain English Verdict -->
+      <div style="background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.45; color: var(--text-main);">
+        💡 <strong>Plain English Rationale:</strong> {plain_verdict}
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- CARD 2: MACRO MARKET REGIME DIAGNOSIS                     -->
+    <!-- ======================================================== -->
+    <div class="numbered-card card-border-cyan">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: var(--info);">
+          <span>🧭</span>
+          <span>CARD 2 • MACRO MARKET REGIME DIAGNOSIS</span>
         </div>
-        Bitcoin is always classified into one of <strong>5 distinct market regimes</strong> (Spot-Led Expansion, Leveraged Upside, Range / Liquidation Magnet, Cascade, or Distribution; defaulting to Transition/Mixed). A regime is confirmed strictly when a <strong>majority (&ge;3 of 4)</strong> on-exchange positioning observations are verified without subjective guesswork.
+        <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">{score_str}</span>
+      </div>
+      <div class="card-plain-title">What market environment is Bitcoin currently in?</div>
+      <div class="card-plain-sub">Bitcoin is classified strictly into 1 of 5 deterministic regimes based on majority on-exchange evidence.</div>
+
+      <!-- Regime Hero Banner -->
+      <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 900; color: {regime_accent}; margin-bottom: 4px;">
+          {regime_icon} {regime_name}
+        </div>
+        <div style="font-size: 12.5px; font-weight: 700; color: #ffffff; margin-bottom: 2px;">{diagnosis}</div>
+        <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">{regime_tagline}</div>
       </div>
 
-      <!-- How We Derived This State (Evidence Checklist) -->
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
-            How We Derived This State (Verified On-Exchange Evidence):
+      <!-- Verified Evidence Checklist -->
+      <div style="margin-top: 10px;">
+        <div style="font-size: 10.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 6px;">
+          VERIFIED ON-EXCHANGE EVIDENCE ({score_str})
+        </div>
+        {evidence_html}
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- CARD 3: INVIOLABLE SAFETY NET & RISK CONTROLS             -->
+    <!-- ======================================================== -->
+    <div class="numbered-card card-border-danger">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: var(--danger);">
+          <span>🛡️</span>
+          <span>CARD 3 • INVIOLABLE SAFETY NET &amp; RISK CONTROLS</span>
+        </div>
+        <span style="font-size: 9px; font-family: var(--font-mono); background: rgba(255, 51, 68, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 68, 0.4); padding: 2px 6px; border-radius: 4px;">HARD RISK BOUND</span>
+      </div>
+      <div class="card-plain-title">Where is your capital protected if the market dumps?</div>
+      <div class="card-plain-sub">Mathematical hard stops positioned safely beyond standard whale manipulation sweeps.</div>
+
+      <!-- Disaster Stop Box -->
+      <div style="background: rgba(255, 51, 68, 0.05); border: 1px solid rgba(255, 51, 68, 0.35); border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 2px;">INVIOLABLE DISASTER HARD STOP</div>
+        <div style="font-size: 20px; font-weight: 900; color: var(--danger); font-family: var(--font-mono); margin-bottom: 2px;">
+          ${disaster_stop:,.2f}
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">({disaster_dist:.2f}% Disaster Distance)</span>
+        </div>
+        <div style="font-size: 11.5px; font-family: var(--font-mono); color: var(--warning); margin-bottom: 4px;">
+          Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);">{stop_rule}</div>
+      </div>
+
+      <!-- Risk Budget Box -->
+      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono);">RISK BUDGET VERIFICATION</span>
+          <span style="font-size: 10px; font-weight: 800; color: {'var(--primary)' if risk_budget_ok else 'var(--warning)'}; font-family: var(--font-mono);">
+            {'✓ APPROVED (CAPPED AT 1% MAX RISK)' if risk_budget_ok else 'HOLD CASH'}
           </span>
-          <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--primary);">{score_str}</span>
         </div>
-        <div class="evidence-checklist">
-          {evidence_items_html}
-        </div>
-      </div>
-
-      <!-- 5-Regime Radar Framework Matrix -->
-      <div>
-        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
-          5-Regime Radar Framework Matrix
-        </div>
-        <div class="matrix-grid">
-          <div class="matrix-item {'active' if regime_id == 'SPOT_LED_EXPANSION' else ''}">1. Spot Expansion</div>
-          <div class="matrix-item {'active' if regime_id == 'LEVERAGED_FRAGILE_UPSIDE' else ''}">2. Leveraged Trap</div>
-          <div class="matrix-item {'active' if regime_id == 'RANGE_LIQUIDATION_MAGNET' else ''}">3. Range / Magnet</div>
-          <div class="matrix-item {'active' if regime_id == 'CASCADE_FORCED_DELEVERAGING' else ''}">4. Cascade</div>
-          <div class="matrix-item {'active' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else ''}">5. Distribution</div>
-        </div>
+        <div style="font-size: 11.5px; color: var(--text-main); line-height: 1.4;">{actionable_trade_instruction}</div>
       </div>
     </div>
 
     <!-- ======================================================== -->
-    <!-- STEP 2 • ACTIONABLE PORTFOLIO ROTATION                   -->
+    <!-- CARD 4: LIQUIDATION MAGNETS & PRICE PULL                  -->
     <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div class="step-header">
-        <div class="step-tag" style="color: var(--primary);">
-          <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--primary);"></span>
-          <span>STEP 2 • ACTIONABLE PORTFOLIO ROTATION</span>
+    <div class="numbered-card">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: var(--info);">
+          <span>🧲</span>
+          <span>CARD 4 • LIQUIDATION MAGNETS &amp; PRICE GRAVITY</span>
         </div>
+        <span style="font-size: 9px; font-family: var(--font-mono); background: rgba(0, 229, 255, 0.15); color: var(--info); border: 1px solid rgba(0, 229, 255, 0.35); padding: 2px 6px; border-radius: 4px;">TARGET POOLS</span>
+      </div>
+      <div class="card-plain-title">Where are market makers pulling the price to hunt liquidity?</div>
+      <div class="card-plain-sub">Institutions require liquidity clusters to fill massive orders. Price naturally gravitates toward the heaviest pool.</div>
+
+      <!-- Dominant Pull Banner -->
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 2px;">DOMINANT GRAVITATIONAL PULL</div>
+        <div style="font-size: 15px; font-weight: 900; color: var(--info); margin-bottom: 2px;">🧲 {dom_magnet}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">{dom_reason}</div>
       </div>
 
-      <div>
-        <div style="font-size: 15px; font-weight: 900; color: #ffffff; line-height: 1.25;">
-          Spot Execution Directives &amp; Inviolable Risk Controls
-        </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-          Spot-only capital rotation. Strictly zero borrowed leverage, zero futures gambling, zero shorting.
-        </div>
-      </div>
-
-      <!-- Action Hero Callout Box -->
-      <div class="rotation-hero-box">
-        <div style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
-          Recommended Rotation
-        </div>
-        <div class="rotation-value-row">
-          <div class="rotation-target" id="rotation-val">{rotation}</div>
-          <div class="action-badge" style="{action_badge_style}" id="action-pill-val">
-            {action_pill} • Sizing: {sizing:.2f}x
-          </div>
-        </div>
-      </div>
-
-      <!-- 3 Protocol Boxes -->
-      <div class="protocols-stack">
-        <!-- Playbook Protocol -->
-        <div class="protocol-box">
-          <div class="proto-lbl">Playbook Protocol</div>
-          <div class="proto-val">{playbook}</div>
-          <div class="proto-sub">{entry_inst}</div>
-        </div>
-
-        <!-- Dual Inviolable Stop-Loss -->
-        <div class="protocol-box">
-          <div class="proto-lbl">
-            <span>Dual Inviolable Stop-Loss</span>
-            <span style="color: var(--danger); font-family: var(--font-mono);">Hard Risk Bound</span>
-          </div>
-          <div class="proto-val" style="color: var(--danger); font-family: var(--font-mono);">
-            ${disaster_stop:,.2f} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">({disaster_dist:.2f}% Disaster Hard Stop)</span>
-          </div>
-          <div style="font-size: 11px; font-family: var(--font-mono); color: var(--warning); margin: 2px 0;">
-            Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
-          </div>
-          <div class="proto-sub">{stop_rule}</div>
-        </div>
-
-        <!-- Risk Management -->
-        <div class="protocol-box">
-          <div class="proto-lbl">Risk Management</div>
-          <div class="proto-val" style="color: {'var(--primary)' if risk_budget_ok else 'var(--warning)'}; font-size: 12.5px;">
-            {"✓ Approved (Within 1% Risk Budget)" if risk_budget_ok else "Hold Cash / Reduced Exposure"}
-          </div>
-          <div class="proto-sub">{actionable_trade_instruction}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- BOTTOM LINE VERDICT • PLAIN ENGLISH                      -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase;">
-        <span>Bottom Line Verdict • Plain English</span>
-        <span style="color: var(--text-muted); font-weight: normal;">(No Jargon Required)</span>
-      </div>
-
-      <div style="font-size: 14.5px; font-weight: 900; color: #ffffff;">
-        Why This Recommendation?
-      </div>
-
-      <div class="plain-verdict-box">
-        <span style="font-size: 14px; margin-right: 4px;">💡</span>
-        <span>{plain_verdict}</span>
-      </div>
-
-      <!-- 3 Key Factors -->
-      <div>
-        <div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">
-          The 3 Key Market Factors Driving This Call
-        </div>
-        {why_points_html}
-      </div>
-
-      <!-- Safeguard Cards -->
-      <div class="protocols-stack" style="margin-top: 4px;">
-        <div class="protocol-box">
-          <div class="proto-lbl" style="color: var(--info);">Why This Exact Sizing?</div>
-          <div class="proto-sub" style="color: var(--text-main);">{why_sizing}</div>
-        </div>
-        <div class="protocol-box">
-          <div class="proto-lbl" style="color: var(--danger);">Where Is Your Safety Net?</div>
-          <div class="proto-sub" style="color: var(--text-main);">{why_stop}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- LIQUIDATION MAGNETS & KEY PRICE POOLS                    -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 900; color: #ffffff;">
-            <span>Liquidation Magnets &amp; Key Price Pools</span>
-          </div>
-          <div style="font-size: 10px; color: var(--info); font-weight: 700; margin-top: 2px;">
-            🎯 Primary Active Playbook
-          </div>
-        </div>
-      </div>
-      <div style="font-size: 10.5px; color: var(--text-muted);">
-        Modeled liquidation concentration zones derived from 10x, 25x, 50x, and 100x leverage bands
-      </div>
-
-      <!-- Dominant Magnet Pill -->
-      <div style="background: rgba(255, 184, 0, 0.1); border: 1px solid rgba(255, 184, 0, 0.35); padding: 8px 10px; border-radius: 8px; font-size: 11px;">
-        <span style="color: var(--text-muted);">Dominant Magnet:</span>
-        <strong style="color: #ffffff; margin-left: 4px;">{dom_reason}</strong>
-      </div>
-
-      <!-- LSCE Execution State Banner -->
-      <div style="background: {lsce_badge_bg}; border: 1px solid {lsce_badge_border}; border-radius: 10px; padding: 11px;">
+      <!-- LSCE State Machine Badge -->
+      <div style="background: {lsce_badge_bg}; border: 1px solid {lsce_badge_border}; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-          <span style="font-size: 14px;">{lsce_badge_icon}</span>
-          <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
-            Liquidation Sweep Confirmation Engine (LSCE)
-          </span>
+          <span>{lsce_badge_icon}</span>
+          <span style="font-size: 11px; font-weight: 900; color: {lsce_badge_color}; font-family: var(--font-mono);">{lsce_badge_title}</span>
         </div>
-        <div style="font-size: 12.5px; font-weight: 900; color: {lsce_badge_color}; margin-bottom: 4px;">
-          {lsce_badge_title}
-        </div>
-        <div style="font-size: 11px; color: var(--text-main); line-height: 1.35; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 6px;">
-          {lsce_detail}
-        </div>
+        <div style="font-size: 11.5px; color: var(--text-main); line-height: 1.4;">{lsce_detail}</div>
       </div>
 
-      <!-- Dual Pools Comparison -->
-      <div class="pools-dual-grid">
-        <!-- Upper Short Pool -->
-        <div class="pool-card upper">
-          <div class="pool-title" style="color: var(--danger);">Upper Short Pool</div>
-          <div class="pool-dist" style="color: var(--danger);">+{u_d:.2f}% (+{u_atr:.2f} ATR)</div>
-          <div class="pool-px">${u_p:,.0f}</div>
-          <div class="pool-vol">Est. Pool: <strong style="color: #ffffff;">${u_vol:.1f}M</strong></div>
+      <!-- Upper and Lower Pools Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="background: rgba(255, 51, 68, 0.05); border: 1px solid rgba(255, 51, 68, 0.3); border-radius: 10px; padding: 10px;">
+          <div style="font-size: 9.5px; font-weight: 800; color: var(--danger); font-family: var(--font-mono); text-transform: uppercase;">UPPER SHORT POOL</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">${u_p:,.0f}</div>
+          <div style="font-size: 10.5px; color: var(--danger); font-family: var(--font-mono);">+{u_d:.2f}% (+{u_atr:.2f} ATR)</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Est. Size: ${u_vol:.1f}M</div>
         </div>
-
-        <!-- Lower Long Pool -->
-        <div class="pool-card lower">
-          <div class="pool-title" style="color: var(--primary);">Lower Long Pool</div>
-          <div class="pool-dist" style="color: var(--primary);">-{l_d:.2f}% (-{l_atr:.2f} ATR)</div>
-          <div class="pool-px">${l_p:,.0f}</div>
-          <div class="pool-vol">Est. Pool: <strong style="color: #ffffff;">${l_vol:.1f}M</strong></div>
+        <div style="background: rgba(0, 255, 102, 0.05); border: 1px solid rgba(0, 255, 102, 0.3); border-radius: 10px; padding: 10px;">
+          <div style="font-size: 9.5px; font-weight: 800; color: var(--primary); font-family: var(--font-mono); text-transform: uppercase;">LOWER LONG POOL</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">${l_p:,.0f}</div>
+          <div style="font-size: 10.5px; color: var(--primary); font-family: var(--font-mono);">-{l_d:.2f}% (-{l_atr:.2f} ATR)</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Est. Size: ${l_vol:.1f}M</div>
         </div>
-      </div>
-
-      <!-- Heatmap Ladder -->
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <div style="font-size: 11px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 4px;">
-            <span>🔥</span>
-            <span>Liquidation Heatmap &amp; Leverage Depth Map</span>
-          </div>
-          <span style="font-size: 9px; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px;">
-            10x - 100x Bands
-          </span>
-        </div>
-
-        <div class="ladder-stack">
-          <!-- 10x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">10x Shorts</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_10x_short:,.0f}</span>
-            <span style="color: var(--text-muted);">+{d_10x_short:.2f}% • ~$85M</span>
-          </div>
-
-          <!-- 25x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">25x Shorts</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_25x_short:,.0f}</span>
-            <span style="color: var(--text-muted);">+{d_25x_short:.2f}% • ~$110M</span>
-          </div>
-
-          <!-- 50-100x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">50-100x Shorts</span>
-            <span style="font-weight: 800; color: var(--danger);">${u_p:,.0f}</span>
-            <span style="color: var(--danger); font-weight: 700;">+{u_d:.2f}% • ${u_vol:.1f}M</span>
-          </div>
-
-          <!-- Zero Axis Spot Price -->
-          <div class="ladder-row spot-anchor">
-            <span style="font-weight: 900; color: var(--info);">● SPOT PRICE ZERO-AXIS</span>
-            <span style="font-weight: 900; font-size: 13px; color: #ffffff;">${spot_price:,.2f}</span>
-            <span style="font-size: 9px; color: var(--info);">Microstructure Anchor</span>
-          </div>
-
-          <!-- 100x Longs (Dominant Core) -->
-          <div class="ladder-row long dominant-core">
-            <span style="font-weight: 900; color: var(--primary);">🔥 100x Longs</span>
-            <span style="font-weight: 900; color: var(--primary);">${l_p:,.0f}</span>
-            <span style="color: var(--primary); font-weight: 800;">-{l_d:.2f}% • ${l_vol:.1f}M</span>
-          </div>
-
-          <!-- 25x Longs -->
-          <div class="ladder-row long">
-            <span style="font-weight: 700; color: var(--primary);">25x Longs</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_25x_long:,.0f}</span>
-            <span style="color: var(--text-muted);">-{d_25x_long:.2f}% • ~$140M</span>
-          </div>
-
-          <!-- 10x Longs -->
-          <div class="ladder-row long">
-            <span style="font-weight: 700; color: var(--primary);">10x Longs</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_10x_long:,.0f}</span>
-            <span style="color: var(--text-muted);">-{d_10x_long:.2f}% • ~$95M</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Imbalance Dual Boxes -->
-      <div class="imbalance-grid">
-        <div class="imbalance-box">
-          <div class="imbalance-title">Immediate Nearest Tier Imbalance (100x vs 50-100x)</div>
-          <div class="imbalance-val" style="color: var(--warning);">{imm_ratio:.1f}x Skew</div>
-          <div style="font-size: 10px; color: var(--text-muted);">
-            Comparing single nearest bands: Lower Longs (${l_vol:.1f}M) vs Upper Shorts (${u_vol:.1f}M).
-          </div>
-        </div>
-
-        <div class="imbalance-box">
-          <div class="imbalance-title">Total Leverage Ladder Imbalance (10x - 100x Spectrum)</div>
-          <div class="imbalance-val" style="color: var(--primary);">{tot_ratio:.2f}x Downside Skew</div>
-          <div style="font-size: 10px; color: var(--text-muted);">
-            Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Institutional reality across all tiers.
-          </div>
-        </div>
-      </div>
-
-      <!-- How Heatmap Works Callout -->
-      <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px;">
-        <strong style="color: #ffffff;">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a Range, price gravitates toward the heaviest cluster.<br>
-        <strong style="color: var(--primary); margin-top: 4px; display: inline-block;">Dominant Gravitational Pull: {dom_magnet}</strong>
       </div>
     </div>
 
     <!-- ======================================================== -->
-    <!-- MAGNET DECISION ANALYSIS (SIX-FACTOR EVALUATION)         -->
+    <!-- CARD 5: LIQUIDATION HEATMAP LADDER                        -->
     <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div>
-        <div style="font-size: 13px; font-weight: 900; color: #ffffff;">
-          Magnet Decision Analysis (Six-Factor Evaluation)
+    <div class="numbered-card">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: var(--primary);">
+          <span>🔥</span>
+          <span>CARD 5 • LIQUIDATION HEATMAP &amp; LEVERAGE DEPTH</span>
         </div>
-        <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 2px;">
-          Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; ATR
+        <span style="font-size: 9px; font-family: var(--font-mono); color: var(--text-muted);">10x - 100x BANDS</span>
+      </div>
+      <div class="card-plain-title">What does the full leverage spectrum look like?</div>
+      <div class="card-plain-sub">Modeled clusters derived from real-time open interest and liquidation concentration models.</div>
+
+      <!-- Visual Heatmap Ladder -->
+      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 10px; padding: 10px; font-family: var(--font-mono); font-size: 11px;">
+        <!-- 10x Shorts -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <span style="color: var(--danger);">10x Shorts</span>
+          <span style="color: #ffffff; font-weight: 700;">${p_10x_short:,.0f}</span>
+          <span style="color: var(--text-muted);">+{d_10x_short:.2f}% • ~$85M</span>
+        </div>
+        <!-- 25x Shorts -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <span style="color: var(--danger);">25x Shorts</span>
+          <span style="color: #ffffff; font-weight: 700;">${p_25x_short:,.0f}</span>
+          <span style="color: var(--text-muted);">+{d_25x_short:.2f}% • ~$110M</span>
+        </div>
+        <!-- 50-100x Shorts -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <span style="color: var(--danger);">50-100x Shorts</span>
+          <span style="color: #ffffff; font-weight: 700;">${u_p:,.0f}</span>
+          <span style="color: var(--danger);">+{u_d:.2f}% • ${u_vol:.1f}M</span>
+        </div>
+        <!-- ZERO AXIS SPOT PRICE -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 6px; margin: 4px 0; background: rgba(0, 255, 102, 0.12); border-radius: 6px; border: 1px solid var(--primary);">
+          <span style="color: var(--primary); font-weight: 900;">● SPOT ZERO-AXIS</span>
+          <span style="color: #ffffff; font-weight: 900; font-size: 13px;">${spot_price:,.2f}</span>
+          <span style="color: var(--primary); font-size: 9px; font-weight: 800;">ANCHOR</span>
+        </div>
+        <!-- 100x Longs -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <span style="color: var(--primary);">🔥 100x Longs</span>
+          <span style="color: #ffffff; font-weight: 700;">${l_p:,.0f}</span>
+          <span style="color: var(--primary);">-{l_d:.2f}% • ${l_vol:.1f}M</span>
+        </div>
+        <!-- 25x Longs -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <span style="color: var(--primary);">25x Longs</span>
+          <span style="color: #ffffff; font-weight: 700;">${p_25x_long:,.0f}</span>
+          <span style="color: var(--text-muted);">-{d_25x_long:.2f}% • ~$140M</span>
+        </div>
+        <!-- 10x Longs -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+          <span style="color: var(--primary);">10x Longs</span>
+          <span style="color: #ffffff; font-weight: 700;">${p_10x_long:,.0f}</span>
+          <span style="color: var(--text-muted);">-{d_10x_long:.2f}% • ~$95M</span>
         </div>
       </div>
 
-      <div class="factors-grid">
-        <div class="factor-item">
-          <span class="factor-title">1. Cluster Size / Magnitude:</span>
-          <span>{f1}</span>
+      <!-- Skew Summary -->
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;">
+          <div style="font-size: 9px; color: var(--text-muted); font-family: var(--font-mono);">NEAREST TIER SKEW</div>
+          <div style="font-size: 14px; font-weight: 900; color: var(--info);">{imm_ratio:.1f}x Skew</div>
         </div>
-        <div class="factor-item">
-          <span class="factor-title">2. Spot vs. Derivatives Leadership:</span>
-          <span>{f2}</span>
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;">
+          <div style="font-size: 9px; color: var(--text-muted); font-family: var(--font-mono);">TOTAL SPECTRUM SKEW</div>
+          <div style="font-size: 14px; font-weight: 900; color: var(--info);">{tot_ratio:.2f}x Skew</div>
         </div>
-        <div class="factor-item">
-          <span class="factor-title">3. Crowding &amp; Market Fuel:</span>
-          <span>{f3}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">4. Higher-Timeframe Market Structure:</span>
-          <span>{f4}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">5. Distance Asymmetry:</span>
-          <span>{f5}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">6. Volatility Regime (ATR):</span>
-          <span>{f6}</span>
-        </div>
-      </div>
-
-      <div style="background: rgba(255, 184, 0, 0.08); border: 1px solid rgba(255, 184, 0, 0.3); border-radius: 8px; padding: 9px 11px; font-size: 11px;">
-        <span style="color: var(--warning); font-weight: 800; text-transform: uppercase;">Decisive Conclusion:</span>
-        <div style="color: #ffffff; font-weight: 700; margin-top: 2px;">{dom_reason}</div>
       </div>
     </div>
 
     <!-- ======================================================== -->
-    <!-- MARKET TELEMETRY & MICROSTRUCTURE GAUGES                 -->
+    <!-- CARD 6: SIX-FACTOR DECISION PROOF                         -->
     <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="font-size: 13px; font-weight: 900; color: #ffffff;">
-        Market Telemetry &amp; Microstructure Gauges
+    <div class="numbered-card">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: #ffffff;">
+          <span>⚖️</span>
+          <span>CARD 6 • SIX-FACTOR DECISION PROOF</span>
+        </div>
+        <span style="font-size: 9px; font-family: var(--font-mono); color: var(--text-muted);">HIERARCHY AUDIT</span>
+      </div>
+      <div class="card-plain-title">What is the exact mathematical proof driving this call?</div>
+      <div class="card-plain-sub">Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; ATR.</div>
+
+      <div class="factor-num-row">
+        <div class="factor-num-circle">1</div>
+        <div><strong>Cluster Magnitude:</strong> {f1}</div>
+      </div>
+      <div class="factor-num-row">
+        <div class="factor-num-circle">2</div>
+        <div><strong>Spot vs. Derivatives Flow:</strong> {f2}</div>
+      </div>
+      <div class="factor-num-row">
+        <div class="factor-num-circle">3</div>
+        <div><strong>Crowding &amp; Market Fuel:</strong> {f3}</div>
+      </div>
+      <div class="factor-num-row">
+        <div class="factor-num-circle">4</div>
+        <div><strong>Higher-Timeframe Structure:</strong> {f4}</div>
+      </div>
+      <div class="factor-num-row">
+        <div class="factor-num-circle">5</div>
+        <div><strong>Distance Asymmetry:</strong> {f5}</div>
+      </div>
+      <div class="factor-num-row">
+        <div class="factor-num-circle">6</div>
+        <div><strong>Volatility Regime (ATR):</strong> {f6}</div>
       </div>
 
-      <div class="gauges-grid">
-        <!-- Spot CVD Ratio -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Spot CVD Ratio</div>
-          <div class="gauge-val" id="g-cvd">{spot_cvd_ratio:.2f}</div>
-          <div class="gauge-sub">Taker Buy/Sell</div>
-        </div>
+      <div style="background: rgba(255, 184, 0, 0.06); border-left: 3px solid #ffb800; padding: 10px 12px; border-radius: 4px 8px 8px 4px; font-size: 12px; color: var(--text-main); margin-top: 8px;">
+        <strong>Decisive Algorithmic Conclusion:</strong> {dom_reason}
+      </div>
+    </div>
 
-        <!-- Perp CVD Flow -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Perp CVD Flow</div>
-          <div class="gauge-val" id="g-perp" style="text-transform: capitalize;">{perp_trend}</div>
-          <div class="gauge-sub">Futures Trend</div>
+    <!-- ======================================================== -->
+    <!-- CARD 7: MARKET MICROSTRUCTURE GAUGES                      -->
+    <!-- ======================================================== -->
+    <div class="numbered-card">
+      <div class="card-num-header">
+        <div class="card-num-badge" style="color: var(--primary);">
+          <span>📡</span>
+          <span>CARD 7 • MARKET MICROSTRUCTURE GAUGES</span>
         </div>
+        <span style="font-size: 9px; font-family: var(--font-mono); color: var(--text-muted);">LIVE EXCHANGES</span>
+      </div>
+      <div class="card-plain-title">What are the raw verified metrics from Binance &amp; Deribit?</div>
+      <div class="card-plain-sub">Key quantitative telemetry backing every single calculation above.</div>
 
-        <!-- Open Interest -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Open Interest (24h)</div>
-          <div class="gauge-val" id="g-oi-chg">{oi_24h:+.2f}%</div>
-          <div class="gauge-sub" id="g-oi">{oi:,.0f} BTC</div>
+      <div class="gauges-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Spot CVD Ratio</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">{spot_cvd_ratio:.2f}</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Taker Buy/Sell</div>
         </div>
-
-        <!-- Funding Rate -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Funding Rate</div>
-          <div class="gauge-val" id="g-funding">{funding_rate/100:+.3f}%</div>
-          <div class="gauge-sub">{funding_rate_ann:.1f}% Ann.</div>
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Perp CVD Flow</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono); text-transform: capitalize;">{perp_trend}</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Futures Trend</div>
         </div>
-
-        <!-- Futures Basis -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Futures Basis</div>
-          <div class="gauge-val" id="g-basis">{basis:.1f}%</div>
-          <div class="gauge-sub">Annualized Spread</div>
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Open Interest (24h)</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">{oi_24h:+.2f}%</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">{oi:,.0f} BTC</div>
         </div>
-
-        <!-- Retail Long/Short -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Retail Long/Short</div>
-          <div class="gauge-val" id="g-ls" style="color: var(--warning);">{ls_ratio:.2f}</div>
-          <div class="gauge-sub">Account Ratio</div>
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Funding Rate</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">{funding_rate/100:+.3f}%</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">{funding_rate_ann:.1f}% Ann.</div>
+        </div>
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Futures Basis</div>
+          <div style="font-size: 16px; font-weight: 900; color: #ffffff; font-family: var(--font-mono);">{basis:.1f}%</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Annualized Spread</div>
+        </div>
+        <div class="gauge-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Retail Long/Short</div>
+          <div style="font-size: 16px; font-weight: 900; color: var(--warning); font-family: var(--font-mono);">{ls_ratio:.2f}</div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">Account Ratio</div>
         </div>
       </div>
     </div>
 
-    <!-- RETURN FOOTER -->
-    <div style="text-align: center; padding: 20px 0 30px 0;">
-      <a href="./app.html" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: rgba(0, 229, 255, 0.12); border: 1px solid var(--info); color: #ffffff; padding: 13px 16px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 800;">
+    <!-- RETURN FOOTER BUTTON -->
+    <div style="text-align: center; padding: 16px 0 30px 0;">
+      <a href="./app.html" class="btn-return-cockpit">
         <span>&larr;</span>
         <span>Return to Live Cockpit</span>
       </a>
