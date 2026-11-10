@@ -59,6 +59,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (!e.request.url.startsWith(self.location.origin)) {
+    return; // Pass through external feeds like Binance directly
+  }
   if (e.request.url.includes('regime.json')) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
@@ -1531,7 +1534,7 @@ self.addEventListener('fetch', (e) => {
       <div class="spot-bar-left">
         <div class="spot-bar-label">
           <span class="live-dot-mini"></span>
-          <span>REAL-TIME BTC SPOT PRICE</span>
+          <span>REAL-TIME BTC SPOT PRICE (LIVE)</span>
         </div>
         <div class="spot-bar-price-row">
           <span id="hero-spot-px" class="spot-bar-price">${spot_price:,.2f}</span>
@@ -1539,10 +1542,14 @@ self.addEventListener('fetch', (e) => {
             {'+' if p_chg_24h >= 0 else ''}{p_chg_24h:.2f}% (24h)
           </span>
         </div>
+        <div id="hero-drift-container" style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 3px; display: flex; align-items: center; gap: 4px;">
+          <span>Drift vs Scan:</span>
+          <span id="hero-drift-val" style="color: #00e5ff; font-weight: 700;">$0.00 (0.00%)</span>
+        </div>
       </div>
       <div class="spot-bar-right">
-        <div class="spot-feed-provenance">BINANCE TAKER SPOT FEED</div>
-        <div class="spot-provenance-sub">Aggregated Microstructure</div>
+        <div class="spot-feed-provenance">BINANCE LIVE TICKER</div>
+        <div class="spot-provenance-sub">Tick-by-Tick Feed</div>
       </div>
     </div>
 
@@ -1606,7 +1613,7 @@ self.addEventListener('fetch', (e) => {
             <span style="font-size: 9px; color: var(--text-muted);">MACRO HORIZON</span>
           </div>
           <div class="dict-rows">
-            <div class="dict-row"><span class="dict-lbl">Spot Price:</span><span id="d-spot-px" class="dict-val" style="color: #ffffff; font-weight: 900;">${spot_price:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Benchmark Scan Price:</span><span id="d-spot-px" class="dict-val" style="color: #00e5ff; font-weight: 900;">${spot_price:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">Daily VWAP:</span><span id="d-vwap" class="dict-val">${daily_vwap:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">Weekly VWAP:</span><span id="d-w-vwap" class="dict-val">${weekly_vwap:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">20D EMA:</span><span id="d-ema20" class="dict-val">${ema_20d:,.2f}</span></div>
@@ -1943,7 +1950,93 @@ self.addEventListener('fetch', (e) => {
     setInterval(updateLiveClocks, 1000);
     updateLiveClocks();
 
-    // LIVE POLLING (every 45s)
+    let benchmarkScanPrice = {spot_price};
+    let currentLiveSpotPrice = {spot_price};
+
+    function updateDrift(livePrice) {{
+      const elDrift = document.getElementById('hero-drift-val');
+      if (!elDrift || !benchmarkScanPrice || benchmarkScanPrice <= 0) return;
+      const diff = livePrice - benchmarkScanPrice;
+      const diffPct = (diff / benchmarkScanPrice) * 100;
+      const sign = diff >= 0 ? '+' : '-';
+      const color = diff >= 0 ? 'var(--primary)' : 'var(--danger)';
+      elDrift.textContent = (diff >= 0 ? '+' : '-') + '$' + Math.abs(diff).toFixed(2) + ' (' + (diff >= 0 ? '+' : '') + diffPct.toFixed(2) + '%)';
+      elDrift.style.color = color;
+    }}
+
+    // REAL-TIME BINANCE SPOT TICKER (Fetches live whenever opened + periodic poll)
+    async function fetchLiveBinanceSpot() {{
+      try {{
+        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+        if (!res.ok) return;
+        const data = await res.json();
+        const livePx = parseFloat(data.lastPrice);
+        const chg = parseFloat(data.priceChangePercent);
+        
+        const elHero = document.getElementById('hero-spot-px');
+        const elChg = document.getElementById('hero-price-chg');
+        if (elHero && !isNaN(livePx)) {{
+          currentLiveSpotPrice = livePx;
+          elHero.textContent = '$' + livePx.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+        }}
+        if (elChg && !isNaN(chg)) {{
+          elChg.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '% (24h)';
+          elChg.style.color = chg >= 0 ? 'var(--primary)' : 'var(--danger)';
+          elChg.style.background = chg >= 0 ? 'rgba(0, 255, 102, 0.1)' : 'rgba(255, 51, 68, 0.1)';
+          elChg.style.borderColor = chg >= 0 ? 'rgba(0, 255, 102, 0.3)' : 'rgba(255, 51, 68, 0.3)';
+        }}
+        if (!isNaN(livePx)) {{
+          updateDrift(livePx);
+        }}
+      }} catch(err) {{
+        // Offline / fallback to last known
+      }}
+    }}
+
+    // Real-Time WebSocket for tick-by-tick streaming
+    function connectBinanceWs() {{
+      try {{
+        const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+        ws.onmessage = (event) => {{
+          try {{
+            const msg = JSON.parse(event.data);
+            const livePx = parseFloat(msg.c);
+            const chg = parseFloat(msg.P);
+            const elHero = document.getElementById('hero-spot-px');
+            const elChg = document.getElementById('hero-price-chg');
+            if (elHero && !isNaN(livePx)) {{
+              currentLiveSpotPrice = livePx;
+              elHero.textContent = '$' + livePx.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+            }}
+            if (elChg && !isNaN(chg)) {{
+              elChg.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '% (24h)';
+              elChg.style.color = chg >= 0 ? 'var(--primary)' : 'var(--danger)';
+              elChg.style.background = chg >= 0 ? 'rgba(0, 255, 102, 0.1)' : 'rgba(255, 51, 68, 0.1)';
+              elChg.style.borderColor = chg >= 0 ? 'rgba(0, 255, 102, 0.3)' : 'rgba(255, 51, 68, 0.3)';
+            }}
+            if (!isNaN(livePx)) {{
+              updateDrift(livePx);
+            }}
+          }} catch(e) {{}}
+        }};
+        ws.onerror = () => {{
+          // Fallback to polling on error
+        }};
+        ws.onclose = () => {{
+          // Reconnect after 5 seconds if connection dropped
+          setTimeout(connectBinanceWs, 5000);
+        }};
+      }} catch(e) {{
+        // WebSocket unsupported, REST polling will handle it
+      }}
+    }}
+
+    // Start live feeds on open
+    fetchLiveBinanceSpot();
+    connectBinanceWs();
+    setInterval(fetchLiveBinanceSpot, 3000);
+
+    // 15-MINUTE DIAGNOSTIC SCAN POLLING (every 45s)
     async function pollLiveFeed() {{
       try {{
         const url = './regime.json?t=' + Date.now();
@@ -1955,9 +2048,11 @@ self.addEventListener('fetch', (e) => {
         const r = data.regime || {{}};
 
         if (m.price) {{
-          const pStr = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-          if (document.getElementById('hero-spot-px')) document.getElementById('hero-spot-px').textContent = pStr;
+          benchmarkScanPrice = Number(m.price);
+          const pStr = '$' + benchmarkScanPrice.toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+          // Note: d-spot-px is the Benchmark Scan Price anchor (Card 1)
           if (document.getElementById('d-spot-px')) document.getElementById('d-spot-px').textContent = pStr;
+          if (currentLiveSpotPrice) updateDrift(currentLiveSpotPrice);
         }}
         if (m.daily_vwap) document.getElementById('d-vwap').textContent = '$' + Number(m.daily_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
         if (m.weekly_vwap) document.getElementById('d-w-vwap').textContent = '$' + Number(m.weekly_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
