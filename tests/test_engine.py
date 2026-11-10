@@ -78,13 +78,136 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         self.assertFalse(result.risk_budget_ok)
         self.assertTrue(len(result.plain_english_verdict) > 0)
 
-    def test_range_magnet_classification(self):
-        """Test Range / Liquidation Magnet majority classification."""
+    def test_range_magnet_classification_untested_holds_cash(self):
+        """Test Range / Liquidation Magnet holds 0.0x cash while sweep is untested."""
         result = self.classifier.classify(self.mock_metrics, self.mock_clusters)
         self.assertEqual(result.regime_id, "RANGE_LIQUIDATION_MAGNET")
         self.assertEqual(result.name, "Range / Liquidation Magnet")
-        self.assertTrue(result.sizing_factor >= 0.50)
+        self.assertEqual(result.sizing_factor, 0.0)
+        self.assertEqual(result.rotation, "Remain USDT")
+        self.assertEqual(result.lsce_status, "UNTESTED")
         self.assertIn("majority_score", result.to_dict())
+
+    def test_range_magnet_sweep_and_reclaim_authorizes_buy(self):
+        """Test Range / Liquidation Magnet authorizes 0.75x spot buy upon confirmed sweep & reclaim."""
+        confirmed_metrics = MarketMetrics(
+            price=74000.0,
+            daily_vwap=74500.0,
+            weekly_vwap=74800.0,
+            ema_20d=73500.0,
+            ema_50d=73000.0,
+            ma_200d=73200.0,
+            spot_vol_24h=25000.0,
+            spot_vol_ma20=20000.0,
+            spot_vol_ratio=1.05,
+            spot_cvd_ratio=1.12,  # Spot CVD >= 1.05 signals absorption
+            spot_cvd_slope_7d=1200.0,
+            spot_cvd_slope_14d=2400.0,
+            perp_cvd_slope_24h=500.0,
+            perp_cvd_trend="declining",
+            open_interest=95000.0,
+            oi_change_1h_pct=0.2,
+            oi_change_4h_pct=0.5,
+            oi_change_24h_pct=1.0,
+            oi_change_3d_pct=2.5,
+            funding_rate=0.009,
+            funding_rate_annualized=9.85,
+            futures_basis_annualized=1.2,
+            atr=500.0,
+            atr_compression_pct=42.0,
+            price_change_1h_pct=0.1,
+            price_change_24h_pct=-0.5,
+            long_short_account_ratio=1.9,
+            top_trader_long_short_ratio=1.9,
+            taker_buy_sell_ratio=1.12,
+            bids_asks_depth_ratio=1.35,  # Solid order depth
+            swing_low_4h=73500.0,
+            swing_high_4h=75000.0,
+            base_floor=73400.0,
+            capitulation_wick_low=73300.0,  # Swept below lower cluster ($73,800)
+            data_quality="LIVE"
+        )
+        result = self.classifier.classify(confirmed_metrics, self.mock_clusters)
+        self.assertEqual(result.regime_id, "RANGE_LIQUIDATION_MAGNET")
+        self.assertEqual(result.lsce_status, "SWEEP_AND_RECLAIM_CONFIRMED")
+        self.assertEqual(result.sizing_factor, 0.75)
+        self.assertEqual(result.rotation, "USDT -> BTC")
+        self.assertTrue(result.disaster_stop_price > 0.0)
+        self.assertTrue(result.structural_invalidation_level > 0.0)
+
+    def test_conflicted_signals_fallback_to_transition_mixed(self):
+        """When price is sub-VWAP, futures in backwardation, and bids thin without reclaim, engine must classify Transition/Mixed."""
+        conflicted_metrics = MarketMetrics(
+            price=73400.0,
+            daily_vwap=74500.0,
+            weekly_vwap=74800.0,
+            ema_20d=75000.0,
+            ema_50d=76000.0,
+            ma_200d=73000.0,
+            spot_vol_24h=20000.0,
+            spot_vol_ma20=20000.0,
+            spot_vol_ratio=1.0,
+            spot_cvd_ratio=1.15,  # Conflicting positive CVD
+            spot_cvd_slope_7d=1500.0,
+            spot_cvd_slope_14d=3000.0,
+            perp_cvd_slope_24h=-500.0,
+            perp_cvd_trend="declining",
+            open_interest=92000.0,
+            oi_change_1h_pct=-0.1,
+            oi_change_4h_pct=-0.3,
+            oi_change_24h_pct=-0.8,
+            oi_change_3d_pct=-1.5,
+            funding_rate=0.005,
+            funding_rate_annualized=5.5,
+            futures_basis_annualized=-1.4,  # Backwardation
+            atr=480.0,
+            atr_compression_pct=70.0,
+            price_change_1h_pct=-0.2,
+            price_change_24h_pct=-1.2,
+            long_short_account_ratio=1.85,
+            top_trader_long_short_ratio=1.85,
+            taker_buy_sell_ratio=1.15,
+            bids_asks_depth_ratio=0.25,  # Thin bids (<0.35)
+            swing_low_4h=73500.0,
+            swing_high_4h=75500.0,
+            base_floor=73200.0,
+            capitulation_wick_low=73500.0,  # Not swept
+            data_quality="LIVE"
+        )
+        result = self.classifier.classify(conflicted_metrics, self.mock_clusters)
+        self.assertEqual(result.regime_id, "TRANSITION_MIXED")
+        self.assertEqual(result.sizing_factor, 0.0)
+        self.assertEqual(result.rotation, "Remain USDT")
+
+    def test_dual_imbalance_ratios_calculated(self):
+        """Verify both immediate tier and total ladder imbalance ratios are computed."""
+        result = self.classifier.classify(self.mock_metrics, self.mock_clusters)
+        self.assertEqual(result.immediate_imbalance_ratio, 8.5)  # 85M / 10M
+        self.assertTrue(result.total_ladder_lower_vol > 0.0)
+        self.assertTrue(result.total_ladder_upper_vol > 0.0)
+        self.assertTrue(result.total_ladder_imbalance_ratio > 0.0)
+
+    def test_risk_budget_sizing_cap(self):
+        """Verify RiskManager enforces Sizing * Stop_Distance <= 1.0% portfolio risk."""
+        confirmed_metrics = MarketMetrics(
+            price=74000.0, daily_vwap=74500.0, weekly_vwap=74800.0,
+            ema_20d=73500.0, ema_50d=73000.0, ma_200d=73200.0,
+            spot_vol_24h=25000.0, spot_vol_ma20=20000.0, spot_vol_ratio=1.05,
+            spot_cvd_ratio=1.12, spot_cvd_slope_7d=1200.0, spot_cvd_slope_14d=2400.0,
+            perp_cvd_slope_24h=500.0, perp_cvd_trend="declining",
+            open_interest=95000.0, oi_change_1h_pct=0.2, oi_change_4h_pct=0.5,
+            oi_change_24h_pct=1.0, oi_change_3d_pct=2.5,
+            funding_rate=0.009, funding_rate_annualized=9.85, futures_basis_annualized=1.2,
+            atr=500.0, atr_compression_pct=42.0, price_change_1h_pct=0.1, price_change_24h_pct=-0.5,
+            long_short_account_ratio=1.9, top_trader_long_short_ratio=1.9,
+            taker_buy_sell_ratio=1.12, bids_asks_depth_ratio=1.35,
+            swing_low_4h=73500.0, swing_high_4h=75000.0, base_floor=73400.0,
+            capitulation_wick_low=73300.0, data_quality="LIVE"
+        )
+        result = self.classifier.classify(confirmed_metrics, self.mock_clusters)
+        risk = self.risk_manager.evaluate_risk(result)
+        self.assertTrue(risk["risk_budget_ok"])
+        self.assertTrue(risk["effective_risk_budget_pct"] <= 1.0)
 
     def test_cascade_classification_priority(self):
         """Test Cascade / Forced Deleveraging takes priority during sharp selloff."""

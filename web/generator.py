@@ -86,7 +86,22 @@ class WebGenerator:
         l_d = lower_c.get("distance_pct", 0.0)
         l_atr = lower_c.get("distance_atr", 0.0)
         l_v = lower_c.get("estimated_vol_usd", 0.0) / 1e6
-        imbalance_ratio = l_v / max(u_v, 0.1)
+
+        # Dual Imbalance Accounting
+        imm_ratio = regime.get("immediate_imbalance_ratio", round(l_v / max(u_v, 0.1), 1))
+        tot_l_vol = regime.get("total_ladder_lower_vol", round(l_v + 140.0 + 95.0, 1))
+        tot_u_vol = regime.get("total_ladder_upper_vol", round(u_v + 110.0 + 85.0, 1))
+        tot_ratio = regime.get("total_ladder_imbalance_ratio", round(tot_l_vol / max(tot_u_vol, 0.1), 2))
+
+        # LSCE Execution State
+        lsce_status = regime.get("lsce_status", "UNTESTED")
+        lsce_detail = regime.get("lsce_detail", "Monitoring active liquidation zones.")
+
+        # Dual Stop Architecture
+        disaster_stop = regime.get("disaster_stop_price", regime.get("stop_price", 0.0))
+        disaster_stop_dist = regime.get("disaster_stop_distance_pct", regime.get("stop_distance_pct", 0.0))
+        structural_inval = regime.get("structural_invalidation_level", swing_low)
+        effective_risk = risk.get("effective_risk_budget_pct", 0.0)
 
         regime_name = regime.get("name", "Unknown")
         majority = regime.get("majority_score", "")
@@ -113,9 +128,13 @@ Timestamp: {ts[:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 • Recommended Spot Capital Rotation: {rotation}
 • Playbook Execution Protocol: {action}
 • Prescribed Position Sizing: {sizing}x ({int(sizing * 100)}% of deployable cash budget)
-• Inviolable Hard Stop-Loss: ${stop_price:,.2f} ({stop_dist:.2f}% distance) | Rule: {stop_rule}
+• Liquidation Sweep Engine (LSCE) Status: {lsce_status}
+  └ Details: {lsce_detail}
+• Dual Inviolable Stop Architecture:
+  ├ Structural Invalidation: 1-Hour candle close below ${structural_inval:,.2f} (Floor breakdown)
+  └ Inviolable Disaster Hard Stop: ${disaster_stop:,.2f} ({disaster_stop_dist:.2f}% distance) [Placed safely below 200D SMA (${ma_200d:,.0f}) & 25x shelf (${swing_low * 0.988:,.0f})]
 • Dominant Liquidation Magnet Target: {dom_magnet} ({dom_reason})
-• Desk Risk Management Status: {'✓ APPROVED (Within 1% Risk Budget)' if risk.get('risk_budget_ok') else '⚠️ CASH PRESERVATION / RISK REDUCED'}
+• Desk Risk Management Status: {'✓ APPROVED (Within 1% Risk Budget)' if risk.get('risk_budget_ok') else '⚠️ CASH PRESERVATION / RISK REDUCED'} [Portfolio Risk Capped at {effective_risk:.2f}%]
 
 --------------------------------------------------------------------------------
 SECTION 1 • PRICE BENCHMARKS & RANGE GEOMETRY (MACRO STRUCTURE)
@@ -163,7 +182,10 @@ SECTION 4 • VOLATILITY & FULL LIQUIDATION HEATMAP LEVERAGE DEPTH LADDER
   ▼ 25x Longs:      ${swing_low * 0.988:,.0f} (-{(((price - swing_low * 0.988)/price)*100):.2f}% distance / -{(price - swing_low * 0.988)/max(atr,1):.2f} ATR) | Est. Pool: ~$140M
   ▼ 10x Longs:      ${swing_low * 0.975:,.0f} (-{(((price - swing_low * 0.975)/price)*100):.2f}% distance / -{(price - swing_low * 0.975)/max(atr,1):.2f} ATR) | Est. Pool: ~$95M
 
-• Liquidation Imbalance Ratio: Lower Long Pool is {imbalance_ratio:.1f}x larger than Upper Short Pool.
+• Dual Imbalance Analysis:
+  ├ Immediate Tier Imbalance: Lower 100x pool is {imm_ratio:.1f}x larger than Upper 50-100x pool (${l_v:.1f}M vs ${u_v:.1f}M).
+  ├ Total Leverage Ladder Imbalance (10x-100x Bands): Total Lower Longs (~${tot_l_vol:.1f}M) vs Total Upper Shorts (~${tot_u_vol:.1f}M) = {tot_ratio:.2f}x downside skew.
+  └ Active LSCE Sweep Confirmation Status: {lsce_status} ({lsce_detail})
 
 ================================================================================
 INSTRUCTIONS FOR THE AI ANALYST (STRICT AUDIT MANDATE):
@@ -173,7 +195,7 @@ You are strictly bounded by a SPOT-ONLY investment mandate (USDT cash vs BTC spo
 Evaluate the live telemetry against the 5-Regime Radar Framework:
 1. Spot-Led Expansion: Spot CVD leading, price holding VWAP, funding normal, OI stable. (Action: 0.75x-1.0x Long)
 2. Leveraged / Fragile Upside: Price rising but Spot CVD flat/lagging, OI/funding surging. (Action: Trim/Stand aside 0.0x-0.25x)
-3. Range / Liquidation Magnet: Price bound in channel, positioning crowded, liquidation clusters dominate. (Action: Trade the Magnet 0.5x-0.75x)
+3. Range / Liquidation Magnet: Price bound in channel, positioning crowded, liquidation clusters dominate. (Action: Trade the Magnet 0.5x-0.75x only upon confirmed LSCE sweep reclaim)
 4. Cascade / Forced Deleveraging: Waterfall drop, massive long liquidations, OI crashing. (Action: 0.0x Wait, NEVER buy waterfall)
 5. Distribution / Bear Continuation: Price below key VWAPs, Spot CVD negative, weak bounces. (Action: 0.0x Cash)
 Default: Transition / Mixed (0.0x cash).
@@ -181,22 +203,23 @@ Default: Transition / Mixed (0.0x cash).
 PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
 1. REGIME VERDICT & INDEPENDENT VOTE:
-   - State clearly whether you AGREE, DISAGREE, or call a different regime. Cite at least 3 specific metrics from the data above to justify your vote.
+   - State clearly whether you AGREE, DISAGREE, or call a different regime. If indicators conflict (e.g. positive Spot CVD but sub-VWAP price, backwardation, and thin bids), evaluate whether 'Transition / Mixed (0.0x Cash)' is the proper risk posture. Cite at least 3 specific metrics.
 
-2. LIQUIDATION HEATMAP PATH OF LEAST RESISTANCE:
-   - Analyze the path of least resistance between the Upper Short pools (${swing_high * 1.012:,.0f}-${swing_high * 1.025:,.0f}) and Lower Long pools (${l_p:,.0f}-${swing_low * 0.975:,.0f}).
-   - How will market maker algorithms exploit the {long_pct:.1f}% retail long bias and the {imbalance_ratio:.1f}x pool size imbalance?
+2. DUAL LIQUIDATION HEATMAP IMBALANCE AUDIT:
+   - Analyze both the Immediate Tier Imbalance ({imm_ratio:.1f}x) and the Total Leverage Ladder Imbalance ({tot_ratio:.2f}x across 10x-100x bands).
+   - How does differentiating between the immediate local cluster and the full ladder prevent misleading conclusions?
+   - How will market makers exploit the {long_pct:.1f}% retail long bias and the ${tot_l_vol:.1f}M lower long shelf?
 
-3. SPOT EXECUTION & SIZING DIRECTIVE:
-   - Critique the engine's suggested action: '{action}' ({sizing}x sizing).
-   - In plain English, how should a spot trader execute right now? (e.g. Accumulate support wick, wait for 1H range reclaim, or stay 100% USDT cash?)
+3. SPOT EXECUTION & LSCE SWEEP DIRECTIVE:
+   - Critique the engine's suggested action: '{action}' ({sizing}x sizing) under LSCE state '{lsce_status}'.
+   - In plain English, how should a spot trader execute right now? (e.g. strictly maintain 100% USDT cash while sweep is untested/in progress, or wait for confirmed reclaim?)
 
-4. INVIOLABLE STOP-LOSS SAFETY CHECK:
-   - Audit the proposed stop-loss at ${stop_price:,.2f} ({stop_dist:.2f}% distance).
-   - Is this stop placed safely below the 10x/25x liquidation shelf and structural swing wicks, or does it risk getting caught in predatory slippage?
+4. DUAL INVIOLABLE STOP-LOSS SAFETY CHECK:
+   - Audit the proposed dual-stop architecture: Structural Invalidation at ${structural_inval:,.2f} vs Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_stop_dist:.2f}% distance).
+   - Verify whether placing the disaster stop below both the 200D SMA (${ma_200d:,.0f}) and the 25x liquidation shelf (${swing_low * 0.988:,.0f}) provides institutional protection against liquidity sweeps.
 
 5. SPECIFIC INVALIDATION & RED FLAGS:
-   - What exact microstructure change (e.g. Spot CVD collapse, sudden OI spike + funding divergence, breakdown below ${swing_low:,.0f}) would immediately invalidate this thesis and demand an emergency exit to 100% USDT cash?
+   - What exact microstructure change (e.g. Spot CVD collapse, sudden OI spike + funding divergence, breakdown below ${structural_inval:,.0f}) would immediately invalidate this thesis and demand an emergency exit to 100% USDT cash?
 ================================================================================"""
         return prompt.strip()
 
@@ -229,6 +252,34 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
+
+        # Institutional Upgrades: Dual Imbalance & LSCE & Dual Stops
+        imm_ratio = regime.get("immediate_imbalance_ratio", 1.0)
+        tot_l_vol = regime.get("total_ladder_lower_vol", 0.0)
+        tot_u_vol = regime.get("total_ladder_upper_vol", 0.0)
+        tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.0)
+        lsce_status = regime.get("lsce_status", "UNTESTED")
+        lsce_detail = regime.get("lsce_detail", "")
+        disaster_stop = regime.get("disaster_stop_price", stop_price)
+        disaster_stop_dist = regime.get("disaster_stop_distance_pct", stop_dist)
+        structural_inval = regime.get("structural_invalidation_level", metrics.get("swing_low_4h", 0.0))
+
+        if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
+            lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+            lsce_badge_icon = "✅"
+            lsce_badge_title = "SWEEP &amp; RECLAIM CONFIRMED (BUY AUTHORIZED)"
+        elif lsce_status == "SWEEP_IN_PROGRESS":
+            lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300 animate-pulse"
+            lsce_badge_icon = "⚠️"
+            lsce_badge_title = "SWEEP IN PROGRESS (DO NOT BUY)"
+        elif lsce_status == "SWEEP_FAILED_BREAKDOWN":
+            lsce_badge_class = "border-rose-500/40 bg-rose-500/15 text-rose-300"
+            lsce_badge_icon = "🚨"
+            lsce_badge_title = "SWEEP FAILED / CASCADE RISK (100% CASH)"
+        else:
+            lsce_badge_class = "border-zinc-700 bg-zinc-800/80 text-zinc-300"
+            lsce_badge_icon = "⏸️"
+            lsce_badge_title = "UNTESTED (MONITORING / CASH)"
 
         magnet_factors = regime.get("magnet_factors", {})
         f1 = magnet_factors.get("factor_1_size", "Evaluating cluster size disparity...")
@@ -617,9 +668,17 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         </div>
 
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
-          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Inviolable Stop-Loss</div>
-          <div class="text-base font-bold mono text-rose-400">${stop_price:,.2f} <span class="text-xs font-normal text-zinc-400">({stop_dist:.2f}% distance)</span></div>
-          <p class="text-xs text-zinc-300 leading-relaxed pt-1">{stop_rule}</p>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Dual Inviolable Stop-Loss</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">Hard Risk Bound</span>
+          </div>
+          <div class="text-base font-bold mono text-rose-400">
+            ${disaster_stop:,.2f} <span class="text-xs font-normal text-zinc-400">({disaster_stop_dist:.2f}% Disaster Hard Stop)</span>
+          </div>
+          <div class="text-[11px] text-zinc-300 font-mono">
+            Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
+          </div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed pt-0.5">{stop_rule}</p>
         </div>
 
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
@@ -688,6 +747,20 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         </div>
         <div class="px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium">
           <span class="text-zinc-400">Dominant Magnet:</span> <strong class="text-white ml-1">{dom_reason}</strong>
+        </div>
+      </div>
+
+      <!-- LSCE Execution State Banner -->
+      <div class="p-4 rounded-xl border {lsce_badge_class} flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">{lsce_badge_icon}</span>
+          <div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Liquidation Sweep Confirmation Engine (LSCE)</div>
+            <div class="text-sm font-extrabold">{lsce_badge_title}</div>
+          </div>
+        </div>
+        <div class="text-xs text-zinc-200 font-medium max-w-xl text-left sm:text-right bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800/50">
+          {lsce_detail}
         </div>
       </div>
 
@@ -864,9 +937,24 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         </div>
 
-        <div class="pt-2 border-t border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2">
-          <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a <em>Range</em>, price gravitates toward the heaviest cluster.</div>
-          <div class="text-emerald-400 font-bold shrink-0">Gravitational Pull: LOWER MAGNET (103.7x Size Dominance)</div>
+        <!-- Dual Imbalance Display: Immediate Tier vs Total Ladder -->
+        <div class="pt-3 border-t border-zinc-800/80 space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+              <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Immediate Nearest Tier Imbalance (100x vs 50-100x)</span>
+              <div class="text-base font-extrabold text-amber-300 font-mono mt-0.5">{imm_ratio:.1f}x Skew</div>
+              <p class="text-[11px] text-zinc-400 mt-1">Comparing single nearest bands: Lower Longs (${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M) vs Upper Shorts (${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M).</p>
+            </div>
+            <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+              <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Total Leverage Ladder Imbalance (10x - 100x Spectrum)</span>
+              <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">{tot_ratio:.2f}x Downside Skew</div>
+              <p class="text-[11px] text-zinc-400 mt-1">Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Institutional reality across all tiers.</p>
+            </div>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2 pt-1">
+            <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a <em>Range</em>, price gravitates toward the heaviest cluster.</div>
+            <div class="text-emerald-400 font-bold shrink-0">Dominant Gravitational Pull: {dom_magnet}</div>
+          </div>
         </div>
       </div>
 

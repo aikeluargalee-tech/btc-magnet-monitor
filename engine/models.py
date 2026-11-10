@@ -15,6 +15,19 @@ class LiquidationCluster:
         return asdict(self)
 
 @dataclass
+class LSCEState:
+    """Liquidation Sweep Confirmation Engine (LSCE) State Model."""
+    status: str = "UNTESTED"  # UNTESTED, SWEEP_IN_PROGRESS, SWEEP_FAILED_BREAKDOWN, SWEEP_AND_RECLAIM_CONFIRMED
+    cluster_tested: str = "N/A"
+    sweep_depth_pct: float = 0.0
+    reclaim_level: float = 0.0
+    spot_absorption: str = "Neutral"
+    action_verdict: str = "Wait for sweep confirmation"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+@dataclass
 class MarketMetrics:
     price: float
     daily_vwap: float
@@ -116,6 +129,17 @@ class RegimeResult:
     data_quality: str = "LIVE"
     magnet_factors: Dict[str, str] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+    # Institutional Upgrades (LSCE & Dual Imbalance & Disaster Stop)
+    immediate_imbalance_ratio: float = 1.0
+    total_ladder_lower_vol: float = 0.0
+    total_ladder_upper_vol: float = 0.0
+    total_ladder_imbalance_ratio: float = 1.0
+    lsce_status: str = "UNTESTED"  # UNTESTED, SWEEP_IN_PROGRESS, SWEEP_FAILED_BREAKDOWN, SWEEP_AND_RECLAIM_CONFIRMED
+    lsce_detail: str = ""
+    disaster_stop_price: float = 0.0
+    disaster_stop_distance_pct: float = 0.0
+    structural_invalidation_level: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
