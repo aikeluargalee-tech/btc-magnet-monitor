@@ -4,23 +4,34 @@ import datetime
 from typing import Dict, Any, Tuple
 
 class WebGenerator:
-    """Generates the static JSON API feed and a clean, conventional modern financial dashboard for the Simplified 5-Regime Radar."""
+    """
+    Generates:
+      1. dist/regime.json (Static JSON API feed)
+      2. dist/index.html (Modern financial dashboard with standalone Regime Panel)
+      3. dist/regimes.html (Comprehensive educational subpage explaining all 5 regimes)
+    """
 
     def __init__(self, output_dir: str = "dist"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
     def generate(self, payload: Dict[str, Any]) -> Tuple[str, str]:
-        # 1. Write raw JSON feed for the mobile app and third-party consumers
+        # 1. Write raw JSON feed
         json_path = os.path.join(self.output_dir, "regime.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
-        # 2. Render modern conventional dashboard HTML
+        # 2. Render main dashboard HTML
         html_content = self._render_html(payload)
         html_path = os.path.join(self.output_dir, "index.html")
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
+
+        # 3. Render regimes detailed subpage HTML
+        regimes_content = self._render_regimes_subpage(payload)
+        regimes_path = os.path.join(self.output_dir, "regimes.html")
+        with open(regimes_path, "w", encoding="utf-8") as f:
+            f.write(regimes_content)
 
         return json_path, html_path
 
@@ -46,7 +57,6 @@ class WebGenerator:
         notes = regime.get("notes", "")
         data_quality = regime.get("data_quality", "LIVE")
 
-        # Plain-English Explanations for Beginners (95% User Base)
         plain_verdict = regime.get("plain_english_verdict", "Analyzing current market conditions...")
         why_points = regime.get("why_points", [])
         why_sizing = regime.get("why_sizing_reason", f"Deploying {sizing*100:.0f}% of available cash based on regime risk parameters.")
@@ -55,7 +65,6 @@ class WebGenerator:
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
 
-        # 6-Factor Multi-Factor Magnet Preference Details
         magnet_factors = regime.get("magnet_factors", {})
         f1 = magnet_factors.get("factor_1_size", "Evaluating cluster size disparity...")
         f2 = magnet_factors.get("factor_2_spot_leadership", "Evaluating spot vs derivatives CVD...")
@@ -64,50 +73,59 @@ class WebGenerator:
         f5 = magnet_factors.get("factor_5_asymmetry", "Evaluating cluster distance asymmetry...")
         f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
 
-        # Theme Color Mappings based on the 5 Regimes
-        if regime_id == "DATA_INCOMPLETE":
-            badge_bg = "bg-amber-500/10"
-            badge_border = "border-amber-500/30"
-            badge_text = "text-amber-400"
-            pill_tag = "Data Incomplete • Stand Aside"
-        elif regime_id == "SPOT_LED_EXPANSION":
-            badge_bg = "bg-emerald-500/10"
-            badge_border = "border-emerald-500/30"
-            badge_text = "text-emerald-400"
-            pill_tag = "Spot-Led Bull • Buy Spot"
-        elif regime_id == "RANGE_LIQUIDATION_MAGNET":
-            if "USDT -> BTC" in rotation:
-                badge_bg = "bg-cyan-500/10"
-                badge_border = "border-cyan-500/30"
-                badge_text = "text-cyan-400"
-                pill_tag = "Trade the Magnet • Accumulate Spot"
-            else:
-                badge_bg = "bg-amber-500/10"
-                badge_border = "border-amber-500/30"
-                badge_text = "text-amber-400"
-                pill_tag = "Range Resistance • Trim Spot"
+        # Specific styling tokens for the Standout Regime Panel
+        if regime_id == "SPOT_LED_EXPANSION":
+            regime_border_color = "border-emerald-500/50 shadow-emerald-500/10"
+            regime_badge_bg = "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+            regime_icon = "🚀"
+            regime_tagline = "Genuine spot buyers in control. Favorable environment for trend-following spot longs."
         elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
-            badge_bg = "bg-orange-500/10"
-            badge_border = "border-orange-500/30"
-            badge_text = "text-orange-400"
-            pill_tag = "Fragile Trap • Trim / Stand Aside"
+            regime_border_color = "border-orange-500/50 shadow-orange-500/10"
+            regime_badge_bg = "bg-orange-500/15 text-orange-300 border-orange-500/30"
+            regime_icon = "⚠️"
+            regime_tagline = "Advance built on dangerous borrowed futures leverage. High probability of long squeeze."
         elif regime_id == "CASCADE_FORCED_DELEVERAGING":
-            badge_bg = "bg-rose-500/10"
-            badge_border = "border-rose-500/30"
-            badge_text = "text-rose-400"
-            pill_tag = "Liquidation Cascade • Do Not Buy"
+            regime_border_color = "border-rose-500/60 shadow-rose-500/15"
+            regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
+            regime_icon = "⚡"
+            regime_tagline = "Forced margin liquidation cascade in progress. Strictly avoid buying until selling ceases."
         elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
-            badge_bg = "bg-rose-500/10"
-            badge_border = "border-rose-500/30"
-            badge_text = "text-rose-400"
-            pill_tag = "Bear Continuation • 100% Cash"
-        else:  # TRANSITION_MIXED
-            badge_bg = "bg-zinc-800/60"
-            badge_border = "border-zinc-700/60"
-            badge_text = "text-zinc-300"
-            pill_tag = "Transition / Mixed • Hold Cash Reserve"
+            regime_border_color = "border-rose-500/50 shadow-rose-500/10"
+            regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
+            regime_icon = "📉"
+            regime_tagline = "Structural seller control. Whales distributing into retail bounces. Cash preservation priority."
+        elif regime_id == "RANGE_LIQUIDATION_MAGNET":
+            regime_border_color = "border-cyan-500/50 shadow-cyan-500/10"
+            regime_badge_bg = "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+            regime_icon = "🧲"
+            regime_tagline = "Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate."
+        else:
+            regime_border_color = "border-zinc-700 shadow-zinc-800/10"
+            regime_badge_bg = "bg-zinc-800 text-zinc-300 border-zinc-700"
+            regime_icon = "⚖️"
+            regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
 
-        # Why Points HTML List
+        # Action banner color styling
+        if "USDT -> BTC" in rotation:
+            action_bg = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+            action_pill = "Buy Spot (Accumulate)"
+        elif "BTC -> USDT" in rotation:
+            action_bg = "bg-rose-500/10 border-rose-500/30 text-rose-400"
+            action_pill = "Trim Spot / Harvest to Cash"
+        else:
+            action_bg = "bg-amber-500/10 border-amber-500/30 text-amber-400"
+            action_pill = "Hold 100% Cash Reserve"
+
+        # Evidence Cards for the Standout Regime Panel
+        evidence_cards_html = "".join([
+            f"""<div class='flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80'>
+                 <span class='text-emerald-400 font-bold mt-0.5 text-xs'>✓</span>
+                 <span class='text-xs text-zinc-200 leading-relaxed'>{item}</span>
+               </div>"""
+            for item in regime.get("matched_criteria", [])
+        ])
+
+        # Why Points HTML
         why_points_html = "".join([
             f"""<div class='flex items-start gap-3 p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/70'>
                  <span class='w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0 mt-0.5'>{idx+1}</span>
@@ -115,8 +133,6 @@ class WebGenerator:
                </div>"""
             for idx, pt in enumerate(why_points)
         ])
-
-        matched_html = "".join([f"<li class='flex items-start gap-2.5 text-zinc-300 text-sm'><span class='text-emerald-400 font-semibold mt-0.5'>✓</span><span class='leading-relaxed'>{item}</span></li>" for item in regime.get("matched_criteria", [])])
 
         price = metrics.get("price", 0.0)
         funding_rate = metrics.get("funding_rate", 0.0) * 100
@@ -128,18 +144,18 @@ class WebGenerator:
         spot_source = metrics.get("spot_data_source", "Binance Vision API")
         futures_source = metrics.get("futures_data_source", "Deribit & Kraken Futures")
 
-        # Magnet Section Header Pill
+        # Active Playbook Tag for Magnet Section
         if regime_id == "RANGE_LIQUIDATION_MAGNET":
-            magnet_active_badge = "<span class='px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-semibold'>🎯 Primary Active Playbook</span>"
+            magnet_active_badge = "<span class='px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-semibold animate-pulse'>🎯 Primary Active Playbook</span>"
         else:
-            magnet_active_badge = "<span class='px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 text-xs font-medium'>Secondary / Informational</span>"
+            magnet_active_badge = "<span class='px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 text-xs font-medium'>Secondary / Informational Only</span>"
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BTC Magnet Monitor — Simplified 5-Regime Radar &amp; Liquidity Intelligence</title>
+  <title>BTC Magnet Monitor — 5-Regime Radar &amp; Positioning Intelligence</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -167,20 +183,24 @@ class WebGenerator:
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar v2.0</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
           </div>
-          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Liquidity Intelligence</p>
+          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-5">
+      <div class="flex items-center gap-4 sm:gap-6">
+        <a href="regimes.html" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
+          <span>Explore 5 Regimes Guide</span>
+          <span>&rarr;</span>
+        </a>
         <div class="text-right">
-          <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price (USD)</div>
+          <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
           <div class="text-base font-bold mono text-white">${price:,.2f}</div>
         </div>
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if data_quality == 'LIVE' else 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
           <span class="w-2 h-2 rounded-full {'bg-emerald-400' if data_quality == 'LIVE' else 'bg-amber-400'} animate-pulse"></span>
-          <span>{data_quality} Feed</span>
+          <span>{data_quality}</span>
         </div>
       </div>
     </div>
@@ -190,48 +210,131 @@ class WebGenerator:
   <div class="border-b border-zinc-800/50 bg-zinc-900/30 px-4 sm:px-6 py-2 text-xs text-zinc-400">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
       <div>Data Feeds: <span class="text-zinc-300">{spot_source}</span> &bull; <span class="text-zinc-300">{futures_source}</span></div>
-      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Automated Every 30 Minutes</div>
+      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Updated Every 30 Minutes</div>
     </div>
   </div>
 
   <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
 
-    <!-- Primary Recommendation Card -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+    <!-- ============================================================ -->
+    <!-- PANEL 1: STANDOUT REGIME DIAGNOSIS (STANDS ON ITS OWN)       -->
+    <!-- ============================================================ -->
+    <div class="rounded-2xl border-2 {regime_border_color} bg-gradient-to-b from-zinc-900/90 via-zinc-900/80 to-zinc-950 p-6 sm:p-8 backdrop-blur-md shadow-2xl relative overflow-hidden">
+      
+      <!-- Top Bar: Category, Confidence Score & Subpage Link -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-zinc-800/80">
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <span class="text-xs font-extrabold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            STEP 1 &bull; MACRO REGIME DIAGNOSIS
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+            {majority_score}
+          </span>
+        </div>
+        <div>
+          <a href="regimes.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all shadow-sm">
+            <span>Learn About the 5 Regimes &amp; Calculation Math</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Regime Title & Physical Diagnosis -->
+      <div class="pt-6 pb-5 space-y-3">
+        <div class="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border {regime_badge_bg} text-sm font-extrabold tracking-wide uppercase">
+          <span class="text-lg">{regime_icon}</span>
+          <span>{name}</span>
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          {diagnosis}
+        </h1>
+        <p class="text-sm sm:text-base text-zinc-300 max-w-3xl leading-relaxed">
+          {regime_tagline}
+        </p>
+      </div>
+
+      <!-- Concise Methodology Summary Box -->
+      <div class="bg-zinc-950/70 p-4 rounded-xl border border-zinc-800/80 text-xs sm:text-sm text-zinc-300 leading-relaxed space-y-2">
+        <div class="font-bold text-white flex items-center gap-2">
+          <span>🧠</span>
+          <span>How the Regime Engine Works:</span>
+        </div>
+        <p>
+          Bitcoin is always classified into one of <strong>5 distinct market regimes</strong> (Spot-Led Expansion, Leveraged Upside, Range / Liquidation Magnet, Cascade, or Distribution; defaulting to Transition/Mixed). A regime is confirmed strictly when a <strong>majority (&ge;3 of 4)</strong> on-exchange positioning observations are verified without subjective guesswork.
+        </p>
+      </div>
+
+      <!-- How We Derived This State (The Majority Evidence Grid) -->
+      <div class="pt-5 space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+          <span>How We Derived This State (Verified On-Exchange Evidence):</span>
+          <span class="text-emerald-400 font-mono font-semibold">{majority_score}</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {evidence_cards_html}
+        </div>
+      </div>
+
+      <!-- 5-Regime Status Strip -->
+      <div class="pt-6 border-t border-zinc-800/80 mt-6">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2.5">5-Regime Radar Framework Matrix</div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+          <div class="p-2.5 rounded-lg border {'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 font-bold' if regime_id == 'SPOT_LED_EXPANSION' else 'bg-zinc-950/60 border-zinc-800 text-zinc-400'}">
+            1. Spot Expansion
+          </div>
+          <div class="p-2.5 rounded-lg border {'bg-orange-500/10 border-orange-500/50 text-orange-300 font-bold' if regime_id == 'LEVERAGED_FRAGILE_UPSIDE' else 'bg-zinc-950/60 border-zinc-800 text-zinc-400'}">
+            2. Leveraged Trap
+          </div>
+          <div class="p-2.5 rounded-lg border {'bg-cyan-500/10 border-cyan-500/50 text-cyan-300 font-bold ring-1 ring-cyan-500/40' if regime_id == 'RANGE_LIQUIDATION_MAGNET' else 'bg-zinc-950/60 border-zinc-800 text-zinc-400'}">
+            3. Range / Magnet
+          </div>
+          <div class="p-2.5 rounded-lg border {'bg-rose-500/10 border-rose-500/50 text-rose-300 font-bold' if regime_id == 'CASCADE_FORCED_DELEVERAGING' else 'bg-zinc-950/60 border-zinc-800 text-zinc-400'}">
+            4. Cascade
+          </div>
+          <div class="p-2.5 rounded-lg border {'bg-rose-500/10 border-rose-500/50 text-rose-300 font-bold' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else 'bg-zinc-950/60 border-zinc-800 text-zinc-400'}">
+            5. Distribution
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 2: ACTIONABLE PORTFOLIO ROTATION & EXECUTION PROTOCOL -->
+    <!-- ============================================================ -->
+    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-sm shadow-xl space-y-6">
+      
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-zinc-800">
         <div>
-          <div class="flex items-center gap-2.5 mb-2.5">
-            <span class="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700">
-              {name}
-            </span>
-            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
-              {majority_score}
-            </span>
+          <div class="text-xs font-extrabold uppercase tracking-widest text-zinc-400 mb-1 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            STEP 2 &bull; ACTIONABLE PORTFOLIO ROTATION
           </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {diagnosis}
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            Spot Execution Directives &amp; Inviolable Risk Controls
           </h2>
-          <p class="text-sm text-zinc-300 mt-2 max-w-2xl leading-relaxed">
-            Diagnosed via majority-based order flow, spot-vs-futures volume deltas, open interest leverage, and multi-factor liquidation preference.
+          <p class="text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+            Spot-only capital rotation. Strictly zero borrowed leverage, zero futures gambling, zero shorting.
           </p>
         </div>
 
-        <!-- Call to Action Banner -->
-        <div class="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end justify-center gap-3 p-5 rounded-xl border {badge_border} {badge_bg} min-w-[280px]">
-          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            Recommended Action
+        <!-- Action Callout Box -->
+        <div class="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end justify-center gap-2 p-5 rounded-xl border {action_bg} min-w-[280px]">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+            Recommended Rotation
           </div>
-          <div class="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          <div class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mono">
             {rotation}
           </div>
-          <div class="text-xs font-medium {badge_text}">
-            {pill_tag} &bull; Sizing: {sizing}x
+          <div class="text-xs font-semibold">
+            {action_pill} &bull; Sizing: {sizing}x
           </div>
         </div>
       </div>
 
       <!-- Action Protocol, Stop Loss, and Risk Rules -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
           <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Playbook Protocol</div>
           <div class="text-base font-bold text-white">{playbook}</div>
@@ -254,7 +357,9 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- Plain-English Breakdown Card (For 95% Beginners) -->
+    <!-- ============================================================ -->
+    <!-- PANEL 3: PLAIN-ENGLISH BREAKDOWN (FOR 95% BEGINNERS)         -->
+    <!-- ============================================================ -->
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-sm space-y-6 shadow-xl">
       <div class="border-b border-zinc-800 pb-4">
         <div class="flex items-center gap-2 mb-1">
@@ -273,7 +378,6 @@ class WebGenerator:
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <!-- 3 Key Reasons -->
         <div class="lg:col-span-2 space-y-3">
           <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">The 3 Key Market Factors Driving This Call</div>
           <div class="space-y-2.5">
@@ -281,15 +385,12 @@ class WebGenerator:
           </div>
         </div>
 
-        <!-- Sizing and Safety Net Column -->
         <div class="space-y-3.5">
-          <!-- Why Sizing -->
           <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80 space-y-1.5">
             <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Why This Exact Sizing?</div>
             <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
           </div>
 
-          <!-- Where is Safety Net -->
           <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80 space-y-1.5">
             <div class="text-xs font-bold uppercase tracking-wider text-rose-400">Where Is Your Safety Net?</div>
             <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_stop}</p>
@@ -298,11 +399,13 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- Liquidation Magnets & Price Targets -->
+    <!-- ============================================================ -->
+    <!-- PANEL 4: LIQUIDATION MAGNETS & PRICE TARGETS                 -->
+    <!-- ============================================================ -->
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
             <h3 class="text-lg font-bold text-white">Liquidation Magnets &amp; Key Price Pools</h3>
             {magnet_active_badge}
           </div>
@@ -393,50 +496,9 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- The 5-Regime Radar Framework Matrix -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-4">
-      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-        <div>
-          <h3 class="text-lg font-bold text-white">The 5-Regime Radar Framework</h3>
-          <p class="text-xs text-zinc-400 mt-0.5">Regime diagnosis determines the playbook. Trade the Liquidation Magnet only inside Range regimes.</p>
-        </div>
-        <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-300">Majority-Based (≥3/4)</span>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2 text-xs">
-        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-emerald-500/50 bg-emerald-500/5' if regime_id == 'SPOT_LED_EXPANSION' else 'border-zinc-800/80'} space-y-1">
-          <div class="font-bold text-emerald-400">1. Spot-Led Expansion</div>
-          <p class="text-zinc-300 text-[11px]">Genuine spot demand leading higher.</p>
-          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.75x–1.0x Spot</div>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-orange-500/50 bg-orange-500/5' if regime_id == 'LEVERAGED_FRAGILE_UPSIDE' else 'border-zinc-800/80'} space-y-1">
-          <div class="font-bold text-orange-400">2. Leveraged Upside</div>
-          <p class="text-zinc-300 text-[11px]">Price propped by futures debt.</p>
-          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Trim / Stand Aside)</div>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-cyan-500/50 bg-cyan-500/5' if regime_id == 'RANGE_LIQUIDATION_MAGNET' else 'border-zinc-800/80'} space-y-1">
-          <div class="font-bold text-cyan-400">3. Range / Magnet</div>
-          <p class="text-zinc-300 text-[11px]">Core operating zone; trade clusters.</p>
-          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.50x–0.75x Magnet</div>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-rose-500/50 bg-rose-500/5' if regime_id == 'CASCADE_FORCED_DELEVERAGING' else 'border-zinc-800/80'} space-y-1">
-          <div class="font-bold text-rose-400">4. Cascade / Waterfall</div>
-          <p class="text-zinc-300 text-[11px]">Forced long unwind in progress.</p>
-          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Never buy knife)</div>
-        </div>
-
-        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-rose-500/50 bg-rose-500/5' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else 'border-zinc-800/80'} space-y-1">
-          <div class="font-bold text-rose-400">5. Distribution / Bear</div>
-          <p class="text-zinc-300 text-[11px]">Persistent seller control.</p>
-          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Defensive Cash)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Market Microstructure Gauges -->
+    <!-- ============================================================ -->
+    <!-- PANEL 5: MARKET TELEMETRY & MICROSTRUCTURE GAUGES             -->
+    <!-- ============================================================ -->
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-4">
       <h3 class="text-lg font-bold text-white">Market Telemetry &amp; Microstructure Gauges</h3>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
@@ -480,47 +542,11 @@ class WebGenerator:
       </div>
     </div>
 
-    <!-- Diagnostic Observation & Evidence Log -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-4">
-      <h3 class="text-lg font-bold text-white">Diagnostic Rationale &amp; Evidence Trace</h3>
-      <p class="text-sm text-zinc-300 leading-relaxed">{notes}</p>
-      
-      <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 mt-4">
-        <div class="text-xs uppercase font-semibold text-zinc-400 mb-3 tracking-wider">Verified Market Microstructure Facts ({majority_score})</div>
-        <ul class="space-y-2">
-          {matched_html}
-        </ul>
-      </div>
-    </div>
-
-    <!-- About & How It Works -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 space-y-4">
-      <h3 class="text-lg font-bold text-white">About BTC Magnet Monitor</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs text-zinc-300 leading-relaxed">
-        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
-          <strong class="text-emerald-400 block font-semibold text-sm">1. Purpose: Spot Swing Trading</strong>
-          <p>
-            Designed exclusively for spot Bitcoin swing traders who hold USDT cash or BTC (never leverage, never futures shorting). It tells you when it is statistically favorable to deploy cash into BTC, and when to rotate back to USDT cash to preserve gains.
-          </p>
-        </div>
-        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
-          <strong class="text-cyan-400 block font-semibold text-sm">2. Regime First, Magnet Second</strong>
-          <p>
-            Trading liquidation magnets is only valid inside range regimes. In cascades or strong trends, price blows through clusters. The 5-Regime Radar identifies the macro environment first, then applies the authorized playbook.
-          </p>
-        </div>
-        <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
-          <strong class="text-amber-400 block font-semibold text-sm">3. Zero Data Guesswork</strong>
-          <p>
-            Runs completely automated every 30 minutes via GitHub Actions. All metrics are fetched live from institutional public APIs. If feeds are unavailable, the engine withholds its recommendation to keep your capital safe.
-          </p>
-        </div>
-      </div>
-    </div>
-
     <!-- Footer -->
     <footer class="border-t border-zinc-800/80 pt-8 text-center text-xs text-zinc-400 space-y-2.5">
       <div class="flex flex-wrap justify-center items-center gap-5 text-xs">
+        <a href="regimes.html" class="text-cyan-400 hover:text-cyan-300 font-medium underline underline-offset-4">5 Regimes Deep-Dive Guide</a>
+        <span>&bull;</span>
         <a href="regime.json" class="text-emerald-400 hover:text-emerald-300 underline font-medium">Public REST API (regime.json)</a>
         <span>&bull;</span>
         <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" class="text-zinc-300 hover:text-white underline font-medium" target="_blank">Open Source Repository</a>
@@ -529,6 +555,297 @@ class WebGenerator:
         Automated via GitHub Actions scheduled cron &bull; Deployed on GitHub Pages CDN &bull; Zero Server Cost
       </div>
     </footer>
+
+  </main>
+</body>
+</html>"""
+        return html
+
+    def _render_regimes_subpage(self, data: Dict[str, Any]) -> str:
+        """Renders the comprehensive educational reference subpage explaining all 5 regimes."""
+        regime = data.get("regime", {})
+        current_regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
+        current_name = regime.get("name", "Range / Liquidation Magnet")
+
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The 5 Market Regimes — BTC Magnet Monitor Reference Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {{
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+    }}
+    .mono {{
+      font-family: 'JetBrains Mono', monospace;
+    }}
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased pb-20">
+
+  <!-- Header -->
+  <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shadow-inner">
+          🧲
+        </div>
+        <div>
+          <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
+          <span class="text-xs text-zinc-400 block">The 5-Regime Radar Reference Guide</span>
+        </div>
+      </div>
+      <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
+        <span>&larr; Back to Live Monitor</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 space-y-10">
+
+    <!-- Hero Title -->
+    <div class="space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+        System Architecture &bull; Observable Positioning Mechanics
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+        The Simplified 5-Regime Radar
+      </h1>
+      <p class="text-base sm:text-lg text-zinc-300 leading-relaxed">
+        Why trading edge is strictly regime-dependent, how the majority-voting calculation engine works, and why liquidation magnets only apply inside Range regimes.
+      </p>
+    </div>
+
+    <!-- Active State Banner -->
+    <div class="p-5 rounded-2xl border border-cyan-500/40 bg-cyan-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
+        <div class="text-xl font-bold text-white mt-0.5">{current_name}</div>
+        <div class="text-xs text-zinc-400 mt-1">Diagnosed by verified on-exchange order flow and positioning metrics.</div>
+      </div>
+      <a href="index.html" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all">
+        View Live Signals &rarr;
+      </a>
+    </div>
+
+    <!-- Section 1: Philosophy -->
+    <div class="space-y-4">
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
+        <span>1. Core Philosophy: Regime First, Magnet Second</span>
+      </h2>
+      <div class="prose prose-invert text-sm text-zinc-300 space-y-3 leading-relaxed">
+        <p>
+          In quantitative crypto swing trading, <strong>strategy edge is regime-dependent</strong>. Applying a valid trading playbook in the wrong regime is the single most consistent way retail traders lose capital:
+        </p>
+        <ul class="space-y-2 list-disc list-inside text-zinc-300">
+          <li><strong>The Trend Playbook</strong> (buying breakouts above VWAP) succeeds in <em>Spot-Led Expansion</em>, but gets chopped to pieces in a <em>Range</em>.</li>
+          <li><strong>The Liquidation Magnet Playbook</strong> (buying at support to target trapped shorts above) has high mathematical edge in a <em>Range</em>, but has <strong>fatal negative expectancy inside an active Liquidation Cascade</strong>.</li>
+        </ul>
+        <p>
+          Therefore, the monitor always diagnoses the <strong>Macro Regime first</strong>. Only if the market is diagnosed as a <em>Range / Liquidation Magnet</em> does the engine activate the 6-factor Liquidation Magnet target calculator.
+        </p>
+      </div>
+    </div>
+
+    <!-- Section 2: How the Majority Voting Works -->
+    <div class="space-y-4">
+      <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
+        <span>2. How the Majority-Voting Engine Works</span>
+      </h2>
+      <div class="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-3 text-sm text-zinc-300 leading-relaxed">
+        <p>
+          Traditional trading algorithms fail because of <strong>fragile multi-AND rules</strong> (requiring 5 or 6 indicators to be simultaneously true). If one obscure metric misses by 0.1%, the system breaks or jumps erratically.
+        </p>
+        <p>
+          The 5-Regime Radar uses a <strong>robust majority-vote model</strong>:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+            <strong class="text-emerald-400 block text-xs uppercase font-bold mb-1">Majority Rule (&ge;3 of 4)</strong>
+            <p class="text-xs text-zinc-400">Each regime defines 4 observable facts. If 3 or 4 are confirmed on-exchange, the regime is verified.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+            <strong class="text-amber-400 block text-xs uppercase font-bold mb-1">Default Fallback (Transition / Mixed)</strong>
+            <p class="text-xs text-zinc-400">If no regime achieves 3/4 matches, the system cleanly defaults to Cash (0.0x) until clarity returns.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Deep Dive into the 5 Regimes -->
+    <div class="space-y-6">
+      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 Regimes</h2>
+
+      <!-- Regime 1 -->
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            Regime 1 &bull; Spot-Led Expansion
+          </span>
+          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Buy Spot (0.75x–1.0x)</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">Genuine spot demand supporting upward trend</h3>
+        <p class="text-xs text-zinc-300 leading-relaxed">
+          The healthiest market state in crypto. Real institutional cash is buying physical Bitcoin and withdrawing from exchanges. Price consistently holds above daily and weekly volume benchmarks (VWAP).
+        </p>
+        <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-zinc-800">
+          <div class="font-bold text-zinc-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
+          <div class="text-zinc-300">1. Price holding above Daily and Weekly VWAP or rising with structure.</div>
+          <div class="text-zinc-300">2. Spot CVD ratio clearly positive (&ge;1.15) or 7-day slope upward.</div>
+          <div class="text-zinc-300">3. Spot trading volume expanding (&ge;1.10x 20-day moving average).</div>
+          <div class="text-zinc-300">4. Futures funding rates healthy (&le;0.012%) and Open Interest not surging parabolically.</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Execution Protocol:</strong>
+            <span class="text-zinc-200">60% breakout confirmation / 40% limit at Daily VWAP retest.</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Safety Stop-Loss:</strong>
+            <span class="text-zinc-200">Anchored under recent 4-hour swing low (-0.6%).</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regime 2 -->
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/30">
+            Regime 2 &bull; Leveraged / Fragile Upside
+          </span>
+          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Trim / Stand Aside (0.0x)</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">Upside driven mainly by speculative futures debt</h3>
+        <p class="text-xs text-zinc-300 leading-relaxed">
+          A dangerous bull trap. Price moves upward, but the rally is artificially propped up by retail futures leverage while spot buyers are passive or selling. High probability of a sharp long-squeeze.
+        </p>
+        <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-zinc-800">
+          <div class="font-bold text-zinc-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
+          <div class="text-zinc-300">1. Price rising but Spot CVD is flat or declining (bearish divergence).</div>
+          <div class="text-zinc-300">2. Perpetual futures CVD and/or Open Interest rising sharply (&gt;+4% in 24h).</div>
+          <div class="text-zinc-300">3. Funding rates elevated (&gt;0.015% per 8h) or basis contango stretched.</div>
+          <div class="text-zinc-300">4. Spot volume failing to confirm the move (below 20D average).</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Execution Protocol:</strong>
+            <span class="text-zinc-200">Strictly zero new buying. Harvest 33% profit directly into perp pumps.</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Safety Stop-Loss:</strong>
+            <span class="text-zinc-200">Move protective stops tight to 4H swing low to lock in profits.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regime 3 -->
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-cyan-500/40 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+            Regime 3 &bull; Range / Liquidation Magnet (Core Operating Zone)
+          </span>
+          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Trade the Magnet (0.50x–0.75x)</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">Positioning imbalance &amp; liquidation pools dominate</h3>
+        <p class="text-xs text-zinc-300 leading-relaxed">
+          The natural habitat for the Liquidation Magnet Monitor. Price is oscillating inside a horizontal channel. Trend-following fails here, but fading the range edges toward dense liquidation pools has a massive statistical edge.
+        </p>
+        <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-zinc-800">
+          <div class="font-bold text-zinc-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
+          <div class="text-zinc-300">1. Price oscillating in a defined range (width &le;4.5%) with ATR compressed &gt;30%.</div>
+          <div class="text-zinc-300">2. Spot CVD neutral or balanced (ratio between 0.90 and 1.15).</div>
+          <div class="text-zinc-300">3. Funding and OI showing positioning crowding on one side (L/S ratio &ge;1.60).</div>
+          <div class="text-zinc-300">4. Clear liquidation clusters active both above and below current price.</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Execution Protocol:</strong>
+            <span class="text-zinc-200">Trade toward dominant magnet: 50% on 1H range reclaim / 50% limit at support low.</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Safety Stop-Loss:</strong>
+            <span class="text-zinc-200">Anchored outside range floor (Lowest sweep wick - 0.5%).</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regime 4 -->
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/30">
+            Regime 4 &bull; Cascade / Forced Deleveraging
+          </span>
+          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Wait / 100% Cash (0.0x)</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">Forced long unwind &amp; margin waterfall in progress</h3>
+        <p class="text-xs text-zinc-300 leading-relaxed">
+          Emergency state. A domino chain of forced liquidations is collapsing the price. Bids disappear as exchange risk engines market-sell collateral. Never buy into an active waterfall.
+        </p>
+        <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-zinc-800">
+          <div class="font-bold text-zinc-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
+          <div class="text-zinc-300">1. Sharp vertical price plunge (&le;-3.0% in 1h or &le;-6.0% in 24h).</div>
+          <div class="text-zinc-300">2. Open Interest crashing violently (&le;-3.5% in 1h or &le;-7.0% in 4h).</div>
+          <div class="text-zinc-300">3. Funding rate plunged deeply negative (&le;-0.005%).</div>
+          <div class="text-zinc-300">4. Severe basis discount / backwardation (&lt;1.0% annualized).</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Execution Protocol:</strong>
+            <span class="text-zinc-200">100% Cash. Wait for Phase 3: 5m liquidations stop, OI flatlines, and 1H hammer forms.</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Safety Stop-Loss:</strong>
+            <span class="text-zinc-200">N/A (Holding cash reserve).</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regime 5 -->
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/30">
+            Regime 5 &bull; Distribution / Bear Continuation
+          </span>
+          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Defensive Cash (0.0x)</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">Persistent seller control &amp; exit liquidity traps</h3>
+        <p class="text-xs text-zinc-300 leading-relaxed">
+          Smart money is actively selling down inventory into retail dip-buyers. Every minor bounce occurs on light volume and is sold off immediately.
+        </p>
+        <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-zinc-800">
+          <div class="font-bold text-zinc-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
+          <div class="text-zinc-300">1. Price trapped below Daily VWAP, 20D EMA, and 50D EMA.</div>
+          <div class="text-zinc-300">2. Spot CVD persistently negative (7D/14D slope &lt;0).</div>
+          <div class="text-zinc-300">3. Bounces occur on light spot volume (&lt;0.95x 20D MA).</div>
+          <div class="text-zinc-300">4. Trapped longs paying positive funding with compressed futures basis.</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Execution Protocol:</strong>
+            <span class="text-zinc-200">Defensive 100% USDT cash. Treat bounces as exit liquidity.</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800/80">
+            <strong class="text-zinc-400 block text-[11px] uppercase">Safety Invalidation:</strong>
+            <span class="text-zinc-200">1D close &gt; 50D EMA backed by positive Spot CVD.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Return Button -->
+    <div class="text-center pt-8 border-t border-zinc-800">
+      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-bold text-white border border-zinc-700 shadow-xl transition-all">
+        <span>&larr; Return to Live BTC Magnet Monitor</span>
+      </a>
+    </div>
 
   </main>
 </body>
