@@ -4,7 +4,7 @@ import datetime
 from typing import Dict, Any, Tuple
 
 class WebGenerator:
-    """Generates the static JSON API feed and a clean, conventional modern financial dashboard."""
+    """Generates the static JSON API feed and a clean, conventional modern financial dashboard for the Simplified 5-Regime Radar."""
 
     def __init__(self, output_dir: str = "dist"):
         self.output_dir = output_dir
@@ -29,9 +29,11 @@ class WebGenerator:
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
 
-        cfg = regime.get("config", "Config A")
-        name = regime.get("name", "Unknown")
+        regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
+        name = regime.get("name", regime.get("regime", "Range / Liquidation Magnet"))
         diagnosis = regime.get("diagnosis", "")
+        playbook = regime.get("playbook", "")
+        majority_score = regime.get("majority_score", "3/4 observations confirmed")
         rotation = regime.get("rotation", "Remain USDT")
         sizing = regime.get("sizing_factor", 0.0)
         action = regime.get("action", "")
@@ -62,27 +64,48 @@ class WebGenerator:
         f5 = magnet_factors.get("factor_5_asymmetry", "Evaluating cluster distance asymmetry...")
         f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
 
-        # Conventional Clean Theme Color Mappings
-        if cfg == "DATA_INCOMPLETE":
+        # Theme Color Mappings based on the 5 Regimes
+        if regime_id == "DATA_INCOMPLETE":
             badge_bg = "bg-amber-500/10"
             badge_border = "border-amber-500/30"
             badge_text = "text-amber-400"
             pill_tag = "Data Incomplete • Stand Aside"
-        elif "USDT -> BTC" in rotation:
+        elif regime_id == "SPOT_LED_EXPANSION":
             badge_bg = "bg-emerald-500/10"
             badge_border = "border-emerald-500/30"
             badge_text = "text-emerald-400"
-            pill_tag = "Buy Spot (Accumulate)"
-        elif "BTC -> USDT" in rotation:
+            pill_tag = "Spot-Led Bull • Buy Spot"
+        elif regime_id == "RANGE_LIQUIDATION_MAGNET":
+            if "USDT -> BTC" in rotation:
+                badge_bg = "bg-cyan-500/10"
+                badge_border = "border-cyan-500/30"
+                badge_text = "text-cyan-400"
+                pill_tag = "Trade the Magnet • Accumulate Spot"
+            else:
+                badge_bg = "bg-amber-500/10"
+                badge_border = "border-amber-500/30"
+                badge_text = "text-amber-400"
+                pill_tag = "Range Resistance • Trim Spot"
+        elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
+            badge_bg = "bg-orange-500/10"
+            badge_border = "border-orange-500/30"
+            badge_text = "text-orange-400"
+            pill_tag = "Fragile Trap • Trim / Stand Aside"
+        elif regime_id == "CASCADE_FORCED_DELEVERAGING":
             badge_bg = "bg-rose-500/10"
             badge_border = "border-rose-500/30"
             badge_text = "text-rose-400"
-            pill_tag = "Defensive Exit (Harvest to Cash)"
-        else:
-            badge_bg = "bg-amber-500/10"
-            badge_border = "border-amber-500/30"
-            badge_text = "text-amber-400"
-            pill_tag = "Hold 100% Cash Reserve"
+            pill_tag = "Liquidation Cascade • Do Not Buy"
+        elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
+            badge_bg = "bg-rose-500/10"
+            badge_border = "border-rose-500/30"
+            badge_text = "text-rose-400"
+            pill_tag = "Bear Continuation • 100% Cash"
+        else:  # TRANSITION_MIXED
+            badge_bg = "bg-zinc-800/60"
+            badge_border = "border-zinc-700/60"
+            badge_text = "text-zinc-300"
+            pill_tag = "Transition / Mixed • Hold Cash Reserve"
 
         # Why Points HTML List
         why_points_html = "".join([
@@ -105,12 +128,18 @@ class WebGenerator:
         spot_source = metrics.get("spot_data_source", "Binance Vision API")
         futures_source = metrics.get("futures_data_source", "Deribit & Kraken Futures")
 
+        # Magnet Section Header Pill
+        if regime_id == "RANGE_LIQUIDATION_MAGNET":
+            magnet_active_badge = "<span class='px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-semibold'>🎯 Primary Active Playbook</span>"
+        else:
+            magnet_active_badge = "<span class='px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 text-xs font-medium'>Secondary / Informational</span>"
+
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BTC Magnet Monitor — Market Regime &amp; Liquidity Intelligence</title>
+  <title>BTC Magnet Monitor — Simplified 5-Regime Radar &amp; Liquidity Intelligence</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -138,9 +167,9 @@ class WebGenerator:
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-zinc-700/60">v1.5</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar v2.0</span>
           </div>
-          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Radar</p>
+          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Liquidity Intelligence</p>
         </div>
       </div>
 
@@ -161,7 +190,7 @@ class WebGenerator:
   <div class="border-b border-zinc-800/50 bg-zinc-900/30 px-4 sm:px-6 py-2 text-xs text-zinc-400">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
       <div>Data Feeds: <span class="text-zinc-300">{spot_source}</span> &bull; <span class="text-zinc-300">{futures_source}</span></div>
-      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Updated Every 30 Minutes</div>
+      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Automated Every 30 Minutes</div>
     </div>
   </div>
 
@@ -173,17 +202,17 @@ class WebGenerator:
         <div>
           <div class="flex items-center gap-2.5 mb-2.5">
             <span class="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700">
-              {cfg}
+              {name}
             </span>
             <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
-              {regime.get("suitability", "Active Operating Zone")}
+              {majority_score}
             </span>
           </div>
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {name}: <span class="text-zinc-400 font-normal">{diagnosis}</span>
+            {diagnosis}
           </h2>
           <p class="text-sm text-zinc-300 mt-2 max-w-2xl leading-relaxed">
-            Market regime diagnosed through multi-exchange order flow, spot-vs-futures volume deltas, and open interest positioning.
+            Diagnosed via majority-based order flow, spot-vs-futures volume deltas, open interest leverage, and multi-factor liquidation preference.
           </p>
         </div>
 
@@ -196,7 +225,7 @@ class WebGenerator:
             {rotation}
           </div>
           <div class="text-xs font-medium {badge_text}">
-            {pill_tag} &bull; Sizing Factor: {sizing}x
+            {pill_tag} &bull; Sizing: {sizing}x
           </div>
         </div>
       </div>
@@ -204,8 +233,8 @@ class WebGenerator:
       <!-- Action Protocol, Stop Loss, and Risk Rules -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6">
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
-          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Execution Protocol</div>
-          <div class="text-base font-bold text-white">{action}</div>
+          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Playbook Protocol</div>
+          <div class="text-base font-bold text-white">{playbook}</div>
           <p class="text-xs text-zinc-300 leading-relaxed pt-1">{entry_inst}</p>
         </div>
 
@@ -217,8 +246,8 @@ class WebGenerator:
 
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
           <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Risk Management</div>
-          <div class="text-base font-bold flex items-center gap-1.5 {'text-emerald-400' if risk.get('risk_budget_ok') else 'text-rose-400'}">
-            {"✓ Approved (Within 1% Risk Budget)" if risk.get("risk_budget_ok") else "⚠️ Warning: Exceeds Risk Limit"}
+          <div class="text-base font-bold flex items-center gap-1.5 {'text-emerald-400' if risk.get('risk_budget_ok') else 'text-amber-400'}">
+            {"✓ Approved (Within 1% Risk Budget)" if risk.get("risk_budget_ok") else "Hold Cash / Reduced Exposure"}
           </div>
           <p class="text-xs text-zinc-300 leading-relaxed pt-1">{risk.get("actionable_trade_instruction", "")}</p>
         </div>
@@ -273,10 +302,11 @@ class WebGenerator:
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <span>Liquidation Magnets &amp; Key Price Pools</span>
-          </h3>
-          <p class="text-xs text-zinc-400 mt-0.5">Modeled liquidation concentration zones derived from 10x, 25x, 50x, and 100x leverage bands</p>
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-bold text-white">Liquidation Magnets &amp; Key Price Pools</h3>
+            {magnet_active_badge}
+          </div>
+          <p class="text-xs text-zinc-400 mt-1">Modeled liquidation concentration zones derived from 10x, 25x, 50x, and 100x leverage bands</p>
         </div>
         <div class="px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium">
           <span class="text-zinc-400">Dominant Magnet:</span> <strong class="text-white ml-1">{dom_reason}</strong>
@@ -363,6 +393,49 @@ class WebGenerator:
       </div>
     </div>
 
+    <!-- The 5-Regime Radar Framework Matrix -->
+    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-4">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-white">The 5-Regime Radar Framework</h3>
+          <p class="text-xs text-zinc-400 mt-0.5">Regime diagnosis determines the playbook. Trade the Liquidation Magnet only inside Range regimes.</p>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-300">Majority-Based (≥3/4)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2 text-xs">
+        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-emerald-500/50 bg-emerald-500/5' if regime_id == 'SPOT_LED_EXPANSION' else 'border-zinc-800/80'} space-y-1">
+          <div class="font-bold text-emerald-400">1. Spot-Led Expansion</div>
+          <p class="text-zinc-300 text-[11px]">Genuine spot demand leading higher.</p>
+          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.75x–1.0x Spot</div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-orange-500/50 bg-orange-500/5' if regime_id == 'LEVERAGED_FRAGILE_UPSIDE' else 'border-zinc-800/80'} space-y-1">
+          <div class="font-bold text-orange-400">2. Leveraged Upside</div>
+          <p class="text-zinc-300 text-[11px]">Price propped by futures debt.</p>
+          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Trim / Stand Aside)</div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-cyan-500/50 bg-cyan-500/5' if regime_id == 'RANGE_LIQUIDATION_MAGNET' else 'border-zinc-800/80'} space-y-1">
+          <div class="font-bold text-cyan-400">3. Range / Magnet</div>
+          <p class="text-zinc-300 text-[11px]">Core operating zone; trade clusters.</p>
+          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.50x–0.75x Magnet</div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-rose-500/50 bg-rose-500/5' if regime_id == 'CASCADE_FORCED_DELEVERAGING' else 'border-zinc-800/80'} space-y-1">
+          <div class="font-bold text-rose-400">4. Cascade / Waterfall</div>
+          <p class="text-zinc-300 text-[11px]">Forced long unwind in progress.</p>
+          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Never buy knife)</div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border {'border-rose-500/50 bg-rose-500/5' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else 'border-zinc-800/80'} space-y-1">
+          <div class="font-bold text-rose-400">5. Distribution / Bear</div>
+          <p class="text-zinc-300 text-[11px]">Persistent seller control.</p>
+          <div class="text-[10px] text-zinc-500 font-mono">Size: 0.0x (Defensive Cash)</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Market Microstructure Gauges -->
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6 sm:p-8 space-y-4">
       <h3 class="text-lg font-bold text-white">Market Telemetry &amp; Microstructure Gauges</h3>
@@ -413,14 +486,14 @@ class WebGenerator:
       <p class="text-sm text-zinc-300 leading-relaxed">{notes}</p>
       
       <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 mt-4">
-        <div class="text-xs uppercase font-semibold text-zinc-400 mb-3 tracking-wider">Verified Market Microstructure Facts</div>
+        <div class="text-xs uppercase font-semibold text-zinc-400 mb-3 tracking-wider">Verified Market Microstructure Facts ({majority_score})</div>
         <ul class="space-y-2">
           {matched_html}
         </ul>
       </div>
     </div>
 
-    <!-- About & How It Works (Educational Section for Beginners) -->
+    <!-- About & How It Works -->
     <div class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 space-y-4">
       <h3 class="text-lg font-bold text-white">About BTC Magnet Monitor</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs text-zinc-300 leading-relaxed">
@@ -431,13 +504,13 @@ class WebGenerator:
           </p>
         </div>
         <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
-          <strong class="text-amber-400 block font-semibold text-sm">2. The Machinery: Positioning Mechanics</strong>
+          <strong class="text-cyan-400 block font-semibold text-sm">2. Regime First, Magnet Second</strong>
           <p>
-            Rather than drawing lines or lagging chart indicators, the engine tracks order book depth, taker volume deltas (CVD), open interest leverage changes, and liquidation pools across major exchanges to diagnose the true market regime.
+            Trading liquidation magnets is only valid inside range regimes. In cascades or strong trends, price blows through clusters. The 5-Regime Radar identifies the macro environment first, then applies the authorized playbook.
           </p>
         </div>
         <div class="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2">
-          <strong class="text-cyan-400 block font-semibold text-sm">3. Zero Data Guesswork</strong>
+          <strong class="text-amber-400 block font-semibold text-sm">3. Zero Data Guesswork</strong>
           <p>
             Runs completely automated every 30 minutes via GitHub Actions. All metrics are fetched live from institutional public APIs. If feeds are unavailable, the engine withholds its recommendation to keep your capital safe.
           </p>

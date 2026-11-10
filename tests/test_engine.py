@@ -17,8 +17,8 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
             ma_200d=73200.0,
             spot_vol_24h=25000.0,
             spot_vol_ma20=20000.0,
-            spot_vol_ratio=1.25,
-            spot_cvd_ratio=1.22,
+            spot_vol_ratio=1.05,
+            spot_cvd_ratio=1.02,
             spot_cvd_slope_7d=1200.0,
             spot_cvd_slope_14d=2400.0,
             perp_cvd_slope_24h=500.0,
@@ -28,8 +28,8 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
             oi_change_4h_pct=0.5,
             oi_change_24h_pct=1.0,
             oi_change_3d_pct=2.5,
-            funding_rate=0.005,
-            funding_rate_annualized=5.47,
+            funding_rate=0.009,
+            funding_rate_annualized=9.85,
             futures_basis_annualized=1.2,
             atr=500.0,
             atr_compression_pct=42.0,
@@ -37,7 +37,7 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
             price_change_24h_pct=-0.5,
             long_short_account_ratio=1.9,
             top_trader_long_short_ratio=1.9,
-            taker_buy_sell_ratio=1.22,
+            taker_buy_sell_ratio=1.02,
             bids_asks_depth_ratio=1.35,
             swing_low_4h=73500.0,
             swing_high_4h=75000.0,
@@ -72,11 +72,41 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
     def test_incomplete_data_withholds_verdict(self):
         """When data is missing or None, the engine MUST withhold trading verdict."""
         result = self.classifier.classify(None, [])
-        self.assertEqual(result.config, "DATA_INCOMPLETE")
+        self.assertEqual(result.regime_id, "DATA_INCOMPLETE")
         self.assertEqual(result.sizing_factor, 0.0)
         self.assertEqual(result.rotation, "Remain USDT")
         self.assertFalse(result.risk_budget_ok)
         self.assertTrue(len(result.plain_english_verdict) > 0)
+
+    def test_range_magnet_classification(self):
+        """Test Range / Liquidation Magnet majority classification."""
+        result = self.classifier.classify(self.mock_metrics, self.mock_clusters)
+        self.assertEqual(result.regime_id, "RANGE_LIQUIDATION_MAGNET")
+        self.assertEqual(result.name, "Range / Liquidation Magnet")
+        self.assertTrue(result.sizing_factor >= 0.50)
+        self.assertIn("majority_score", result.to_dict())
+
+    def test_cascade_classification_priority(self):
+        """Test Cascade / Forced Deleveraging takes priority during sharp selloff."""
+        cascade_metrics = MarketMetrics(
+            price=70000.0, daily_vwap=74000.0, weekly_vwap=74500.0,
+            ema_20d=73000.0, ema_50d=72500.0, ma_200d=73000.0,
+            spot_vol_24h=50000.0, spot_vol_ma20=20000.0, spot_vol_ratio=2.5,
+            spot_cvd_ratio=0.75, spot_cvd_slope_7d=-5000.0, spot_cvd_slope_14d=-8000.0,
+            perp_cvd_slope_24h=-3000.0, perp_cvd_trend="declining",
+            open_interest=70000.0, oi_change_1h_pct=-5.0, oi_change_4h_pct=-9.0,
+            oi_change_24h_pct=-15.0, oi_change_3d_pct=-20.0,
+            funding_rate=-0.015, funding_rate_annualized=-16.4, futures_basis_annualized=-2.0,
+            atr=1500.0, atr_compression_pct=0.0, price_change_1h_pct=-4.5, price_change_24h_pct=-8.0,
+            long_short_account_ratio=0.8, top_trader_long_short_ratio=0.8,
+            taker_buy_sell_ratio=0.75, bids_asks_depth_ratio=0.6,
+            swing_low_4h=70000.0, swing_high_4h=75000.0, base_floor=70000.0,
+            capitulation_wick_low=69500.0, data_quality="LIVE"
+        )
+        result = self.classifier.classify(cascade_metrics, self.mock_clusters)
+        self.assertEqual(result.regime_id, "CASCADE_FORCED_DELEVERAGING")
+        self.assertEqual(result.sizing_factor, 0.0)
+        self.assertEqual(result.rotation, "Remain USDT")
 
     def test_risk_manager_privacy_percentage_sizing(self):
         """Ensure risk manager outputs percentages and does NOT assume arbitrary $10,000 wallet."""
@@ -86,7 +116,6 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         self.assertIn("recommended_cash_deploy_pct", risk)
         self.assertIn("target_btc_allocation_pct", risk)
         self.assertIn("target_usdt_reserve_pct", risk)
-        # Should not have fixed dollar portfolio
         self.assertNotIn("current_btc_usd", risk)
 
     def test_magnet_cluster_naming_honesty(self):
@@ -100,7 +129,6 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         result = self.classifier.classify(self.mock_metrics, self.mock_clusters)
         self.assertEqual(result.dominant_magnet, "Lower Long Sweep Magnet")
         self.assertIn("LOWER", result.dominant_magnet_reason)
-        # Ensure all 6 factors are in dictionary
         self.assertEqual(len(result.magnet_factors), 6)
 
     def test_plain_english_breakdown_populated(self):

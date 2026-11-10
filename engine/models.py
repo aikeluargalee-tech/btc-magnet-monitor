@@ -73,10 +73,12 @@ class MarketMetrics:
 
 @dataclass
 class RegimeResult:
-    config: str  # "Config A" through "Config J", or "DATA_INCOMPLETE"
-    name: str
-    diagnosis: str
-    regime_type: str
+    # Simplified 5-Regime Radar
+    regime: str  # e.g. "Range / Liquidation Magnet", "Spot-Led Expansion", etc.
+    regime_id: str  # e.g. "RANGE_LIQUIDATION_MAGNET"
+    name: str  # Friendly name
+    diagnosis: str  # e.g. "Positioning imbalance and forced liquidations dominate"
+    playbook: str  # e.g. "Trade the Magnet (0.5x–0.75x)"
     suitability: str
     sizing_factor: float
     action: str
@@ -86,7 +88,7 @@ class RegimeResult:
     stop_price: float
     stop_distance_pct: float
     
-    # Magnetic Clusters & Multi-Factor Preference
+    # Magnetic Clusters & Multi-Factor Preference (Active in Range / Liquidation Magnet)
     nearest_upper_cluster: Optional[LiquidationCluster]
     nearest_lower_cluster: Optional[LiquidationCluster]
     dominant_magnet: str
@@ -101,6 +103,10 @@ class RegimeResult:
     matched_criteria: List[str]
     notes: str
     
+    # Majority-based scoring telemetry
+    majority_score: str = ""
+    config: str = ""  # Backward-compatible alias for regime
+
     # Plain-English Explanations for Beginners (95% User Base)
     plain_english_verdict: str = ""
     why_points: List[str] = field(default_factory=list)
@@ -112,4 +118,7 @@ class RegimeResult:
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if not d.get("config"):
+            d["config"] = self.regime
+        return d

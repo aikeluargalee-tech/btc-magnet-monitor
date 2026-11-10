@@ -14,7 +14,7 @@ from web.generator import WebGenerator
 
 def run_radar():
     print("=" * 65)
-    print(" 🧲 BTC MAGNET — QUANTITATIVE REGIME & LIQUIDATION RADAR ")
+    print(" 🧲 BTC MAGNET — QUANTITATIVE 5-REGIME & LIQUIDATION RADAR ")
     print("=" * 65)
 
     fetcher = MarketDataFetcher()
@@ -51,9 +51,10 @@ def run_radar():
         if lower_c:
             print(f"      LOWER LONG POOL:  ${lower_c.price_level:,.2f} (-{lower_c.distance_pct:.2f}% / -{lower_c.distance_atr:.2f} ATR) [Model: ${lower_c.estimated_vol_usd/1e6:.1f}M]")
 
-        print("[3/4] Running Regime Radar Diagnostic (Configs A through J)...")
+        print("[3/4] Running Simplified 5-Regime Radar Diagnostic...")
         regime = classifier.classify(metrics, clusters)
-        print(f"      DIAGNOSIS: [{regime.config}] {regime.name} ({regime.diagnosis})")
+        print(f"      REGIME: [{regime.name}] ({regime.diagnosis})")
+        print(f"      MAJORITY EVIDENCE: {regime.majority_score}")
         print(f"      DOMINANT MAGNET: {regime.dominant_magnet_reason}")
         print(f"      ACTION PROTOCOL: {regime.action}")
         print(f"      SPOT ROTATION:   >>> {regime.rotation} <<<")
