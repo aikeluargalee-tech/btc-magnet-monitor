@@ -76,6 +76,57 @@ self.addEventListener('fetch', (e) => {
         risk = data.get("risk", {})
         ts_iso = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
 
+        # Compute UTC, SGT, and Active Market Session Zone
+        try:
+            dt_utc = datetime.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
+        except Exception:
+            dt_utc = datetime.datetime.now(datetime.timezone.utc)
+            
+        dt_sgt = dt_utc + datetime.timedelta(hours=8)
+        
+        utc_time_str = dt_utc.strftime("%H:%M:%S UTC")
+        utc_date_str = dt_utc.strftime("%d %b %Y")
+        sgt_time_str = dt_sgt.strftime("%H:%M:%S SGT")
+        sgt_date_str = dt_sgt.strftime("%d %b %Y")
+        
+        h_float = dt_utc.hour + dt_utc.minute / 60.0
+        if 0.0 <= h_float < 7.0:
+            sess_name = "🌏 Asia / Tokyo & Singapore Session"
+            sess_hours = "00:00 – 07:00 UTC (08:00 – 15:00 SGT)"
+            sess_badge = "ASIA"
+            sess_color = "#38bdf8"
+            sess_desc = "Asian Core Hours • Steady Accumulation / Range Flow"
+        elif 7.0 <= h_float < 8.0:
+            sess_name = "🔄 Asia / London Transition"
+            sess_hours = "07:00 – 08:00 UTC (15:00 – 16:00 SGT)"
+            sess_badge = "TRANSITION"
+            sess_color = "#f59e0b"
+            sess_desc = "European Pre-Open • Early Liquidity Positioning"
+        elif 8.0 <= h_float < 13.0:
+            sess_name = "🏛️ London / European Session"
+            sess_hours = "08:00 – 13:00 UTC (16:00 – 21:00 SGT)"
+            sess_badge = "LONDON"
+            sess_color = "#10b981"
+            sess_desc = "European Institutional Hours • High Spot Volume & Breakout Liquidity"
+        elif 13.0 <= h_float < 16.5:
+            sess_name = "⚡ London & New York Overlap"
+            sess_hours = "13:00 – 16:30 UTC (21:00 – 00:30 SGT)"
+            sess_badge = "PEAK OVERLAP"
+            sess_color = "#ec4899"
+            sess_desc = "Peak Global Liquidity • Highest Volatility & Order Flow Depth"
+        elif 16.5 <= h_float < 21.0:
+            sess_name = "🗽 New York Session (US Core)"
+            sess_hours = "16:30 – 21:00 UTC (00:30 – 05:00 SGT)"
+            sess_badge = "NEW YORK"
+            sess_color = "#6366f1"
+            sess_desc = "US Institutional Hours • ETF Flows & Derivatives Settlement"
+        else:
+            sess_name = "🌙 Pacific / Off-Hours Transition"
+            sess_hours = "21:00 – 00:00 UTC (05:00 – 08:00 SGT)"
+            sess_badge = "OFF-HOURS"
+            sess_color = "#a855f7"
+            sess_desc = "Off-Hours Liquidity • Mean Reversion & Overnight Reset"
+
         spot_price = metrics.get("price", 74827.09)
         p_chg_24h = metrics.get("price_change_24h_pct", 0.71)
         daily_vwap = metrics.get("daily_vwap", spot_price * 0.998)
@@ -412,7 +463,7 @@ self.addEventListener('fetch', (e) => {
       cursor: pointer;
     }}
 
-    /* PART 1: TOP HERO - LIVE TELEMETRY DATA DICTIONARY CARD */
+    /* PART 1: TOP HERO - LIVE TIME & SESSION HUD */
     .top-hero-dictionary {{
       background: var(--bg-card);
       border: 2px solid var(--primary);
@@ -421,42 +472,130 @@ self.addEventListener('fetch', (e) => {
       box-shadow: 0 0 24px rgba(0, 255, 102, 0.12);
     }}
 
-    .dict-badge {{
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--primary-dim);
-      border: 1px solid var(--primary);
-      color: var(--primary);
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      margin-bottom: 4px;
+    /* Dual Clocks Row */
+    .clocks-grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
     }}
 
-    .dict-sub-feed {{
+    .time-card {{
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }}
+
+    .time-card-title {{
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }}
+
+    .time-card-value {{
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      letter-spacing: -0.3px;
+    }}
+
+    .time-card-sub {{
       font-size: 10px;
       color: var(--text-muted);
       font-family: var(--font-mono);
-      margin-bottom: 8px;
     }}
 
-    .dict-headline {{
-      font-size: 16px;
+    /* Session Zone Card */
+    .session-card {{
+      background: rgba(0, 255, 102, 0.04);
+      border: 1px solid rgba(0, 255, 102, 0.25);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }}
+
+    .session-header-line {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }}
+
+    .session-header-left {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }}
+
+    .session-pulse-dot {{
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+      animation: pulse 2s infinite;
+    }}
+
+    @keyframes pulse {{
+      0%, 100% {{ opacity: 1; transform: scale(1); }}
+      50% {{ opacity: 0.4; transform: scale(0.85); }}
+    }}
+
+    .session-card-label {{
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }}
+
+    .session-zone-badge {{
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+    }}
+
+    .session-name-main {{
+      font-size: 15px;
       font-weight: 900;
       color: #ffffff;
-      line-height: 1.25;
-      margin-bottom: 6px;
       letter-spacing: -0.2px;
+      margin-bottom: 4px;
     }}
 
-    .dict-lead-text {{
-      font-size: 11.5px;
+    .session-meta-row {{
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }}
+
+    .session-zone-hours {{
+      font-size: 10.5px;
       color: var(--text-muted);
-      line-height: 1.45;
-      margin-bottom: 12px;
+      font-family: var(--font-mono);
+    }}
+
+    .session-zone-desc {{
+      font-size: 11px;
+      color: var(--text-main);
+      opacity: 0.85;
+      line-height: 1.35;
     }}
 
     .btn-copy-prompt {{
@@ -1052,18 +1191,38 @@ self.addEventListener('fetch', (e) => {
       </div>
     </header>
 
-    <!-- PART 1: TOP HERO — REQUESTED DATA DICTIONARY & AI PROMPT -->
+    <!-- PART 1: TOP HERO — LIVE TIME & ACTIVE SESSION ZONE HUD -->
     <div class="top-hero-dictionary">
-      <div class="dict-badge">
-        <span>📊</span>
-        <span>LIVE TELEMETRY DATA DICTIONARY • AI PROMPT ENGINE</span>
-      </div>
-      <div class="dict-sub-feed">(Real-Time On-Exchange Feeds)</div>
 
-      <h1 class="dict-headline">Analyze Market Data with Your Own AI</h1>
-      <p class="dict-lead-text">
-        Don't rely blindly on our verdict. Click below to copy the verified live market positioning metrics and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
-      </p>
+      <!-- Clocks Grid: UTC Time & SGT Time -->
+      <div class="clocks-grid">
+        <div class="time-card">
+          <div class="time-card-title">🕒 UTC TIME</div>
+          <div id="clock-utc-val" class="time-card-value">{utc_time_str}</div>
+          <div id="clock-utc-date" class="time-card-sub">{utc_date_str}</div>
+        </div>
+        <div class="time-card">
+          <div class="time-card-title">🇸🇬 SGT TIME (UTC+8)</div>
+          <div id="clock-sgt-val" class="time-card-value">{sgt_time_str}</div>
+          <div id="clock-sgt-date" class="time-card-sub">{sgt_date_str}</div>
+        </div>
+      </div>
+
+      <!-- Active Session Zone ("what session zone is it") -->
+      <div class="session-card">
+        <div class="session-header-line">
+          <div class="session-header-left">
+            <span class="session-pulse-dot"></span>
+            <span class="session-card-label">ACTIVE MARKET SESSION ZONE</span>
+          </div>
+          <span id="session-zone-badge" class="session-zone-badge" style="color: {sess_color}; border-color: {sess_color}; background: {sess_color}18;">{sess_badge}</span>
+        </div>
+        <div id="session-zone-title" class="session-name-main">{sess_name}</div>
+        <div class="session-meta-row">
+          <div id="session-zone-hours" class="session-zone-hours">{sess_hours}</div>
+          <div id="session-zone-desc" class="session-zone-desc">{sess_desc}</div>
+        </div>
+      </div>
 
       <!-- 4 Organized Categories -->
       <div class="dict-categories-stack">
@@ -1638,6 +1797,101 @@ self.addEventListener('fetch', (e) => {
       t.classList.add('active');
       setTimeout(() => {{ t.classList.remove('active'); }}, 3000);
     }}
+
+    // LIVE CLOCKS & MARKET SESSION ENGINE (ticks every 1s)
+    function getSessionZone(utcDate) {{
+      const h = utcDate.getUTCHours() + utcDate.getUTCMinutes() / 60;
+      if (h >= 0 && h < 7) {{
+        return {{
+          name: "🌏 Asia / Tokyo & Singapore Session",
+          hours: "00:00 – 07:00 UTC (08:00 – 15:00 SGT)",
+          badge: "ASIA",
+          color: "#38bdf8",
+          desc: "Asian Core Hours • Steady Accumulation / Range Flow"
+        }};
+      }} else if (h >= 7 && h < 8) {{
+        return {{
+          name: "🔄 Asia / London Transition",
+          hours: "07:00 – 08:00 UTC (15:00 – 16:00 SGT)",
+          badge: "TRANSITION",
+          color: "#f59e0b",
+          desc: "European Pre-Open • Early Liquidity Positioning"
+        }};
+      }} else if (h >= 8 && h < 13) {{
+        return {{
+          name: "🏛️ London / European Session",
+          hours: "08:00 – 13:00 UTC (16:00 – 21:00 SGT)",
+          badge: "LONDON",
+          color: "#10b981",
+          desc: "European Institutional Hours • High Spot Volume & Breakout Liquidity"
+        }};
+      }} else if (h >= 13 && h < 16.5) {{
+        return {{
+          name: "⚡ London & New York Overlap",
+          hours: "13:00 – 16:30 UTC (21:00 – 00:30 SGT)",
+          badge: "PEAK OVERLAP",
+          color: "#ec4899",
+          desc: "Peak Global Liquidity • Highest Volatility & Order Flow Depth"
+        }};
+      }} else if (h >= 16.5 && h < 21) {{
+        return {{
+          name: "🗽 New York Session (US Core)",
+          hours: "16:30 – 21:00 UTC (00:30 – 05:00 SGT)",
+          badge: "NEW YORK",
+          color: "#6366f1",
+          desc: "US Institutional Hours • ETF Flows & Derivatives Settlement"
+        }};
+      }} else {{
+        return {{
+          name: "🌙 Pacific / Off-Hours Transition",
+          hours: "21:00 – 00:00 UTC (05:00 – 08:00 SGT)",
+          badge: "OFF-HOURS",
+          color: "#a855f7",
+          desc: "Off-Hours Liquidity • Mean Reversion & Overnight Reset"
+        }};
+      }}
+    }}
+
+    function updateLiveClocks() {{
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      
+      const utcStr = pad(now.getUTCHours()) + ':' + pad(now.getUTCMinutes()) + ':' + pad(now.getUTCSeconds()) + ' UTC';
+      
+      const sgtDate = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+      const sgtStr = pad(sgtDate.getUTCHours()) + ':' + pad(sgtDate.getUTCMinutes()) + ':' + pad(sgtDate.getUTCSeconds()) + ' SGT';
+      
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const utcDateStr = now.getUTCDate() + ' ' + months[now.getUTCMonth()] + ' ' + now.getUTCFullYear();
+      const sgtDateStr = sgtDate.getUTCDate() + ' ' + months[sgtDate.getUTCMonth()] + ' ' + sgtDate.getUTCFullYear();
+
+      const elUtc = document.getElementById('clock-utc-val');
+      if (elUtc) elUtc.textContent = utcStr;
+      const elUtcD = document.getElementById('clock-utc-date');
+      if (elUtcD) elUtcD.textContent = utcDateStr;
+
+      const elSgt = document.getElementById('clock-sgt-val');
+      if (elSgt) elSgt.textContent = sgtStr;
+      const elSgtD = document.getElementById('clock-sgt-date');
+      if (elSgtD) elSgtD.textContent = sgtDateStr;
+
+      const session = getSessionZone(now);
+      const elSessTitle = document.getElementById('session-zone-title');
+      if (elSessTitle) elSessTitle.textContent = session.name;
+      const elSessHours = document.getElementById('session-zone-hours');
+      if (elSessHours) elSessHours.textContent = session.hours;
+      const elSessDesc = document.getElementById('session-zone-desc');
+      if (elSessDesc) elSessDesc.textContent = session.desc;
+      const elSessBadge = document.getElementById('session-zone-badge');
+      if (elSessBadge) {{
+        elSessBadge.textContent = session.badge;
+        elSessBadge.style.color = session.color;
+        elSessBadge.style.borderColor = session.color;
+        elSessBadge.style.background = session.color + '18';
+      }}
+    }}
+    setInterval(updateLiveClocks, 1000);
+    updateLiveClocks();
 
     // LIVE POLLING (every 45s)
     async function pollLiveFeed() {{
