@@ -7,7 +7,7 @@ class WebGenerator:
     """
     Generates:
       1. dist/regime.json (Static JSON API feed)
-      2. dist/index.html (Modern financial dashboard with standalone Regime Panel)
+      2. dist/index.html (Modern financial dashboard with standalone Regime Panel & AI Telemetry Drawer)
       3. dist/regimes.html (Comprehensive educational subpage explaining all 5 regimes)
     """
 
@@ -34,6 +34,122 @@ class WebGenerator:
             f.write(regimes_content)
 
         return json_path, html_path
+
+    def _build_llm_prompt(self, data: Dict[str, Any]) -> str:
+        """Constructs an institutional-grade, ready-to-paste prompt for ChatGPT, Claude, Grok, or Gemini."""
+        regime = data.get("regime", {})
+        metrics = data.get("metrics", {})
+        risk = data.get("risk", {})
+        ts = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+        price = metrics.get("price", 0.0)
+        daily_vwap = metrics.get("daily_vwap", 0.0)
+        weekly_vwap = metrics.get("weekly_vwap", 0.0)
+        ema_20d = metrics.get("ema_20d", 0.0)
+        ema_50d = metrics.get("ema_50d", 0.0)
+        ma_200d = metrics.get("ma_200d", 0.0)
+        swing_high = metrics.get("swing_high_4h", 0.0)
+        swing_low = metrics.get("swing_low_4h", 0.0)
+        base_floor = metrics.get("base_floor", 0.0)
+        cap_wick = metrics.get("capitulation_wick_low", 0.0)
+
+        spot_vol = metrics.get("spot_vol_24h", 0.0)
+        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.0)
+        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
+        spot_cvd_7d = metrics.get("spot_cvd_slope_7d", 0.0)
+        spot_cvd_14d = metrics.get("spot_cvd_slope_14d", 0.0)
+        perp_trend = metrics.get("perp_cvd_trend", "Flat")
+        bids_asks_depth = metrics.get("bids_asks_depth_ratio", 1.0)
+
+        oi = metrics.get("open_interest", 0.0)
+        oi_24h = metrics.get("oi_change_24h_pct", 0.0)
+        oi_1h = metrics.get("oi_change_1h_pct", 0.0)
+        oi_4h = metrics.get("oi_change_4h_pct", 0.0)
+        oi_3d = metrics.get("oi_change_3d_pct", 0.0)
+        funding_rate = metrics.get("funding_rate", 0.0) * 100
+        funding_ann = metrics.get("funding_rate_annualized", 0.0)
+        basis = metrics.get("futures_basis_annualized", 0.0)
+        ls_ratio = metrics.get("long_short_account_ratio", 1.0)
+
+        atr = metrics.get("atr", 0.0)
+        atr_comp = metrics.get("atr_compression_pct", 0.0)
+        range_width = ((swing_high - swing_low) / max(price, 1.0)) * 100
+
+        upper_c = regime.get("nearest_upper_cluster") or {}
+        lower_c = regime.get("nearest_lower_cluster") or {}
+        u_p = upper_c.get("price_level", 0.0)
+        u_d = upper_c.get("distance_pct", 0.0)
+        u_v = upper_c.get("estimated_vol_usd", 0.0) / 1e6
+        l_p = lower_c.get("price_level", 0.0)
+        l_d = lower_c.get("distance_pct", 0.0)
+        l_v = lower_c.get("estimated_vol_usd", 0.0) / 1e6
+
+        regime_name = regime.get("name", "Unknown")
+        majority = regime.get("majority_score", "")
+        diagnosis = regime.get("diagnosis", "")
+        dom_magnet = regime.get("dominant_magnet", "")
+        dom_reason = regime.get("dominant_magnet_reason", "")
+        rotation = regime.get("rotation", "Remain USDT")
+        action = regime.get("action", "")
+        sizing = regime.get("sizing_factor", 0.0)
+        stop_price = regime.get("stop_price", 0.0)
+        stop_dist = regime.get("stop_distance_pct", 0.0)
+        stop_rule = regime.get("stop_rule", "")
+
+        prompt = f"""================================================================================
+BITCOIN (BTC) OBSERVABLE POSITIONING TELEMETRY SNAPSHOT
+Timestamp: {ts[:19]} UTC | Feeds: Binance Vision (Spot) & Binance/Deribit (Futures)
+Data Provenance: Verified on-exchange order flow | Status: {data.get('data_status', 'LIVE')}
+================================================================================
+
+1. PRICE & BENCHMARKS (MACRO MARKET STRUCTURE):
+- BTC Spot Price: ${price:,.2f}
+- Daily VWAP (Anchored 00:00 UTC): ${daily_vwap:,.2f} [Price is {((price - daily_vwap)/daily_vwap*100):+.2f}% vs Daily VWAP]
+- Weekly VWAP (Anchored Monday 00:00 UTC): ${weekly_vwap:,.2f} [Price is {((price - weekly_vwap)/weekly_vwap*100):+.2f}% vs Weekly VWAP]
+- 20-Day EMA: ${ema_20d:,.2f} | 50-Day EMA: ${ema_50d:,.2f} | 200-Day SMA: ${ma_200d:,.2f}
+- 4-Hour Swing High: ${swing_high:,.2f} | 4-Hour Swing Low: ${swing_low:,.2f}
+- 4-Hour Channel Range Width: {range_width:.2f}%
+- 3-Day Base Floor: ${base_floor:,.2f} | 24-Hour Capitulation Wick Low: ${cap_wick:,.2f}
+
+2. ORDER FLOW & VOLUME DELTA (SPOT CVD):
+- Spot 24h Volume: {spot_vol:,.0f} BTC (Volume Ratio vs 20D MA: {spot_vol_ratio:.2f}x)
+- Spot CVD Ratio (Taker Buy / Sell Volume): {spot_cvd_ratio:.2f}
+- Spot CVD Slope (7-Day): {spot_cvd_7d:+.0f} | Spot CVD Slope (14-Day): {spot_cvd_14d:+.0f}
+- Perpetual Futures CVD Flow Trend: {perp_trend}
+- Order Book Depth Ratio (Bids vs Asks within ±1.5%): {bids_asks_depth:.2f}
+
+3. DERIVATIVES POSITIONING & POSITION CROWDING:
+- Open Interest: {oi:,.1f} BTC [24h Change: {oi_24h:+.2f}% | 1h: {oi_1h:+.2f}% | 4h: {oi_4h:+.2f}% | 3D: {oi_3d:+.2f}%]
+- 8-Hour Funding Rate: {funding_rate:+.4f}% [{funding_ann:+.2f}% Annualized]
+- Futures Basis (Annualized Spread): {basis:+.2f}%
+- Retail Long/Short Account Ratio: {ls_ratio:.2f}
+
+4. VOLATILITY & MODELED LIQUIDATION CLUSTERS:
+- 14-period 1-Hour ATR: ${atr:,.2f} (Compression from 72h peak: {atr_comp:.1f}%)
+- Upper Short Liquidity Pool: ${u_p:,.2f} (+{u_d:.2f}% distance) | Modeled Size: ${u_v:.1f}M
+- Lower Long Liquidity Pool:  ${l_p:,.2f} (-{l_d:.2f}% distance) | Modeled Size: ${l_v:.1f}M
+
+================================================================================
+MONITOR AUTOMATED DIAGNOSIS:
+- Diagnosed Regime: {regime_name} ({majority})
+- Physical Diagnosis: {diagnosis}
+- Dominant Liquidation Magnet: {dom_magnet} ({dom_reason})
+- Recommended Rotation: {rotation}
+- Playbook Protocol: {action} (Sizing Factor: {sizing}x)
+- Inviolable Stop-Loss: ${stop_price:,.2f} ({stop_dist:.2f}% distance) | Rule: {stop_rule}
+- Risk Budget Status: {'APPROVED' if risk.get('risk_budget_ok') else 'REJECTED/DOWNSIZED'}
+
+================================================================================
+ANALYTICAL PROMPT FOR LLM (ChatGPT / Claude / Grok / Gemini):
+Act as an institutional crypto market microstructure analyst and risk manager.
+Review the verified live positioning telemetry above and answer the following:
+
+1. REGIME VALIDATION: Do you agree with the engine's diagnosis of '{regime_name}' based on the verified majority observations? Why or why not?
+2. LIQUIDATION MAGNET DYNAMICS: Given the size disparity between the Upper Pool (${u_v:.1f}M) and Lower Pool (${l_v:.1f}M) alongside the funding rate ({funding_rate:+.4f}%) and retail L/S ratio ({ls_ratio:.2f}), what is the path of least resistance for market maker execution algorithms?
+3. SIZING & ROTATION CRITIQUE: Evaluate the recommended rotation '{rotation}' and sizing factor '{sizing}x'. Is this allocation prudent given the current 4H range width ({range_width:.2f}%) and ATR compression ({atr_comp:.1f}%)?
+4. INVALIDATION & RISK: Critique the inviolable stop-loss at ${stop_price:,.2f} ({stop_dist:.2f}% distance). Under what specific order flow change should this position be immediately aborted?
+================================================================================"""
+        return prompt.strip()
 
     def _render_html(self, data: Dict[str, Any]) -> str:
         regime = data.get("regime", {})
@@ -135,6 +251,15 @@ class WebGenerator:
         ])
 
         price = metrics.get("price", 0.0)
+        price_change_24h = metrics.get("price_change_24h_pct", 0.0)
+        daily_vwap = metrics.get("daily_vwap", 0.0)
+        weekly_vwap = metrics.get("weekly_vwap", 0.0)
+        ema_20d = metrics.get("ema_20d", 0.0)
+        ema_50d = metrics.get("ema_50d", 0.0)
+        ma_200d = metrics.get("ma_200d", 0.0)
+        swing_high = metrics.get("swing_high_4h", 0.0)
+        swing_low = metrics.get("swing_low_4h", 0.0)
+        base_floor = metrics.get("base_floor", 0.0)
         funding_rate = metrics.get("funding_rate", 0.0) * 100
         spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
         oi_change_24h = metrics.get("oi_change_24h_pct", 0.0)
@@ -150,12 +275,16 @@ class WebGenerator:
         else:
             magnet_active_badge = "<span class='px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 text-xs font-medium'>Secondary / Informational Only</span>"
 
+        # Build raw prompt for clipboard
+        llm_prompt = self._build_llm_prompt(data)
+        llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BTC Magnet Monitor — 5-Regime Radar &amp; Positioning Intelligence</title>
+  <title>BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -210,11 +339,157 @@ class WebGenerator:
   <div class="border-b border-zinc-800/50 bg-zinc-900/30 px-4 sm:px-6 py-2 text-xs text-zinc-400">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
       <div>Data Feeds: <span class="text-zinc-300">{spot_source}</span> &bull; <span class="text-zinc-300">{futures_source}</span></div>
-      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Updated Every 30 Minutes</div>
+      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Automated Every 30 Minutes</div>
     </div>
   </div>
 
   <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+    <!-- ============================================================ -->
+    <!-- TOP SECTION: LIVE TELEMETRY DRAWER & ONE-CLICK AI PROMPT    -->
+    <!-- ============================================================ -->
+    <div class="rounded-2xl border border-zinc-800 bg-gradient-to-r from-zinc-900/90 via-zinc-900/80 to-zinc-950 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
+      
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+              <span>📊</span>
+              <span>LIVE TELEMETRY DATA DICTIONARY &bull; AI PROMPT ENGINE</span>
+            </span>
+            <span class="text-[11px] text-zinc-400 font-mono hidden sm:inline">(Real-Time On-Exchange Feeds)</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            Analyze Market Data with Your Own AI
+          </h2>
+          <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+            Don't rely blindly on our verdict. Click below to copy the verified live market positioning metrics and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
+          </p>
+        </div>
+
+        <!-- Prominent One-Click Copy Button -->
+        <div class="flex-shrink-0 flex items-center gap-3">
+          <button id="copy-prompt-btn" onclick="copyTelemetryPrompt()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all cursor-pointer">
+            <span id="copy-btn-icon" class="text-sm">📋</span>
+            <span id="copy-btn-text">Copy Prompt for AI (ChatGPT / Grok)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Glance High-Impact Metric Chips -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Spot Price (24h)</span>
+          <span class="text-sm font-extrabold mono text-white">${price:,.2f}</span>
+          <span class="text-[10px] block {'text-emerald-400' if price_change_24h >= 0 else 'text-rose-400'}">{price_change_24h:+.2f}%</span>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Daily VWAP Spread</span>
+          <span class="text-sm font-extrabold mono text-white">${daily_vwap:,.2f}</span>
+          <span class="text-[10px] block text-zinc-400">{((price - daily_vwap)/daily_vwap*100):+.2f}% vs VWAP</span>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Spot CVD Ratio</span>
+          <span class="text-sm font-extrabold mono text-white">{spot_cvd_ratio:.2f}</span>
+          <span class="text-[10px] block text-cyan-400">Taker Buy/Sell</span>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Open Interest (24h)</span>
+          <span class="text-sm font-extrabold mono {'text-emerald-400' if oi_change_24h >= 0 else 'text-rose-400'}">{oi_change_24h:+.2f}%</span>
+          <span class="text-[10px] block text-zinc-400">{current_oi:,.0f} BTC</span>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">8h Funding Rate</span>
+          <span class="text-sm font-extrabold mono text-white">{funding_rate:+.4f}%</span>
+          <span class="text-[10px] block text-amber-400">{metrics.get("funding_rate_annualized", 0.0):.1f}% Ann.</span>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+          <span class="text-[10px] uppercase font-bold text-zinc-400 block">Retail Long/Short</span>
+          <span class="text-sm font-extrabold mono text-white">{ls_ratio:.2f}</span>
+          <span class="text-[10px] block text-zinc-400">Crowded Ratio</span>
+        </div>
+      </div>
+
+      <!-- Expandable Full Categorized Data Dictionary Table -->
+      <details class="group pt-1">
+        <summary class="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 cursor-pointer text-xs font-semibold text-zinc-300 hover:text-white transition-colors">
+          <span class="flex items-center gap-2">
+            <span class="text-cyan-400">🔍</span>
+            <span>View Complete Categorized Data Dictionary (25+ Metrics Table)</span>
+          </span>
+          <span class="text-zinc-500 group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        
+        <div class="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+          
+          <!-- Category 1 -->
+          <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 border-b border-zinc-800 pb-1.5">1. Price &amp; Structure</div>
+            <div class="space-y-1.5 text-zinc-300">
+              <div class="flex justify-between"><span>Spot Price:</span> <span class="font-mono font-bold text-white">${price:,.2f}</span></div>
+              <div class="flex justify-between"><span>Daily VWAP:</span> <span class="font-mono text-zinc-300">${daily_vwap:,.2f}</span></div>
+              <div class="flex justify-between"><span>Weekly VWAP:</span> <span class="font-mono text-zinc-300">${weekly_vwap:,.2f}</span></div>
+              <div class="flex justify-between"><span>20D EMA:</span> <span class="font-mono text-zinc-300">${ema_20d:,.2f}</span></div>
+              <div class="flex justify-between"><span>50D EMA:</span> <span class="font-mono text-zinc-300">${ema_50d:,.2f}</span></div>
+              <div class="flex justify-between"><span>200D SMA:</span> <span class="font-mono text-zinc-300">${ma_200d:,.2f}</span></div>
+              <div class="flex justify-between"><span>4H Swing Range:</span> <span class="font-mono text-zinc-300">${swing_low:,.0f} - ${swing_high:,.0f}</span></div>
+              <div class="flex justify-between"><span>3D Base Floor:</span> <span class="font-mono text-zinc-300">${base_floor:,.2f}</span></div>
+            </div>
+          </div>
+
+          <!-- Category 2 -->
+          <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 border-b border-zinc-800 pb-1.5">2. Order Flow &amp; CVD</div>
+            <div class="space-y-1.5 text-zinc-300">
+              <div class="flex justify-between"><span>Spot CVD Ratio:</span> <span class="font-mono font-bold text-emerald-400">{spot_cvd_ratio:.2f}</span></div>
+              <div class="flex justify-between"><span>24h Spot Volume:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_24h", 0.0):,.0f} BTC</span></div>
+              <div class="flex justify-between"><span>Volume / 20D MA:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_ratio", 1.0):.2f}x</span></div>
+              <div class="flex justify-between"><span>7D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_7d", 0.0):+.0f}</span></div>
+              <div class="flex justify-between"><span>14D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_14d", 0.0):+.0f}</span></div>
+              <div class="flex justify-between"><span>Perp CVD Trend:</span> <span class="font-mono text-zinc-300 capitalize">{metrics.get("perp_cvd_trend", "Flat")}</span></div>
+              <div class="flex justify-between"><span>Order Depth Ratio:</span> <span class="font-mono text-zinc-300">{metrics.get("bids_asks_depth_ratio", 1.0):.2f}</span></div>
+            </div>
+          </div>
+
+          <!-- Category 3 -->
+          <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 border-b border-zinc-800 pb-1.5">3. Derivatives Crowding</div>
+            <div class="space-y-1.5 text-zinc-300">
+              <div class="flex justify-between"><span>Open Interest:</span> <span class="font-mono font-bold text-white">{current_oi:,.0f} BTC</span></div>
+              <div class="flex justify-between"><span>OI 24h Change:</span> <span class="font-mono text-zinc-300">{oi_change_24h:+.2f}%</span></div>
+              <div class="flex justify-between"><span>OI 1h Change:</span> <span class="font-mono text-zinc-300">{metrics.get("oi_change_1h_pct", 0.0):+.2f}%</span></div>
+              <div class="flex justify-between"><span>OI 4h Change:</span> <span class="font-mono text-zinc-300">{metrics.get("oi_change_4h_pct", 0.0):+.2f}%</span></div>
+              <div class="flex justify-between"><span>Funding Rate (8h):</span> <span class="font-mono text-zinc-300">{funding_rate:+.4f}%</span></div>
+              <div class="flex justify-between"><span>Futures Basis Ann.:</span> <span class="font-mono text-zinc-300">{basis:+.2f}%</span></div>
+              <div class="flex justify-between"><span>Retail Long/Short:</span> <span class="font-mono text-zinc-300">{ls_ratio:.2f}</span></div>
+            </div>
+          </div>
+
+          <!-- Category 4 -->
+          <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1.5">4. Volatility &amp; Magnets</div>
+            <div class="space-y-1.5 text-zinc-300">
+              <div class="flex justify-between"><span>1H ATR:</span> <span class="font-mono text-zinc-300">${metrics.get("atr", 0.0):,.2f}</span></div>
+              <div class="flex justify-between"><span>ATR Compression:</span> <span class="font-mono font-bold text-white">{metrics.get("atr_compression_pct", 0.0):.1f}%</span></div>
+              <div class="flex justify-between"><span>4H Channel Width:</span> <span class="font-mono text-zinc-300">{(((swing_high - swing_low) / max(price, 1.0)) * 100):.2f}%</span></div>
+              <div class="flex justify-between"><span>Upper Short Pool:</span> <span class="font-mono text-rose-400">${upper_c.get('price_level', 0.0):,.0f} (+{upper_c.get('distance_pct', 0.0):.2f}%)</span></div>
+              <div class="flex justify-between"><span>Upper Pool Volume:</span> <span class="font-mono text-zinc-300">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
+              <div class="flex justify-between"><span>Lower Long Pool:</span> <span class="font-mono text-emerald-400">${lower_c.get('price_level', 0.0):,.0f} (-{lower_c.get('distance_pct', 0.0):.2f}%)</span></div>
+              <div class="flex justify-between"><span>Lower Pool Volume:</span> <span class="font-mono text-zinc-300">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
+            </div>
+          </div>
+
+        </div>
+      </details>
+
+      <!-- Hidden Pre-Formatted Prompt for Copying -->
+      <textarea id="llm-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
+    </div>
 
     <!-- ============================================================ -->
     <!-- PANEL 1: STANDOUT REGIME DIAGNOSIS (STANDS ON ITS OWN)       -->
@@ -523,13 +798,13 @@ class WebGenerator:
 
         <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80">
           <div class="text-[11px] text-zinc-400 uppercase tracking-wide">Funding Rate</div>
-          <div class="text-lg font-bold mono text-white mt-1.5">{funding_rate:.3f}%</div>
+          <div class="text-lg font-bold mono text-white mt-1.5">{funding_rate:+.3f}%</div>
           <div class="text-[11px] text-amber-400 mt-0.5">{metrics.get("funding_rate_annualized", 0.0):.1f}% Ann.</div>
         </div>
 
         <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80">
           <div class="text-[11px] text-zinc-400 uppercase tracking-wide">Futures Basis</div>
-          <div class="text-lg font-bold mono text-white mt-1.5">{basis:.1f}%</div>
+          <div class="text-lg font-bold mono text-white mt-1.5">{basis:+.1f}%</div>
           <div class="text-[11px] text-zinc-400 mt-0.5">Annualized Spread</div>
         </div>
 
@@ -557,6 +832,74 @@ class WebGenerator:
     </footer>
 
   </main>
+
+  <!-- Floating Toast Notification on Copy -->
+  <div id="copy-toast" class="fixed bottom-6 right-6 z-50 bg-emerald-500 text-black px-4 py-3 rounded-xl font-bold text-xs shadow-2xl transition-opacity duration-300 opacity-0 pointer-events-none flex items-center gap-2">
+    <span>✅</span>
+    <span>Live Telemetry Prompt Copied! Ready to paste into ChatGPT, Claude, or Grok.</span>
+  </div>
+
+  <script>
+    function copyTelemetryPrompt() {{
+      const promptEl = document.getElementById('llm-prompt-data');
+      if (!promptEl) return;
+      const textToCopy = promptEl.value;
+
+      if (navigator.clipboard && window.isSecureContext) {{
+        navigator.clipboard.writeText(textToCopy).then(showSuccess, fallbackCopy);
+      }} else {{
+        fallbackCopy();
+      }}
+
+      function fallbackCopy() {{
+        const ta = document.createElement('textarea');
+        ta.value = textToCopy;
+        ta.style.position = 'fixed';
+        ta.style.left = '-999999px';
+        ta.style.top = '-999999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {{
+          document.execCommand('copy');
+          showSuccess();
+        }} catch (err) {{
+          alert('Could not copy automatically. Please open developer console or JSON feed.');
+        }}
+        document.body.removeChild(ta);
+      }}
+
+      function showSuccess() {{
+        const btn = document.getElementById('copy-prompt-btn');
+        const btnText = document.getElementById('copy-btn-text');
+        const btnIcon = document.getElementById('copy-btn-icon');
+        const toast = document.getElementById('copy-toast');
+
+        if (btnText) btnText.innerText = '✓ Copied Prompt to Clipboard!';
+        if (btnIcon) btnIcon.innerText = '✅';
+        if (btn) {{
+          btn.classList.remove('bg-cyan-500');
+          btn.classList.add('bg-emerald-500');
+        }}
+
+        if (toast) {{
+          toast.classList.remove('opacity-0', 'pointer-events-none');
+          toast.classList.add('opacity-100');
+          setTimeout(() => {{
+            toast.classList.remove('opacity-100');
+            toast.classList.add('opacity-0', 'pointer-events-none');
+            if (btnText) btnText.innerText = 'Copy Prompt for AI (ChatGPT / Grok)';
+            if (btnIcon) btnIcon.innerText = '📋';
+            if (btn) {{
+              btn.classList.remove('bg-emerald-500');
+              btn.classList.add('bg-cyan-500');
+            }}
+          }}, 3500);
+        }}
+      }}
+    }}
+  </script>
+
 </body>
 </html>"""
         return html
@@ -564,8 +907,11 @@ class WebGenerator:
     def _render_regimes_subpage(self, data: Dict[str, Any]) -> str:
         """Renders the comprehensive educational reference subpage explaining all 5 regimes."""
         regime = data.get("regime", {})
+        metrics = data.get("metrics", {})
         current_regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
         current_name = regime.get("name", "Range / Liquidation Magnet")
+        llm_prompt = self._build_llm_prompt(data)
+        llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -623,17 +969,24 @@ class WebGenerator:
       </p>
     </div>
 
-    <!-- Active State Banner -->
+    <!-- Active State Banner with Copy Prompt -->
     <div class="p-5 rounded-2xl border border-cyan-500/40 bg-cyan-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <div class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
         <div class="text-xl font-bold text-white mt-0.5">{current_name}</div>
         <div class="text-xs text-zinc-400 mt-1">Diagnosed by verified on-exchange order flow and positioning metrics.</div>
       </div>
-      <a href="index.html" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all">
-        View Live Signals &rarr;
-      </a>
+      <div class="flex items-center gap-2.5">
+        <button onclick="copySubpagePrompt()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer">
+          <span>📋</span>
+          <span id="sub-copy-text">Copy Telemetry for LLM</span>
+        </button>
+        <a href="index.html" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs border border-zinc-700 transition-all">
+          Live Monitor &rarr;
+        </a>
+      </div>
     </div>
+    <textarea id="subpage-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
 
     <!-- Section 1: Philosophy -->
     <div class="space-y-4">
@@ -848,6 +1201,23 @@ class WebGenerator:
     </div>
 
   </main>
+
+  <script>
+    function copySubpagePrompt() {{
+      const promptEl = document.getElementById('subpage-prompt-data');
+      if (!promptEl) return;
+      const textToCopy = promptEl.value;
+
+      navigator.clipboard.writeText(textToCopy).then(() => {{
+        const btnText = document.getElementById('sub-copy-text');
+        if (btnText) {{
+          btnText.innerText = '✓ Prompt Copied!';
+          setTimeout(() => {{ btnText.innerText = 'Copy Telemetry for LLM'; }}, 3000);
+        }}
+      }});
+    }}
+  </script>
+
 </body>
 </html>"""
         return html
