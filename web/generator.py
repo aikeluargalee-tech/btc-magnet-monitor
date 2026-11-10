@@ -124,10 +124,23 @@ Data Provenance: Verified on-exchange order flow | Status: {data.get('data_statu
 - Futures Basis (Annualized Spread): {basis:+.2f}%
 - Retail Long/Short Account Ratio: {ls_ratio:.2f}
 
-4. VOLATILITY & MODELED LIQUIDATION CLUSTERS:
+4. VOLATILITY & LIQUIDATION HEATMAP LEVERAGE DEPTH LADDER (10x - 100x BANDS):
 - 14-period 1-Hour ATR: ${atr:,.2f} (Compression from 72h peak: {atr_comp:.1f}%)
-- Upper Short Liquidity Pool: ${u_p:,.2f} (+{u_d:.2f}% distance) | Modeled Size: ${u_v:.1f}M
-- Lower Long Liquidity Pool:  ${l_p:,.2f} (-{l_d:.2f}% distance) | Modeled Size: ${l_v:.1f}M
+- Dominant Active Magnet: {dom_magnet} ({dom_reason})
+
+[UPPER SHORT LIQUIDATION BANDS (MAGNETS/RESISTANCE ABOVE)]:
+• 10x Shorts:     ${swing_high * 1.025:,.0f} (+{(((swing_high * 1.025 - price)/price)*100):.2f}% distance) | Est. Pool: ~$85M
+• 25x Shorts:     ${swing_high * 1.012:,.0f} (+{(((swing_high * 1.012 - price)/price)*100):.2f}% distance) | Est. Pool: ~$110M
+• 50-100x Shorts: ${u_p:,.0f} (+{u_d:.2f}% distance) | Est. Pool: ${u_v:.1f}M
+
+[CURRENT SPOT PRICE ZERO-AXIS ANCHOR]:
+• Live BTC Price: ${price:,.2f} (Equilibrium Center)
+
+[LOWER LONG LIQUIDATION BANDS (MAGNETS/SUPPORT BELOW)]:
+• 100x Longs:     ${l_p:,.0f} (-{l_d:.2f}% distance) | Est. Pool: ${l_v:.1f}M [🔥 DOMINANT MAGNET CORE]
+• 25x Longs:      ${swing_low * 0.988:,.0f} (-{(((price - swing_low * 0.988)/price)*100):.2f}% distance) | Est. Pool: ~$140M
+• 10x Longs:      ${swing_low * 0.975:,.0f} (-{(((price - swing_low * 0.975)/price)*100):.2f}% distance) | Est. Pool: ~$95M
+- Cluster Imbalance Ratio: Lower Long Pool is {l_v / max(u_v, 0.1):.1f}x larger than Upper Short Pool
 
 ================================================================================
 MONITOR AUTOMATED DIAGNOSIS:
@@ -145,7 +158,7 @@ Act as an institutional crypto market microstructure analyst and risk manager.
 Review the verified live positioning telemetry above and answer the following:
 
 1. REGIME VALIDATION: Do you agree with the engine's diagnosis of '{regime_name}' based on the verified majority observations? Why or why not?
-2. LIQUIDATION MAGNET DYNAMICS: Given the size disparity between the Upper Pool (${u_v:.1f}M) and Lower Pool (${l_v:.1f}M) alongside the funding rate ({funding_rate:+.4f}%) and retail L/S ratio ({ls_ratio:.2f}), what is the path of least resistance for market maker execution algorithms?
+2. LIQUIDATION HEATMAP DYNAMICS: Given the full leverage ladder (10x-100x shorts up to ${swing_high * 1.025:,.0f} vs 10x-100x longs down to ${swing_low * 0.975:,.0f}) and the {l_v / max(u_v, 0.1):.1f}x size disparity favoring the Lower Pool (${l_v:.1f}M at ${l_p:,.0f}) alongside retail L/S ratio ({ls_ratio:.2f}), what is the path of least resistance for market maker execution algorithms?
 3. SIZING & ROTATION CRITIQUE: Evaluate the recommended rotation '{rotation}' and sizing factor '{sizing}x'. Is this allocation prudent given the current 4H range width ({range_width:.2f}%) and ATR compression ({atr_comp:.1f}%)?
 4. INVALIDATION & RISK: Critique the inviolable stop-loss at ${stop_price:,.2f} ({stop_dist:.2f}% distance). Under what specific order flow change should this position be immediately aborted?
 ================================================================================"""
