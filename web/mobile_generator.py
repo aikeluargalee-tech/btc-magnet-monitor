@@ -347,20 +347,14 @@ self.addEventListener('fetch', (e) => {
       margin-bottom: 12px;
     }}
 
-    .hero-btn-row {{
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      margin-bottom: 14px;
-    }}
-
     .btn-copy-prompt {{
+      width: 100%;
       background: var(--primary);
       color: #030804;
       border: none;
       border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 12.5px;
+      padding: 13px 16px;
+      font-size: 13px;
       font-weight: 900;
       cursor: pointer;
       display: flex;
@@ -369,25 +363,12 @@ self.addEventListener('fetch', (e) => {
       gap: 8px;
       letter-spacing: 0.3px;
       box-shadow: 0 4px 14px rgba(0, 255, 102, 0.4);
-      transition: transform 0.1s ease;
+      transition: transform 0.1s ease, background 0.2s ease;
+      margin-top: 12px;
     }}
 
     .btn-copy-prompt:active {{
       transform: scale(0.97);
-    }}
-
-    .btn-share-prompt {{
-      background: var(--bg-card-sub);
-      color: var(--text-main);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 12.5px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }}
 
     /* 4 CATEGORIES GRID */
@@ -584,19 +565,8 @@ self.addEventListener('fetch', (e) => {
 
       <h1 class="dict-headline">Analyze Market Data with Your Own AI</h1>
       <p class="dict-lead-text">
-        Don't rely blindly on our verdict. Click below to copy the verified live market positioning metrics and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
+        Don't rely blindly on our verdict. Review the live metrics below and click the button to copy verified data directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
       </p>
-
-      <!-- Prominent Hero Copy Button -->
-      <div class="hero-btn-row">
-        <button class="btn-copy-prompt" onclick="copyAIPrompt()">
-          <span style="font-size: 15px;">📋</span>
-          <span>Copy Prompt for AI (ChatGPT / Grok)</span>
-        </button>
-        <button class="btn-share-prompt" onclick="shareAIPrompt()" title="Share directly to AI app">
-          <span>📤</span>
-        </button>
-      </div>
 
       <!-- 4 Organized Categories -->
       <div class="dict-categories-stack">
@@ -671,6 +641,12 @@ self.addEventListener('fetch', (e) => {
         </div>
 
       </div>
+
+      <!-- Button at bottom of 4. Volatility & Magnets -->
+      <button class="btn-copy-prompt" onclick="copyAIPrompt()">
+        <span style="font-size: 15px;">📋</span>
+        <span id="copy-btn-text">Copy Data & Prompt for AI</span>
+      </button>
     </div>
 
     <!-- SEPARATOR: ALGORITHMIC REFERENCE BENCHMARK -->
@@ -756,10 +732,14 @@ self.addEventListener('fetch', (e) => {
 
     // COPY AI PROMPT
     async function copyAIPrompt() {{
+      const btnText = document.getElementById('copy-btn-text');
+      const originalText = btnText ? btnText.textContent : 'Copy Data & Prompt for AI';
       try {{
         await navigator.clipboard.writeText(currentAIPrompt);
         if (navigator.vibrate) navigator.vibrate(50);
+        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
         showToast("📋 AI Prompt copied! Paste into Claude / ChatGPT / Grok");
+        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
       }} catch (err) {{
         const ta = document.createElement('textarea');
         ta.value = currentAIPrompt;
@@ -767,23 +747,9 @@ self.addEventListener('fetch', (e) => {
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
+        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
         showToast("📋 AI Prompt copied to clipboard!");
-      }}
-    }}
-
-    // SHARE AI PROMPT
-    async function shareAIPrompt() {{
-      if (navigator.share) {{
-        try {{
-          await navigator.share({{
-            title: 'BTC Telemetry Data Dictionary & AI Audit',
-            text: currentAIPrompt
-          }});
-        }} catch(e) {{
-          copyAIPrompt();
-        }}
-      }} else {{
-        copyAIPrompt();
+        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
       }}
     }}
 
