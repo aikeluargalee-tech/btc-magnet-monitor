@@ -33,6 +33,26 @@ class WebGenerator:
         with open(regimes_path, "w", encoding="utf-8") as f:
             f.write(regimes_content)
 
+        # 4. Render dedicated Mobile Cockpit PWA (app.html), manifest.json, sw.js
+        try:
+            from web.mobile_generator import MobileWebGenerator
+            mob_gen = MobileWebGenerator()
+            raw_prompt = self._build_llm_prompt(payload)
+            mob_html = mob_gen.render_mobile_app(payload, raw_llm_prompt=raw_prompt)
+            app_path = os.path.join(self.output_dir, "app.html")
+            with open(app_path, "w", encoding="utf-8") as f:
+                f.write(mob_html)
+
+            manifest_path = os.path.join(self.output_dir, "manifest.json")
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                f.write(mob_gen.render_manifest())
+
+            sw_path = os.path.join(self.output_dir, "sw.js")
+            with open(sw_path, "w", encoding="utf-8") as f:
+                f.write(mob_gen.render_service_worker())
+        except Exception as e:
+            print(f"Warning: Mobile generator encountered error: {e}")
+
         return json_path, html_path
 
     def _build_llm_prompt(self, data: Dict[str, Any]) -> str:
@@ -419,8 +439,11 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       </div>
 
       <div class="flex items-center gap-4 sm:gap-6">
+        <a href="app.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs font-bold text-emerald-400 border border-emerald-500/40 transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+          <span>📱 Mobile Cockpit</span>
+        </a>
         <a href="regimes.html" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
-          <span>Explore 5 Regimes Guide</span>
+          <span>5 Regimes Guide</span>
           <span>&rarr;</span>
         </a>
         <div class="text-right">
