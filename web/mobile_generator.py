@@ -350,6 +350,25 @@ self.addEventListener('fetch', (e) => {
       --text-muted: #a69268;
     }}
 
+    
+    /* BINANCE DARK THEME OVERRIDES (FROM META AI SPEC) */
+    body.theme-binance {{
+      --bg-main: #0B0E11;
+      --bg-card: #12161C;
+      --bg-card-sub: #171B20;
+      --border: #2B3139;
+      --primary: #0ECB81;
+      --primary-dim: rgba(14, 203, 129, 0.15);
+      --warning: #F0B90B;
+      --warning-dim: rgba(240, 185, 11, 0.15);
+      --danger: #F6465D;
+      --danger-dim: rgba(246, 70, 93, 0.15);
+      --info: #00C4E8;
+      --info-dim: rgba(0, 196, 232, 0.15);
+      --text-main: #EAECEF;
+      --text-muted: #848E9C;
+    }}
+
     /* SLATE PRO THEME OVERRIDES */
     body.theme-slate {{
       --bg-main: #090d16;
@@ -432,6 +451,165 @@ self.addEventListener('fetch', (e) => {
     /* ======================================================== */
     /* LEVEL 1: EXECUTIVE DECISION HERO (ABOVE THE FOLD)        */
     /* ======================================================== */
+    
+    /* EXPERIENCE MODE TOGGLE (BEGINNER VS DESK) */
+    .mode-toggle-wrap {{
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 2px;
+    }}
+
+    .mode-toggle-bar {{
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 4px;
+    }}
+
+    .mode-btn {{
+      flex: 1;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }}
+
+    .mode-btn.active {{
+      background: var(--warning);
+      color: #111111;
+      font-weight: 800;
+      box-shadow: 0 2px 8px rgba(240, 185, 11, 0.25);
+    }}
+
+    .mode-caption {{
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+    }}
+
+    /* INTERACTIVE RISK CALCULATOR */
+    .calc-card {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 8px;
+    }}
+
+    .calc-top-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .calc-top-label {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+
+    .calc-money-input {{
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 8px;
+    }}
+
+    .calc-money-input span {{
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }}
+
+    .calc-money-input input {{
+      width: 82px;
+      background: transparent;
+      border: 0;
+      outline: 0;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+      padding: 3px 0;
+    }}
+
+    .calc-slider {{
+      width: 100%;
+      accent-color: var(--warning);
+      margin: 10px 0 8px;
+      cursor: pointer;
+    }}
+
+    .calc-breakdown-grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }}
+
+    .calc-metric-lbl {{
+      font-size: 9.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }}
+
+    .calc-metric-val {{
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 14px;
+      margin: 1px 0;
+    }}
+
+    .calc-metric-sub {{
+      font-size: 9.5px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }}
+
+    /* ACCORDION CATEGORIES */
+    .dict-cat-header {{
+      cursor: pointer;
+      user-select: none;
+    }}
+
+    .cat-chevron {{
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }}
+
+    .dict-cat-card.collapsed .dict-rows {{
+      display: none;
+    }}
+
+    .dict-cat-card.collapsed .cat-chevron {{
+      transform: rotate(-90deg);
+    }}
+
     .executive-decision-card {{
       background: var(--bg-card);
       border-radius: 14px;
@@ -991,6 +1169,25 @@ self.addEventListener('fetch', (e) => {
     <!-- ======================================================== -->
     <!-- LEVEL 1: EXECUTIVE DECISION HERO (FIRST 3 SECONDS)       -->
     <!-- ======================================================== -->
+    
+    <!-- EXPERIENCE MODE TOGGLE (BEGINNER VS DESK) -->
+    <div class="mode-toggle-wrap">
+      <div class="mode-toggle-bar" role="group" aria-label="Experience Mode">
+        <button id="btn-mode-beginner" class="mode-btn active" onclick="setExperienceMode('beginner')">
+          <span>🌱</span>
+          <span>Beginner</span>
+        </button>
+        <button id="btn-mode-desk" class="mode-btn" onclick="setExperienceMode('desk')">
+          <span>💼</span>
+          <span>Desk (Pro)</span>
+        </button>
+      </div>
+      <div class="mode-caption" id="mode-caption-text">
+        Beginner mode: Executive decision &amp; plain rationale first. Switch to Desk for full data expansion.
+      </div>
+    </div>
+
+
     <section class="executive-decision-card" style="{verdict_border_style}">
       
       <div class="decision-top-meta">
@@ -1108,6 +1305,41 @@ self.addEventListener('fetch', (e) => {
           </div>
         </div>
       </div>
+
+
+      <!-- INTERACTIVE 1% RISK BUDGET CALCULATOR (PORTFOLIO SLIDER) -->
+      <div class="calc-card">
+        <div class="calc-top-row">
+          <div class="calc-top-label">
+            <span>🧮</span>
+            <span>Portfolio Risk Calculator</span>
+          </div>
+          <div class="calc-money-input">
+            <span>$</span>
+            <input id="portfolio-input" type="number" min="0" max="1000000" step="500" value="10000" oninput="onPortfolioChange(this.value)">
+          </div>
+        </div>
+
+        <input id="portfolio-slider" class="calc-slider" type="range" min="1000" max="100000" step="500" value="10000" oninput="onPortfolioChange(this.value)" aria-label="Portfolio size slider">
+
+        <div class="calc-breakdown-grid">
+          <div>
+            <div class="calc-metric-lbl">1% Max Risk Cap</div>
+            <div class="calc-metric-val" id="calc-risk-cap" style="color: var(--warning);">$100</div>
+            <div class="calc-metric-sub">Max allowed dollar loss on thesis invalidation</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="calc-metric-lbl">Spot Capital Deploy</div>
+            <div class="calc-metric-val" id="calc-deploy-amt" style="color: {'var(--warning)' if sizing == 0 else 'var(--primary)'};">
+              {"$0 (100% USDT)" if sizing == 0 else f"${int(10000 * 0.30):,} Spot BTC"}
+            </div>
+            <div class="calc-metric-sub" id="calc-deploy-sub">
+              {"Patience: Zero loss risk" if sizing == 0 else f"Capped at {sizing*100*0.4:.0f}% cash deploy"}
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
 
     <!-- ======================================================== -->
@@ -1119,7 +1351,7 @@ self.addEventListener('fetch', (e) => {
           <span>📊</span>
           <span>Verified Live Telemetry • AI Prompt Engine</span>
         </div>
-        <span style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted);">(On-Exchange Feeds)</span>
+        <span id="dict-expand-count" style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px;">4/4 expanded</span>
       </div>
 
       <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
@@ -1130,10 +1362,10 @@ self.addEventListener('fetch', (e) => {
       <div class="dict-categories-stack">
 
         <!-- 1. Price & Structure -->
-        <div class="dict-cat-card">
-          <div class="dict-cat-header cat-title-1">
+        <div class="dict-cat-card" id="cat-card-1">
+          <div class="dict-cat-header cat-title-1" onclick="toggleCategory(1)">
             <span>1. Price &amp; Structure</span>
-            <span style="font-size: 9px; color: var(--text-muted);">MACRO HORIZON</span>
+            <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 9px; color: var(--text-muted);">MACRO HORIZON</span><span class="cat-chevron" id="cat-chev-1">▼</span></div>
           </div>
           <div class="dict-rows">
             <div class="dict-row"><span class="dict-lbl">Spot Price:</span><span id="d-spot-px-2" class="dict-val" style="color: #ffffff; font-weight: 900;">${spot_price:,.2f}</span></div>
@@ -1148,10 +1380,10 @@ self.addEventListener('fetch', (e) => {
         </div>
 
         <!-- 2. Order Flow & CVD -->
-        <div class="dict-cat-card">
-          <div class="dict-cat-header cat-title-2">
+        <div class="dict-cat-card" id="cat-card-2">
+          <div class="dict-cat-header cat-title-2" onclick="toggleCategory(2)">
             <span>2. Order Flow &amp; CVD</span>
-            <span style="font-size: 9px; color: var(--text-muted);">SPOT ABSORPTION</span>
+            <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 9px; color: var(--text-muted);">SPOT ABSORPTION</span><span class="cat-chevron" id="cat-chev-2">▼</span></div>
           </div>
           <div class="dict-rows">
             <div class="dict-row"><span class="dict-lbl">Spot CVD Ratio:</span><span id="d-cvd-ratio" class="dict-val accent">{spot_cvd_ratio:.2f}</span></div>
@@ -1165,10 +1397,10 @@ self.addEventListener('fetch', (e) => {
         </div>
 
         <!-- 3. Derivatives Crowding -->
-        <div class="dict-cat-card">
-          <div class="dict-cat-header cat-title-3">
+        <div class="dict-cat-card" id="cat-card-3">
+          <div class="dict-cat-header cat-title-3" onclick="toggleCategory(3)">
             <span>3. Derivatives Crowding</span>
-            <span style="font-size: 9px; color: var(--text-muted);">LEVERAGE EXPOSURE</span>
+            <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 9px; color: var(--text-muted);">LEVERAGE EXPOSURE</span><span class="cat-chevron" id="cat-chev-3">▼</span></div>
           </div>
           <div class="dict-rows">
             <div class="dict-row"><span class="dict-lbl">Open Interest:</span><span id="d-oi" class="dict-val">{oi:,.0f} BTC</span></div>
@@ -1182,10 +1414,10 @@ self.addEventListener('fetch', (e) => {
         </div>
 
         <!-- 4. Volatility & Magnets -->
-        <div class="dict-cat-card">
-          <div class="dict-cat-header cat-title-4">
+        <div class="dict-cat-card" id="cat-card-4">
+          <div class="dict-cat-header cat-title-4" onclick="toggleCategory(4)">
             <span>4. Volatility &amp; Magnets</span>
-            <span style="font-size: 9px; color: var(--text-muted);">LIQUIDITY DEPTH</span>
+            <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 9px; color: var(--text-muted);">LIQUIDITY DEPTH</span><span class="cat-chevron" id="cat-chev-4">▼</span></div>
           </div>
           <div class="dict-rows">
             <div class="dict-row"><span class="dict-lbl">1H ATR:</span><span id="d-atr" class="dict-val">${atr:,.2f}</span></div>
@@ -1436,11 +1668,100 @@ self.addEventListener('fetch', (e) => {
 
   <script>
     let currentAIPrompt = {escaped_prompt};
+    
+    let currentSizing = {sizing};
+    let experienceMode = 'beginner';
+
+    // EXPERIENCE MODE (BEGINNER VS DESK)
+    function setExperienceMode(mode) {{
+      experienceMode = mode;
+      const bBtn = document.getElementById('btn-mode-beginner');
+      const dBtn = document.getElementById('btn-mode-desk');
+      const caption = document.getElementById('mode-caption-text');
+      const countEl = document.getElementById('dict-expand-count');
+
+      if (mode === 'beginner') {{
+        if (bBtn) bBtn.classList.add('active');
+        if (dBtn) dBtn.classList.remove('active');
+        if (caption) caption.textContent = 'Beginner mode: Executive decision & plain rationale first. Switch to Desk for full data expansion.';
+        for (let i = 2; i <= 4; i++) {{
+          const card = document.getElementById('cat-card-' + i);
+          if (card) card.classList.add('collapsed');
+        }}
+        const card1 = document.getElementById('cat-card-1');
+        if (card1) card1.classList.remove('collapsed');
+        if (countEl) countEl.textContent = '1/4 open (Tap to view)';
+      }} else {{
+        if (dBtn) dBtn.classList.add('active');
+        if (bBtn) bBtn.classList.remove('active');
+        if (caption) caption.textContent = 'Desk (Pro) mode: Institutional execution telemetry & full liquidation depth ladder expanded.';
+        for (let i = 1; i <= 4; i++) {{
+          const card = document.getElementById('cat-card-' + i);
+          if (card) card.classList.remove('collapsed');
+        }}
+        if (countEl) countEl.textContent = '4/4 expanded';
+      }}
+      try {{ localStorage.setItem('btc_magnet_mode', mode); }} catch(e) {{}}
+    }}
+
+    function toggleCategory(catId) {{
+      const card = document.getElementById('cat-card-' + catId);
+      if (card) {{
+        card.classList.toggle('collapsed');
+        updateAccordionCount();
+      }}
+    }}
+
+    function updateAccordionCount() {{
+      let openCount = 0;
+      for (let i = 1; i <= 4; i++) {{
+        const card = document.getElementById('cat-card-' + i);
+        if (card && !card.classList.contains('collapsed')) openCount++;
+      }}
+      const countEl = document.getElementById('dict-expand-count');
+      if (countEl) {{
+        countEl.textContent = openCount + '/4 ' + (openCount === 4 ? 'expanded' : 'open');
+      }}
+    }}
+
+    // PORTFOLIO 1% RISK BUDGET CALCULATOR
+    function onPortfolioChange(val) {{
+      const p = Math.max(0, Number(val) || 0);
+      const inputEl = document.getElementById('portfolio-input');
+      const sliderEl = document.getElementById('portfolio-slider');
+      if (inputEl && inputEl.value !== String(p)) inputEl.value = p;
+      if (sliderEl && Number(sliderEl.value) !== Math.min(100000, Math.max(1000, p))) {{
+        sliderEl.value = Math.min(100000, Math.max(1000, p));
+      }}
+
+      const riskCap = p * 0.01;
+      const riskEl = document.getElementById('calc-risk-cap');
+      if (riskEl) {{
+        riskEl.textContent = '$' + riskCap.toLocaleString('en-US', {{maximumFractionDigits: 0}});
+      }}
+
+      const deployEl = document.getElementById('calc-deploy-amt');
+      const subEl = document.getElementById('calc-deploy-sub');
+      if (deployEl && subEl) {{
+        if (currentSizing === 0) {{
+          deployEl.textContent = '$0 (100% USDT)';
+          deployEl.style.color = 'var(--warning)';
+          subEl.textContent = 'Patience: Zero loss risk';
+        }} else {{
+          const deployAmt = Math.round(p * 0.30);
+          deployEl.textContent = '$' + deployAmt.toLocaleString('en-US') + ' Spot BTC';
+          deployEl.style.color = 'var(--primary)';
+          subEl.textContent = 'Authorized: 30% cash deploy';
+        }}
+      }}
+    }}
+
     let lastSnapshotTime = new Date("{ts_iso}");
 
     // THEME SWITCHER
-    const themes = ['theme-nvg', 'theme-ibm', 'theme-slate'];
-    const themeLabels = {{ 'theme-nvg': 'NVG', 'theme-ibm': 'IBM', 'theme-slate': 'SLATE' }};
+    const themes = ['theme-nvg', 'theme-binance', 'theme-ibm', 'theme-slate'];
+    const themeLabels = {{ 'theme-nvg': 'NVG', 'theme-binance': 'BINANCE', 'theme-ibm': 'IBM', 'theme-slate': 'SLATE' }};
+    
     let currentThemeIdx = 0;
 
     function cycleTheme() {{
@@ -1451,6 +1772,12 @@ self.addEventListener('fetch', (e) => {
     }}
 
     try {{
+      try {{
+      const savedMode = localStorage.getItem('btc_magnet_mode');
+      if (savedMode === 'desk') setExperienceMode('desk');
+      else setExperienceMode('beginner');
+    }} catch(e) {{}}
+    
       const savedTheme = localStorage.getItem('btc_magnet_theme');
       if (savedTheme && themes.includes(savedTheme)) {{
         currentThemeIdx = themes.indexOf(savedTheme);
