@@ -127,6 +127,19 @@ self.addEventListener('fetch', (e) => {
             sess_color = "#a855f7"
             sess_desc = "Off-Hours Liquidity • Mean Reversion & Overnight Reset"
 
+        # Next Scheduled Telemetry Update Calculation (30-min cadence)
+        current_min = dt_utc.minute
+        if current_min < 30:
+            mins_left = 30 - current_min
+            next_utc = dt_utc.replace(minute=30, second=0, microsecond=0)
+        else:
+            mins_left = 60 - current_min
+            next_utc = (dt_utc + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+
+        next_sgt = next_utc + datetime.timedelta(hours=8)
+        next_utc_str = next_utc.strftime("%H:%M UTC")
+        next_sgt_str = next_sgt.strftime("%H:%M SGT")
+
         spot_price = metrics.get("price", 74827.09)
         p_chg_24h = metrics.get("price_change_24h_pct", 0.71)
         daily_vwap = metrics.get("daily_vwap", spot_price * 0.998)
@@ -461,6 +474,161 @@ self.addEventListener('fetch', (e) => {
       border-radius: 6px;
       font-family: var(--font-mono);
       cursor: pointer;
+    }}
+
+    /* REAL-TIME SPOT PRICE BAR (Below Header) */
+    .realtime-spot-bar {{
+      background: linear-gradient(180deg, rgba(0, 255, 102, 0.08) 0%, rgba(10, 17, 13, 0.95) 100%);
+      border: 1px solid rgba(0, 255, 102, 0.35);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }}
+
+    .spot-bar-left {{
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }}
+
+    .spot-bar-label {{
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }}
+
+    .live-dot-mini {{
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 6px var(--primary);
+      animation: pulse 2s infinite;
+    }}
+
+    .spot-bar-price-row {{
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }}
+
+    .spot-bar-price {{
+      font-size: 24px;
+      font-weight: 900;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }}
+
+    .spot-bar-chg {{
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }}
+
+    .spot-bar-right {{
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }}
+
+    .spot-feed-provenance {{
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.4px;
+    }}
+
+    .spot-provenance-sub {{
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      opacity: 0.8;
+    }}
+
+    /* NEXT SCHEDULED TELEMETRY UPDATE CARD */
+    .next-update-card {{
+      background: rgba(0, 229, 255, 0.04);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }}
+
+    .next-update-header {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }}
+
+    .next-update-title-group {{
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }}
+
+    .update-icon {{
+      font-size: 12px;
+    }}
+
+    .next-update-label {{
+      font-size: 9.5px;
+      font-weight: 800;
+      color: var(--info);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }}
+
+    .next-update-cadence-badge {{
+      font-size: 8.5px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      color: var(--info);
+      font-family: var(--font-mono);
+      letter-spacing: 0.4px;
+    }}
+
+    .next-update-main-row {{
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 2px;
+    }}
+
+    .next-update-countdown {{
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      letter-spacing: -0.2px;
+    }}
+
+    .next-update-sub {{
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
     }}
 
     /* PART 1: TOP HERO - LIVE TIME & SESSION HUD */
@@ -1191,6 +1359,26 @@ self.addEventListener('fetch', (e) => {
       </div>
     </header>
 
+    <!-- REAL-TIME BTC SPOT PRICE BAR (Below Header) -->
+    <div class="realtime-spot-bar">
+      <div class="spot-bar-left">
+        <div class="spot-bar-label">
+          <span class="live-dot-mini"></span>
+          <span>REAL-TIME BTC SPOT PRICE</span>
+        </div>
+        <div class="spot-bar-price-row">
+          <span id="hero-spot-px" class="spot-bar-price">${spot_price:,.2f}</span>
+          <span id="hero-price-chg" class="spot-bar-chg" style="color: {'var(--primary)' if p_chg_24h >= 0 else 'var(--danger)'}; background: {'rgba(0, 255, 102, 0.1)' if p_chg_24h >= 0 else 'rgba(255, 51, 68, 0.1)'}; border: 1px solid {'rgba(0, 255, 102, 0.3)' if p_chg_24h >= 0 else 'rgba(255, 51, 68, 0.3)'};">
+            {'+' if p_chg_24h >= 0 else ''}{p_chg_24h:.2f}% (24h)
+          </span>
+        </div>
+      </div>
+      <div class="spot-bar-right">
+        <div class="spot-feed-provenance">BINANCE TAKER SPOT FEED</div>
+        <div class="spot-provenance-sub">Aggregated Microstructure</div>
+      </div>
+    </div>
+
     <!-- PART 1: TOP HERO — LIVE TIME & ACTIVE SESSION ZONE HUD -->
     <div class="top-hero-dictionary">
 
@@ -1221,6 +1409,23 @@ self.addEventListener('fetch', (e) => {
         <div class="session-meta-row">
           <div id="session-zone-hours" class="session-zone-hours">{sess_hours}</div>
           <div id="session-zone-desc" class="session-zone-desc">{sess_desc}</div>
+        </div>
+      </div>
+
+      <!-- NEXT SCHEDULED TELEMETRY UPDATE CARD (Between Session Zone and Card 1) -->
+      <div class="next-update-card">
+        <div class="next-update-header">
+          <div class="next-update-title-group">
+            <span class="update-icon">⏱️</span>
+            <span class="next-update-label">NEXT ON-EXCHANGE TELEMETRY UPDATE</span>
+          </div>
+          <span class="next-update-cadence-badge">EVERY 30 MINS</span>
+        </div>
+        <div class="next-update-main-row">
+          <div id="next-update-minutes" class="next-update-countdown">In ~{mins_left} minutes</div>
+        </div>
+        <div id="next-update-target" class="next-update-sub">
+          Next snapshot scheduled at {next_utc_str} ({next_sgt_str})
         </div>
       </div>
 
@@ -1889,6 +2094,36 @@ self.addEventListener('fetch', (e) => {
         elSessBadge.style.borderColor = session.color;
         elSessBadge.style.background = session.color + '18';
       }}
+
+      // Next Scheduled Update Countdown (ticks every 1s)
+      const utcM = now.getUTCMinutes();
+      const utcS = now.getUTCSeconds();
+      const targetMin = utcM < 30 ? 30 : 60;
+      let totalSecsLeft = (targetMin * 60) - (utcM * 60 + utcS);
+      if (totalSecsLeft <= 0) totalSecsLeft = 30 * 60;
+      
+      const minsLeft = Math.floor(totalSecsLeft / 60);
+      const secsLeft = totalSecsLeft % 60;
+      
+      const targetDate = new Date(now);
+      if (utcM < 30) {{
+        targetDate.setUTCMinutes(30, 0, 0);
+      }} else {{
+        targetDate.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
+      }}
+      
+      const targetUtcStr = pad(targetDate.getUTCHours()) + ':' + pad(targetDate.getUTCMinutes()) + ' UTC';
+      const targetSgtDate = new Date(targetDate.getTime() + (8 * 60 * 60 * 1000));
+      const targetSgtStr = pad(targetSgtDate.getUTCHours()) + ':' + pad(targetSgtDate.getUTCMinutes()) + ' SGT';
+      
+      const elMins = document.getElementById('next-update-minutes');
+      if (elMins) {{
+        elMins.textContent = 'In ~' + minsLeft + ' minutes (' + minsLeft + 'm ' + pad(secsLeft) + 's)';
+      }}
+      const elTarget = document.getElementById('next-update-target');
+      if (elTarget) {{
+        elTarget.textContent = 'Next snapshot scheduled at ' + targetUtcStr + ' (' + targetSgtStr + ')';
+      }}
     }}
     setInterval(updateLiveClocks, 1000);
     updateLiveClocks();
@@ -1904,7 +2139,11 @@ self.addEventListener('fetch', (e) => {
         const m = data.metrics || {{}};
         const r = data.regime || {{}};
 
-        if (m.price) document.getElementById('d-spot-px').textContent = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+        if (m.price) {{
+          const pStr = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+          if (document.getElementById('hero-spot-px')) document.getElementById('hero-spot-px').textContent = pStr;
+          if (document.getElementById('d-spot-px')) document.getElementById('d-spot-px').textContent = pStr;
+        }}
         if (m.daily_vwap) document.getElementById('d-vwap').textContent = '$' + Number(m.daily_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
         if (m.weekly_vwap) document.getElementById('d-w-vwap').textContent = '$' + Number(m.weekly_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
         if (m.ema_20d) document.getElementById('d-ema20').textContent = '$' + Number(m.ema_20d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
