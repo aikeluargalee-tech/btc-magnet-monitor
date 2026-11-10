@@ -89,6 +89,13 @@ class RegimeClassifier:
         if best["regime_id"] == "RANGE_LIQUIDATION_MAGNET":
             notes += f" Active Magnet: {magnet_reason}"
 
+        # Centralized Master Authorization Reconciliation (P0 State Guard):
+        # A local sweep reclaim must NEVER claim "Authorized 0.75x entry" if macro portfolio allocation is 0.0x / Cash
+        lsce_action_detail = lsce.action_verdict
+        if (sizing == 0.0 or "USDT -> BTC" not in best["rotation"]) and lsce.status == "SWEEP_AND_RECLAIM_CONFIRMED":
+            l_price_val = lower_cluster.price_level if lower_cluster else 0.0
+            lsce_action_detail = f"Lower liquidation shelf (${l_price_val:,.0f}) swept, but new spot buying is strictly BLOCKED by macro regime ({best['name']}). Maintain 100% USDT Cash."
+
         return RegimeResult(
             regime=best["name"],
             regime_id=best["regime_id"],
@@ -126,7 +133,7 @@ class RegimeClassifier:
             total_ladder_upper_vol=round(tot_u_vol, 1),
             total_ladder_imbalance_ratio=round(tot_ratio, 2),
             lsce_status=lsce.status,
-            lsce_detail=lsce.action_verdict,
+            lsce_detail=lsce_action_detail,
             disaster_stop_price=round(disaster_stop_price, 2),
             disaster_stop_distance_pct=round(disaster_dist_pct, 2),
             structural_invalidation_level=round(struct_invalidation, 2)

@@ -4,12 +4,12 @@ from typing import Dict, Any, Tuple
 
 class MobileWebGenerator:
     """Generates the Mobile Cockpit Progressive Web Application (PWA) HTML,
-    Web App Manifest, and Service Worker for BTC Magnet Monitor.
+    Web App Manifest, and Service Worker for BTC Magnet Monitor V2.
     """
 
     def render_manifest(self) -> str:
         manifest = {
-            "name": "BTC Magnet Monitor",
+            "name": "BTC Magnet Monitor V2",
             "short_name": "BTC Magnet",
             "description": "Observable 5-Regime Radar & Liquidation Telemetry Cockpit",
             "start_url": "./app.html",
@@ -76,16 +76,18 @@ self.addEventListener('fetch', (e) => {
         risk = data.get("risk", {})
         ts_iso = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
 
-        spot_price = metrics.get("price", 74827.09)
+        spot_price = metrics.get("price", 74530.01)
         p_chg_24h = metrics.get("price_change_24h_pct", 0.71)
-        daily_vwap = metrics.get("daily_vwap", spot_price * 0.998)
-        weekly_vwap = metrics.get("weekly_vwap", spot_price * 0.995)
+        daily_vwap = metrics.get("daily_vwap", spot_price * 1.004)
+        weekly_vwap = metrics.get("weekly_vwap", spot_price * 1.002)
         ema_20d = metrics.get("ema_20d", spot_price * 1.025)
         ema_50d = metrics.get("ema_50d", spot_price * 1.042)
-        ma_200d = metrics.get("ma_200d", spot_price * 0.978)
+        ma_200d = metrics.get("ma_200d", 73195.0)
         swing_high = metrics.get("swing_high_4h", 75568.0)
         swing_low = metrics.get("swing_low_4h", 73750.0)
         base_floor = metrics.get("base_floor", 73510.0)
+
+        vwap_dist_pct = ((spot_price - daily_vwap) / daily_vwap) * 100.0
 
         spot_vol = metrics.get("spot_vol_24h", 14851.0)
         spot_vol_ratio = metrics.get("spot_vol_ratio", 1.02)
@@ -124,11 +126,11 @@ self.addEventListener('fetch', (e) => {
         regime_name = regime.get("name", "Range / Liquidation Magnet")
         diagnosis = regime.get("diagnosis", "Positioning imbalance and forced liquidations dominate")
         score_str = regime.get("majority_score", "3/4 observations confirmed")
-        rotation = regime.get("rotation", "USDT -> BTC")
-        sizing = regime.get("sizing_factor", 0.75)
-        action = regime.get("action", "Trade the Magnet (0.75x)")
-        playbook = regime.get("action", "Core Operating Zone — Trade the Magnet (0.75x)")
-        entry_inst = regime.get("entry_instruction", "Confirmed sweep & reclaim: 50% market spot / 50% limit at reclaimed range floor.")
+        rotation = regime.get("rotation", "Remain USDT")
+        sizing = regime.get("sizing_factor", 0.0)
+        action = regime.get("action", "Stand Aside (0.0x)")
+        playbook = regime.get("action", "Defensive Cash (0.0x)")
+        entry_inst = regime.get("entry_instruction", "Strict Cash (100% USDT). Treat bounces as exit liquidity. Only reverse on structure + Spot CVD reclaim.")
 
         stop_price = regime.get("stop_price", spot_price * 0.98)
         stop_dist = regime.get("stop_distance_pct", 2.0)
@@ -140,101 +142,119 @@ self.addEventListener('fetch', (e) => {
         risk_budget_ok = risk.get("risk_budget_ok", True)
         actionable_trade_instruction = risk.get(
             "actionable_trade_instruction",
-            f"Deploy {int(sizing*100*0.4)}% of your available USDT cash to buy spot BTC (Strictly capped at 0.99% total portfolio risk)."
+            "Maintain 100% USDT cash reserve. Strictly zero new buying."
         )
 
         plain_verdict = regime.get(
             "plain_english_verdict",
-            f"Bitcoin is oscillating in a defined trading range. LSCE Status: {regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}. Market makers hunt leverage on both sides."
+            "Bitcoin is in structural distribution. Bounces are being sold by institutions as exit liquidity."
         )
         why_points = regime.get("why_points", [
-            "Defined Consolidation Range: Volatility has compressed and price is trading between established floor and ceiling levels.",
-            f"Liquidation Sweep State ({regime.get('lsce_status', 'SWEEP_AND_RECLAIM_CONFIRMED')}): The lower pool is actively monitored for genuine spot absorption.",
-            "Controlled Market Fuel: Mean-reversion toward liquidation pools is the primary statistical edge."
+            "Sub-VWAP Trend: Price remains pinned beneath Daily and Weekly VWAP benchmarks with 20D/50D EMA overhead resistance.",
+            "Depressed Volume Participation: Spot volume is running below the 20D moving average; bounces lack aggressive institutional taker buy volume.",
+            "Defensive Capital Preservation: Preserving USDT cash in 100% reserve until authenticated Spot CVD and market structure reclaim occur."
         ])
         why_sizing = regime.get(
             "why_sizing_reason",
-            "Why 75% Sizing? Sizing is strictly tied to post-sweep absorption proof. If sweep is in progress or untested, we hold 100% cash."
+            f"Why {sizing*100:.0f}% Sizing? Sizing is strictly tied to post-sweep absorption proof. If sweep is in progress or untested, we hold 100% cash."
         )
         why_stop = regime.get(
             "why_stop_reason",
-            f"Your Safety Net: Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_dist:.2f}% away), positioned safely below the 200D SMA and 25x liquidation shelf."
+            f"Safety Net: Inviolable Disaster Stop at ${disaster_stop:,.2f} ({disaster_dist:.2f}% away), positioned safely below the 200D SMA and 25x liquidation shelf."
         )
 
-        imm_ratio = regime.get("immediate_imbalance_ratio", 24.5)
-        tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.70)
-        tot_l_vol = regime.get("total_ladder_lower_vol", 337.8)
+        imm_ratio = regime.get("immediate_imbalance_ratio", 16.5)
+        tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.53)
+        tot_l_vol = regime.get("total_ladder_lower_vol", 304.1)
         tot_u_vol = regime.get("total_ladder_upper_vol", 199.2)
         dom_magnet = regime.get("dominant_magnet", "Lower Long Sweep Magnet")
-        dom_reason = regime.get("dominant_magnet_reason", "LOWER (Immediate 24.5x / Ladder 1.70x; longs 64.9% crowded)")
+        dom_reason = regime.get("dominant_magnet_reason", f"LOWER (Immediate {imm_ratio:.1f}x / Ladder {tot_ratio:.2f}x; longs {ls_ratio/(1+ls_ratio)*100:.1f}% crowded)")
 
-        lsce_status = regime.get("lsce_status", "SWEEP_AND_RECLAIM_CONFIRMED")
-        lsce_detail = regime.get(
-            "lsce_detail",
-            f"Lower liquidation shelf (${l_p:,.0f}) swept and reclaimed with positive spot absorption. Authorized {sizing:.2f}x entry."
-        )
-
-        # LSCE Badge formatting
+        # P0 Master Authorization Reconciliation:
+        # A local sweep reclaim MUST NEVER display "BUY AUTHORIZED" if master allocation is 0.0x / Cash
+        lsce_status = regime.get("lsce_status", "UNTESTED")
         if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
-            lsce_badge_icon = "✅"
-            lsce_badge_title = "SWEEP & RECLAIM CONFIRMED (BUY AUTHORIZED)"
-            lsce_badge_color = "var(--primary)"
-            lsce_badge_bg = "rgba(0, 255, 102, 0.1)"
-            lsce_badge_border = "rgba(0, 255, 102, 0.35)"
+            if sizing > 0 and "USDT -> BTC" in rotation:
+                lsce_badge_icon = "✅"
+                lsce_badge_title = f"SWEEP & RECLAIM CONFIRMED (BUY AUTHORIZED {sizing:.2f}x)"
+                lsce_badge_color = "var(--primary)"
+                lsce_badge_bg = "rgba(0, 255, 102, 0.1)"
+                lsce_badge_border = "rgba(0, 255, 102, 0.35)"
+                lsce_detail = regime.get("lsce_detail", f"Lower liquidation shelf (${l_p:,.0f}) swept and reclaimed with positive spot absorption. Authorized {sizing:.2f}x entry.")
+            else:
+                lsce_badge_icon = "🛡️"
+                lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
+                lsce_badge_color = "var(--warning)"
+                lsce_badge_bg = "rgba(255, 184, 0, 0.1)"
+                lsce_badge_border = "rgba(255, 184, 0, 0.35)"
+                lsce_detail = f"Lower liquidation shelf (${l_p:,.0f}) swept, but new spot buying is strictly BLOCKED by macro regime ({regime_name}). Maintain 100% USDT Cash."
         elif lsce_status == "SWEEP_IN_PROGRESS":
             lsce_badge_icon = "⚠️"
             lsce_badge_title = "SWEEP IN PROGRESS (DO NOT BUY FALLING KNIFE)"
             lsce_badge_color = "var(--warning)"
             lsce_badge_bg = "rgba(255, 184, 0, 0.1)"
             lsce_badge_border = "rgba(255, 184, 0, 0.35)"
+            lsce_detail = regime.get("lsce_detail", f"Price is actively piercing the ${l_p:,.0f} liquidation shelf. Do NOT buy active liquidations. Wait for absorption.")
+        elif lsce_status == "SWEEP_FAILED_BREAKDOWN":
+            lsce_badge_icon = "🌊"
+            lsce_badge_title = "SWEEP FAILED / CASCADE RISK (100% CASH)"
+            lsce_badge_color = "var(--danger)"
+            lsce_badge_bg = "rgba(255, 51, 68, 0.1)"
+            lsce_badge_border = "rgba(255, 51, 68, 0.35)"
+            lsce_detail = regime.get("lsce_detail", f"Liquidation shelf at ${l_p:,.0f} failed to hold. Bids collapsed. Potential cascade in progress. Hold 100% USDT cash.")
         else:
             lsce_badge_icon = "⏸️"
             lsce_badge_title = "UNTESTED (MONITORING / CASH)"
             lsce_badge_color = "var(--text-muted)"
             lsce_badge_bg = "rgba(255, 255, 255, 0.05)"
             lsce_badge_border = "var(--border)"
+            lsce_detail = regime.get("lsce_detail", "No active lower liquidation pool. Standing aside.")
+
+        # Master Verdict Styling
+        is_buy_authorized = (sizing > 0 and "USDT -> BTC" in rotation)
+        if is_buy_authorized:
+            verdict_hero_title = "ROTATE USDT → BTC"
+            verdict_hero_icon = "🟢"
+            verdict_hero_sub = f"{sizing:.2f}x Allocation • Buy Spot (Accumulate)"
+            verdict_border_style = "border: 2px solid var(--primary); box-shadow: 0 0 24px rgba(0, 255, 102, 0.18);"
+            verdict_badge_style = "background: rgba(0, 255, 102, 0.15); color: var(--primary); border: 1px solid rgba(0, 255, 102, 0.4);"
+        elif "BTC -> USDT" in rotation:
+            verdict_hero_title = "TRIM SPOT / ROTATE TO USDT"
+            verdict_hero_icon = "🔴"
+            verdict_hero_sub = "Harvest to Cash • Capital Preservation"
+            verdict_border_style = "border: 2px solid var(--danger); box-shadow: 0 0 24px rgba(255, 51, 68, 0.18);"
+            verdict_badge_style = "background: rgba(255, 51, 68, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 68, 0.4);"
+        else:
+            verdict_hero_title = "REMAIN 100% USDT CASH"
+            verdict_hero_icon = "🛡️"
+            verdict_hero_sub = "0.00x Allocation • Defensive Cash (Zero Buys)"
+            verdict_border_style = "border: 2px solid var(--warning); box-shadow: 0 0 24px rgba(255, 184, 0, 0.18);"
+            verdict_badge_style = "background: rgba(255, 184, 0, 0.15); color: var(--warning); border: 1px solid rgba(255, 184, 0, 0.4);"
 
         # Regime Tagline & Icon
         if regime_id == "SPOT_LED_EXPANSION":
             regime_icon = "🚀"
             regime_tagline = "Genuine spot buyers in control. Favorable environment for trend-following spot longs."
-            regime_accent = "var(--primary)"
         elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
             regime_icon = "⚠️"
             regime_tagline = "Advance built on dangerous borrowed futures leverage. High probability of long squeeze."
-            regime_accent = "var(--warning)"
         elif regime_id == "CASCADE_FORCED_DELEVERAGING":
             regime_icon = "🌊"
             regime_tagline = "Forced margin liquidation cascade in progress. Strictly avoid buying until selling ceases."
-            regime_accent = "var(--danger)"
         elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
             regime_icon = "📉"
             regime_tagline = "Structural seller control. Whales distributing into retail bounces. Cash preservation priority."
-            regime_accent = "var(--danger)"
         elif regime_id == "RANGE_LIQUIDATION_MAGNET":
             regime_icon = "🧲"
             regime_tagline = "Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate."
-            regime_accent = "var(--info)"
         else:
             regime_icon = "⚖️"
             regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
-            regime_accent = "var(--text-muted)"
-
-        # Rotation Action formatting
-        if "USDT -> BTC" in rotation:
-            action_pill = "Buy Spot (Accumulate)"
-            action_badge_style = "background: rgba(0, 255, 102, 0.15); color: var(--primary); border: 1px solid rgba(0, 255, 102, 0.4);"
-        elif "BTC -> USDT" in rotation:
-            action_pill = "Trim Spot / Harvest to Cash"
-            action_badge_style = "background: rgba(255, 51, 68, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 68, 0.4);"
-        else:
-            action_pill = "Defensive Cash"
-            action_badge_style = "background: rgba(255, 184, 0, 0.15); color: var(--warning); border: 1px solid rgba(255, 184, 0, 0.4);"
 
         matched_criteria = regime.get("matched_criteria", [
-            f"Defined range ({range_width:.2f}% width) & ATR compressed {atr_comp:.1f}%",
-            f"Positioning crowded (L/S {ls_ratio:.2f}, funding {funding_rate/100:.3f}%)",
-            "Clear liquidation clusters active above and below price"
+            f"Price below Daily VWAP, 20D EMA, and 50D EMA",
+            f"Spot volume depressed ({spot_vol_ratio:.2f}x 20D MA)",
+            f"Trapped longs paying funding ({funding_rate/100:.3f}%) / compressed basis ({basis:.1f}%)"
         ])
 
         magnet_factors = regime.get("magnet_factors", {})
@@ -245,16 +265,14 @@ self.addEventListener('fetch', (e) => {
         f5 = magnet_factors.get("factor_5_asymmetry", f"LOWER is {l_d:.2f}% away vs UPPER {u_d:.2f}% away")
         f6 = magnet_factors.get("factor_6_atr_volatility", f"ATR compressed {atr_comp:.1f}%")
 
-        # Pre-compute HTML snippets
-        evidence_items_html = "".join([
-            f'<div class="evidence-item"><span class="evidence-check">✓</span><span>{item}</span></div>'
-            for item in matched_criteria
-        ])
-
-        why_points_html = "".join([
-            f'<div class="why-factor-row"><div class="why-num">{idx+1}</div><div style="color: var(--text-main);">{pt}</div></div>'
-            for idx, pt in enumerate(why_points)
-        ])
+        # Visual Heatmap Ladder Bar Widths (proportional to volume)
+        max_vol_ref = max(tot_l_vol, 150.0)
+        w_10x_short = min(100, max(14, int((85.0 / max_vol_ref) * 100)))
+        w_25x_short = min(100, max(14, int((110.0 / max_vol_ref) * 100)))
+        w_50_short = min(100, max(14, int((u_vol / max_vol_ref) * 100)))
+        w_100_long = min(100, max(18, int((l_vol / max_vol_ref) * 100)))
+        w_25x_long = min(100, max(14, int((140.0 / max_vol_ref) * 100)))
+        w_10x_long = min(100, max(14, int((95.0 / max_vol_ref) * 100)))
 
         # Ladder Prices
         p_10x_short = swing_high * 1.025
@@ -267,6 +285,17 @@ self.addEventListener('fetch', (e) => {
         p_10x_long = swing_low * 0.975
         d_10x_long = ((spot_price - p_10x_long) / spot_price) * 100
 
+        # Pre-computed HTML blocks
+        evidence_items_html = "".join([
+            f'<div class="evidence-item"><span class="evidence-check">✓</span><span>{item}</span></div>'
+            for item in matched_criteria
+        ])
+
+        why_points_html = "".join([
+            f'<div class="why-factor-row"><div class="why-num">{idx+1}</div><div style="color: var(--text-main); font-size: 11.5px; line-height: 1.45;">{pt}</div></div>'
+            for idx, pt in enumerate(why_points)
+        ])
+
         escaped_prompt = json.dumps(raw_llm_prompt)
 
         return f"""<!DOCTYPE html>
@@ -274,7 +303,7 @@ self.addEventListener('fetch', (e) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>BTC Magnet Monitor | Live Telemetry & AI Prompt Engine</title>
+  <title>BTC Magnet Monitor V2 | Spot Decision Cockpit & AI Telemetry</title>
   
   <meta name="theme-color" content="#030804">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -338,8 +367,8 @@ self.addEventListener('fetch', (e) => {
       color: var(--text-main);
       font-family: var(--font-sans);
       font-size: 13px;
-      line-height: 1.4;
-      padding-bottom: 90px;
+      line-height: 1.45;
+      padding-bottom: 96px;
       overflow-x: hidden;
     }}
 
@@ -352,12 +381,12 @@ self.addEventListener('fetch', (e) => {
       gap: 12px;
     }}
 
-    /* TOP HEADER BAR */
-    .top-bar {{
+    /* STICKY TOP TICKER BAR */
+    .top-ticker-bar {{
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 12px;
+      padding: 10px 12px;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -370,15 +399,15 @@ self.addEventListener('fetch', (e) => {
     }}
 
     .brand-icon {{
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: var(--primary-dim);
       border: 1px solid var(--primary);
-      border-radius: 6px;
-      font-size: 13px;
+      border-radius: 7px;
+      font-size: 14px;
     }}
 
     .brand-title {{
@@ -400,78 +429,185 @@ self.addEventListener('fetch', (e) => {
       cursor: pointer;
     }}
 
-    /* PART 1: TOP HERO - LIVE TELEMETRY DATA DICTIONARY CARD */
-    .top-hero-dictionary {{
+    /* ======================================================== */
+    /* LEVEL 1: EXECUTIVE DECISION HERO (ABOVE THE FOLD)        */
+    /* ======================================================== */
+    .executive-decision-card {{
       background: var(--bg-card);
-      border: 2px solid var(--primary);
       border-radius: 14px;
-      padding: 14px;
-      box-shadow: 0 0 24px rgba(0, 255, 102, 0.12);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }}
 
-    .dict-badge {{
-      display: inline-flex;
+    .decision-top-meta {{
+      display: flex;
+      justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
-      background: var(--primary-dim);
-      border: 1px solid var(--primary);
-      color: var(--primary);
+    }}
+
+    .decision-badge {{
       font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
       padding: 3px 8px;
       border-radius: 6px;
-      margin-bottom: 4px;
     }}
 
-    .dict-sub-feed {{
+    .live-feed-pill {{
       font-size: 10px;
-      color: var(--text-muted);
       font-family: var(--font-mono);
-      margin-bottom: 8px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }}
 
-    .dict-headline {{
+    .decision-main-row {{
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }}
+
+    .decision-callout-title {{
+      font-size: 22px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+
+    .decision-callout-sub {{
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }}
+
+    .quick-price-band {{
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+    }}
+
+    .price-band-val {{
       font-size: 16px;
       font-weight: 900;
       color: #ffffff;
-      line-height: 1.25;
-      margin-bottom: 6px;
-      letter-spacing: -0.2px;
     }}
 
-    .dict-lead-text {{
-      font-size: 11.5px;
+    .price-band-lbl {{
+      font-size: 10px;
       color: var(--text-muted);
-      line-height: 1.45;
-      margin-bottom: 12px;
+      text-transform: uppercase;
     }}
 
-    .btn-copy-prompt {{
-      width: 100%;
-      background: var(--primary);
-      color: #030804;
-      border: none;
-      border-radius: 10px;
-      padding: 13px 16px;
+    .executive-narrative-box {{
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-main);
+    }}
+
+    .safety-net-callout {{
+      background: rgba(255, 51, 68, 0.08);
+      border-left: 3px solid var(--danger);
+      border-radius: 0 8px 8px 0;
+      padding: 8px 12px;
+      font-size: 11.5px;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }}
+
+    /* ======================================================== */
+    /* LEVEL 2: PLAIN-ENGLISH DECISION & RISK SAFEGUARDS        */
+    /* ======================================================== */
+    .card-panel {{
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }}
+
+    .panel-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }}
+
+    .panel-title {{
       font-size: 13px;
       font-weight: 900;
-      cursor: pointer;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+
+    .why-factor-row {{
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 6px;
+    }}
+
+    .why-num {{
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary-dim);
+      border: 1px solid var(--primary);
+      color: var(--primary);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }}
+
+    .risk-breakdown-grid {{
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 8px;
-      letter-spacing: 0.3px;
-      box-shadow: 0 4px 14px rgba(0, 255, 102, 0.4);
-      transition: transform 0.1s ease, background 0.2s ease;
-      margin-top: 12px;
     }}
 
-    .btn-copy-prompt:active {{
-      transform: scale(0.97);
+    .risk-spec-box {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 11px;
     }}
 
-    /* 4 CATEGORIES GRID */
+    /* ======================================================== */
+    /* LEVEL 3: VERIFIED LIVE TELEMETRY & AI PROMPT ENGINE      */
+    /* ======================================================== */
     .dict-categories-stack {{
       display: flex;
       flex-direction: column;
@@ -516,25 +652,44 @@ self.addEventListener('fetch', (e) => {
       padding: 2px 0;
     }}
 
-    .dict-lbl {{
-      color: var(--text-muted);
-    }}
-
-    .dict-val {{
-      color: var(--text-main);
-      font-weight: 600;
-    }}
-
+    .dict-lbl {{ color: var(--text-muted); }}
+    .dict-val {{ color: var(--text-main); font-weight: 600; }}
     .dict-val.accent {{ color: var(--primary); font-weight: 800; }}
     .dict-val.warn {{ color: var(--warning); font-weight: 800; }}
     .dict-val.danger {{ color: var(--danger); font-weight: 800; }}
 
-    /* SEPARATOR */
+    .btn-copy-prompt {{
+      width: 100%;
+      background: var(--primary);
+      color: #030804;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 14px rgba(0, 255, 102, 0.4);
+      transition: transform 0.1s ease, background 0.2s ease;
+      margin-top: 10px;
+    }}
+
+    .btn-copy-prompt:active {{
+      transform: scale(0.97);
+    }}
+
+    /* ======================================================== */
+    /* LEVEL 4: INSTITUTIONAL REFERENCE SUITE (ADVANCED)        */
+    /* ======================================================== */
     .section-separator {{
       display: flex;
       align-items: center;
       text-align: center;
-      margin: 10px 0 4px 0;
+      margin: 12px 0 4px 0;
       color: var(--text-muted);
       font-size: 10px;
       font-weight: 800;
@@ -551,13 +706,11 @@ self.addEventListener('fetch', (e) => {
 
     .section-separator span {{
       padding: 0 10px;
-      color: var(--warning);
+      color: var(--info);
     }}
 
-    /* ======================================================== */
-    /* EXPANDED BENCHMARK SUITE CARDS                           */
-    /* ======================================================== */
-    .benchmark-card {{
+    /* PROPORTIONAL VISUAL HEATMAP BARS */
+    .heatmap-visual-card {{
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -567,117 +720,144 @@ self.addEventListener('fetch', (e) => {
       gap: 12px;
     }}
 
-    .benchmark-card.highlight-cyan {{
-      border: 1.5px solid var(--info);
-      box-shadow: 0 0 16px rgba(0, 229, 255, 0.1);
-    }}
-
-    .step-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }}
-
-    .step-tag {{
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }}
-
-    .subpage-link {{
-      font-size: 10.5px;
-      font-weight: 700;
-      color: var(--info);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: rgba(0, 229, 255, 0.08);
-      padding: 3px 8px;
-      border-radius: 6px;
-      border: 1px solid rgba(0, 229, 255, 0.25);
-    }}
-
-    .regime-hero-banner {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-    }}
-
-    .regime-pill-badge {{
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      border-radius: 8px;
-      font-size: 11.5px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 8px;
-    }}
-
-    .regime-diag-title {{
-      font-size: 16px;
-      font-weight: 900;
-      color: #ffffff;
-      line-height: 1.25;
-      margin-bottom: 6px;
-    }}
-
-    .regime-tagline {{
-      font-size: 11.5px;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }}
-
-    .methodology-box {{
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 11.5px;
-      line-height: 1.45;
-      color: var(--text-main);
-    }}
-
-    .methodology-box strong {{
-      color: #ffffff;
-    }}
-
-    .evidence-checklist {{
+    .visual-ladder-stack {{
       display: flex;
       flex-direction: column;
       gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
     }}
 
-    .evidence-item {{
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
+    .v-ladder-item {{
       background: var(--bg-card-sub);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 7px 10px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }}
+
+    .v-ladder-item.short {{
+      border-color: rgba(255, 51, 68, 0.25);
+    }}
+
+    .v-ladder-item.long {{
+      border-color: rgba(0, 255, 102, 0.25);
+    }}
+
+    .v-ladder-item.dominant {{
+      border: 2px solid var(--primary);
+      background: rgba(0, 255, 102, 0.08);
+      box-shadow: 0 0 14px rgba(0, 255, 102, 0.18);
+    }}
+
+    .v-ladder-item.spot-zero {{
+      border: 2px solid var(--info);
+      background: rgba(0, 229, 255, 0.12);
+      padding: 10px;
+    }}
+
+    .v-row-meta {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .bar-track {{
+      width: 100%;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      overflow: hidden;
+    }}
+
+    .bar-fill-short {{
+      height: 100%;
+      background: linear-gradient(90deg, #991b1b, #ef4444);
+      border-radius: 4px;
+    }}
+
+    .bar-fill-long {{
+      height: 100%;
+      background: linear-gradient(90deg, #065f46, #10b981);
+      border-radius: 4px;
+    }}
+
+    .bar-fill-dominant {{
+      height: 100%;
+      background: linear-gradient(90deg, #059669, #34d399, #fde047);
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+    }}
+
+    /* SKEW CHIPS */
+    .skew-chips-row {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }}
+
+    .skew-chip {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 10.5px;
+    }}
+
+    /* 6 FACTORS & GAUGES */
+    .factors-grid {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }}
+
+    .factor-item {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 10px;
       font-size: 11px;
-      color: var(--text-main);
+      line-height: 1.35;
     }}
 
-    .evidence-check {{
-      color: var(--primary);
-      font-weight: 900;
+    .gauges-grid {{
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
     }}
 
-    /* 5-REGIME FRAMEWORK MATRIX */
+    .gauge-card {{
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }}
+
+    .gauge-lbl {{
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }}
+
+    .gauge-val {{
+      font-size: 14.5px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #ffffff;
+    }}
+
+    .gauge-sub {{
+      font-size: 9px;
+      color: var(--text-muted);
+    }}
+
+    /* 5-REGIME MATRIX */
     .matrix-grid {{
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -708,297 +888,62 @@ self.addEventListener('fetch', (e) => {
       box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
     }}
 
-    /* STEP 2 ROTATION CARD */
-    .rotation-hero-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
+    /* STICKY BOTTOM QUICK-AUDIT BAR */
+    .sticky-audit-bar {{
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(6, 9, 8, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      z-index: 50;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }}
-
-    .rotation-value-row {{
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 6px;
-    }}
-
-    .rotation-target {{
-      font-size: 20px;
-      font-weight: 900;
-      font-family: var(--font-mono);
-      color: #ffffff;
-      letter-spacing: 0.5px;
-    }}
-
-    .action-badge {{
-      font-size: 11px;
-      font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 6px;
-    }}
-
-    .protocols-stack {{
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }}
-
-    .protocol-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 11px;
-    }}
-
-    .proto-lbl {{
-      font-size: 9.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      margin-bottom: 3px;
-      display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
     }}
 
-    .proto-val {{
+    .sticky-ticker {{
+      display: flex;
+      flex-direction: column;
+      font-family: var(--font-mono);
+    }}
+
+    .sticky-px {{
       font-size: 13px;
       font-weight: 800;
       color: #ffffff;
-      margin-bottom: 2px;
     }}
 
-    .proto-sub {{
-      font-size: 10.5px;
+    .sticky-state {{
+      font-size: 9.5px;
       color: var(--text-muted);
-      line-height: 1.35;
+      text-transform: uppercase;
     }}
 
-    /* PLAIN ENGLISH BOTTOM LINE VERDICT */
-    .plain-verdict-box {{
-      background: rgba(0, 255, 102, 0.05);
-      border: 1px solid rgba(0, 255, 102, 0.25);
-      border-radius: 10px;
-      padding: 12px;
+    .sticky-btn {{
+      background: var(--primary);
+      color: #030804;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
       font-size: 12px;
-      line-height: 1.45;
-      color: var(--text-main);
-    }}
-
-    .why-factor-row {{
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      margin-top: 8px;
-      font-size: 11px;
-      line-height: 1.4;
-    }}
-
-    .why-num {{
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--primary-dim);
-      border: 1px solid var(--primary);
-      color: var(--primary);
+      font-weight: 900;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 800;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }}
-
-    /* DUAL POOLS COMPARISON */
-    .pools-dual-grid {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }}
-
-    .pool-card {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }}
-
-    .pool-card.upper {{
-      border-color: rgba(255, 51, 68, 0.3);
-    }}
-
-    .pool-card.lower {{
-      border-color: rgba(0, 255, 102, 0.3);
-    }}
-
-    .pool-title {{
-      font-size: 9.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }}
-
-    .pool-px {{
-      font-size: 16px;
-      font-weight: 900;
-      font-family: var(--font-mono);
-      color: #ffffff;
-    }}
-
-    .pool-dist {{
-      font-size: 10.5px;
-      font-family: var(--font-mono);
-    }}
-
-    .pool-vol {{
-      font-size: 10px;
-      color: var(--text-muted);
-    }}
-
-    /* LADDER ROWS */
-    .ladder-stack {{
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-    }}
-
-    .ladder-row {{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 7px 10px;
-      border-radius: 7px;
-      border: 1px solid var(--border);
-      background: var(--bg-card-sub);
-    }}
-
-    .ladder-row.short {{
-      border-color: rgba(255, 51, 68, 0.25);
-      background: rgba(255, 51, 68, 0.05);
-    }}
-
-    .ladder-row.long {{
-      border-color: rgba(0, 255, 102, 0.25);
-      background: rgba(0, 255, 102, 0.05);
-    }}
-
-    .ladder-row.spot-anchor {{
-      border: 2px solid var(--info);
-      background: rgba(0, 229, 255, 0.12);
-      padding: 9px 10px;
-      margin: 3px 0;
-    }}
-
-    .ladder-row.dominant-core {{
-      border: 2px solid var(--primary);
-      background: rgba(0, 255, 102, 0.12);
-      box-shadow: 0 0 12px rgba(0, 255, 102, 0.2);
-    }}
-
-    /* IMBALANCE BOXES */
-    .imbalance-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }}
-
-    .imbalance-box {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 9px 11px;
-      font-size: 11px;
-    }}
-
-    .imbalance-title {{
-      font-size: 9.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }}
-
-    .imbalance-val {{
-      font-size: 15px;
-      font-weight: 900;
-      font-family: var(--font-mono);
-      margin: 2px 0;
-    }}
-
-    /* 6 FACTORS GRID */
-    .factors-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
       gap: 6px;
-    }}
-
-    .factor-item {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 8px 10px;
-      font-size: 11px;
-      line-height: 1.35;
-    }}
-
-    .factor-title {{
-      font-weight: 800;
-      color: var(--text-muted);
-      margin-bottom: 2px;
-      display: block;
-    }}
-
-    /* 6 GAUGES GRID */
-    .gauges-grid {{
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }}
-
-    .gauge-card {{
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 9px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }}
-
-    .gauge-lbl {{
-      font-size: 9px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 700;
-    }}
-
-    .gauge-val {{
-      font-size: 14px;
-      font-weight: 800;
-      font-family: var(--font-mono);
-      color: #ffffff;
-    }}
-
-    .gauge-sub {{
-      font-size: 9px;
-      color: var(--text-muted);
+      white-space: nowrap;
     }}
 
     /* TOAST */
     .toast-overlay {{
       position: fixed;
-      bottom: 24px;
+      bottom: 64px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
       background: var(--primary);
@@ -1028,28 +973,156 @@ self.addEventListener('fetch', (e) => {
 
   <div class="app-container">
 
-    <!-- TOP HEADER -->
-    <header class="top-bar">
+    <!-- TOP TICKER BAR -->
+    <header class="top-ticker-bar">
       <div class="brand-group">
         <div class="brand-icon">🧲</div>
-        <div class="brand-title">BTC Magnet Monitor</div>
+        <div>
+          <div class="brand-title">BTC Magnet Monitor</div>
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono);">SPOT-ONLY • ZERO LEVERAGE</div>
+        </div>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 10px; color: var(--primary); font-family: var(--font-mono); font-weight: 700;">● LIVE FEED</span>
+        <span style="font-size: 9.5px; color: var(--primary); font-family: var(--font-mono); font-weight: 700;">● LIVE FEED</span>
         <button class="theme-toggle-btn" id="theme-btn" onclick="cycleTheme()">NVG</button>
       </div>
     </header>
 
-    <!-- PART 1: TOP HERO — REQUESTED DATA DICTIONARY & AI PROMPT -->
-    <div class="top-hero-dictionary">
-      <div class="dict-badge">
-        <span>📊</span>
-        <span>LIVE TELEMETRY DATA DICTIONARY • AI PROMPT ENGINE</span>
+    <!-- ======================================================== -->
+    <!-- LEVEL 1: EXECUTIVE DECISION HERO (FIRST 3 SECONDS)       -->
+    <!-- ======================================================== -->
+    <section class="executive-decision-card" style="{verdict_border_style}">
+      
+      <div class="decision-top-meta">
+        <span class="decision-badge" style="{verdict_badge_style}">
+          CURRENT SYSTEM DIRECTIVE
+        </span>
+        <div class="live-feed-pill">
+          <span>Binance &amp; Deribit</span>
+          <span>•</span>
+          <span id="data-age-tag">Updated live</span>
+        </div>
       </div>
-      <div class="dict-sub-feed">(Real-Time On-Exchange Feeds)</div>
 
-      <h1 class="dict-headline">Analyze Market Data with Your Own AI</h1>
-      <p class="dict-lead-text">
+      <div class="decision-main-row">
+        <div class="decision-callout-title">
+          <span>{verdict_hero_icon}</span>
+          <span id="hero-action-title">{verdict_hero_title}</span>
+        </div>
+        <div class="decision-callout-sub" id="hero-action-sub">
+          {verdict_hero_sub}
+        </div>
+      </div>
+
+      <!-- Quick Spot Price & VWAP Benchmark Band -->
+      <div class="quick-price-band">
+        <div>
+          <div class="price-band-lbl">Spot Benchmark</div>
+          <div class="price-band-val" id="d-spot-px">${spot_price:,.2f}</div>
+          <div style="font-size: 9.5px; color: {'var(--primary)' if p_chg_24h >= 0 else 'var(--danger)'};">
+            {p_chg_24h:+.2f}% (24h)
+          </div>
+        </div>
+        <div>
+          <div class="price-band-lbl">vs Daily VWAP</div>
+          <div class="price-band-val" id="d-vwap-delta" style="color: {'var(--primary)' if vwap_dist_pct >= 0 else 'var(--danger)'};">
+            {vwap_dist_pct:+.2f}%
+          </div>
+          <div style="font-size: 9.5px; color: var(--text-muted);">
+            VWAP: ${daily_vwap:,.0f}
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Market Regime Pill -->
+      <div style="background: var(--bg-card-sub); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; color: #ffffff;">
+          <span>{regime_icon}</span>
+          <span id="regime-name">{regime_name}</span>
+        </div>
+        <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">{score_str}</span>
+      </div>
+
+      <!-- 1-Sentence Executive Verdict -->
+      <div class="executive-narrative-box" id="regime-diag">
+        {diagnosis}. {plain_verdict}
+      </div>
+
+      <!-- Safety Net Callout -->
+      <div class="safety-net-callout">
+        <strong style="color: var(--danger); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+          🛡️ Inviolable Risk Safeguard
+        </strong>
+        <div style="color: var(--text-main);">
+          {"Zero exposure required. Maintain 100% USDT cash patience." if sizing == 0 else f"Disaster Hard Stop at ${disaster_stop:,.2f} (-{disaster_dist:.2f}%), placed below 200D SMA."}
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- LEVEL 2: PLAIN-ENGLISH DECISION & RISK PROTECTION        -->
+    <!-- ======================================================== -->
+    <section class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>💡</span>
+          <span>Plain-English Decision Rationale</span>
+        </div>
+        <span style="font-size: 10px; color: var(--text-muted);">(No Jargon Required)</span>
+      </div>
+
+      <div>
+        <div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">
+          The 3 Key Market Factors Driving This Call
+        </div>
+        {why_points_html}
+      </div>
+
+      <!-- Dedicated Risk Protection Box -->
+      <div class="risk-breakdown-grid" style="margin-top: 4px;">
+        <div class="risk-spec-box" style="border-left: 3px solid var(--primary);">
+          <div style="font-size: 9.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
+            Portfolio Risk Limit
+          </div>
+          <div style="font-size: 14px; font-weight: 900; color: var(--primary); font-family: var(--font-mono); margin: 2px 0;">
+            1.00% Maximum Portfolio Risk Cap
+          </div>
+          <div style="font-size: 10.5px; color: var(--text-main);">
+            {"If in USDT Cash: Do nothing. Zero risk. Your job is to wait." if sizing == 0 else f"Authorized Cash Deploy: {int(sizing*100*0.4)}% of available USDT (strictly capped at 0.99% portfolio loss)."}
+          </div>
+        </div>
+
+        <div class="risk-spec-box" style="border-left: 3px solid var(--danger);">
+          <div style="font-size: 9.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
+            Dual Inviolable Boundaries
+          </div>
+          <div style="font-size: 11px; font-family: var(--font-mono); color: var(--warning); margin-top: 3px;">
+            • Thesis Wrong If: 1H Candle Close &lt; ${structural_inval:,.2f}
+          </div>
+          <div style="font-size: 11px; font-family: var(--font-mono); color: var(--danger); margin-top: 2px;">
+            • Emergency Hard Stop: ${disaster_stop:,.2f} (-{disaster_dist:.2f}%)
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+            Placed safely below both the 200D SMA (${ma_200d:,.0f}) and 25x shelf. Never average down into an invalidated thesis.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- LEVEL 3: VERIFIED LIVE TELEMETRY & AI PROMPT ENGINE      -->
+    <!-- ======================================================== -->
+    <section class="card-panel" style="border: 2px solid var(--primary); box-shadow: 0 0 20px rgba(0, 255, 102, 0.1);">
+      <div class="panel-header">
+        <div class="panel-title" style="color: var(--primary);">
+          <span>📊</span>
+          <span>Verified Live Telemetry • AI Prompt Engine</span>
+        </div>
+        <span style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted);">(On-Exchange Feeds)</span>
+      </div>
+
+      <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
         Don't rely blindly on our verdict. Click below to copy the verified live market positioning metrics and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant second opinion.
       </p>
 
@@ -1059,11 +1132,11 @@ self.addEventListener('fetch', (e) => {
         <!-- 1. Price & Structure -->
         <div class="dict-cat-card">
           <div class="dict-cat-header cat-title-1">
-            <span>1. Price & Structure</span>
+            <span>1. Price &amp; Structure</span>
             <span style="font-size: 9px; color: var(--text-muted);">MACRO HORIZON</span>
           </div>
           <div class="dict-rows">
-            <div class="dict-row"><span class="dict-lbl">Spot Price:</span><span id="d-spot-px" class="dict-val" style="color: #ffffff; font-weight: 900;">${spot_price:,.2f}</span></div>
+            <div class="dict-row"><span class="dict-lbl">Spot Price:</span><span id="d-spot-px-2" class="dict-val" style="color: #ffffff; font-weight: 900;">${spot_price:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">Daily VWAP:</span><span id="d-vwap" class="dict-val">${daily_vwap:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">Weekly VWAP:</span><span id="d-w-vwap" class="dict-val">${weekly_vwap:,.2f}</span></div>
             <div class="dict-row"><span class="dict-lbl">20D EMA:</span><span id="d-ema20" class="dict-val">${ema_20d:,.2f}</span></div>
@@ -1077,7 +1150,7 @@ self.addEventListener('fetch', (e) => {
         <!-- 2. Order Flow & CVD -->
         <div class="dict-cat-card">
           <div class="dict-cat-header cat-title-2">
-            <span>2. Order Flow & CVD</span>
+            <span>2. Order Flow &amp; CVD</span>
             <span style="font-size: 9px; color: var(--text-muted);">SPOT ABSORPTION</span>
           </div>
           <div class="dict-rows">
@@ -1102,7 +1175,7 @@ self.addEventListener('fetch', (e) => {
             <div class="dict-row"><span class="dict-lbl">OI 24h Change:</span><span id="d-oi-24h" class="dict-val">{oi_24h:+.2f}%</span></div>
             <div class="dict-row"><span class="dict-lbl">OI 1h Change:</span><span id="d-oi-1h" class="dict-val">{oi_1h:+.2f}%</span></div>
             <div class="dict-row"><span class="dict-lbl">OI 4h Change:</span><span id="d-oi-4h" class="dict-val">{oi_4h:+.2f}%</span></div>
-            <div class="dict-row"><span class="dict-lbl">Funding Rate (8h):</span><span id="d-funding" class="dict-val">{funding_rate:+.4f}%</span></div>
+            <div class="dict-row"><span class="dict-lbl">Funding Rate (8h):</span><span id="d-funding" class="dict-val">{funding_rate/100:+.4f}%</span></div>
             <div class="dict-row"><span class="dict-lbl">Futures Basis Ann.:</span><span id="d-basis" class="dict-val">{basis:+.2f}%</span></div>
             <div class="dict-row"><span class="dict-lbl">Retail Long/Short:</span><span id="d-ls-ratio" class="dict-val warn">{ls_ratio:.2f}</span></div>
           </div>
@@ -1111,7 +1184,7 @@ self.addEventListener('fetch', (e) => {
         <!-- 4. Volatility & Magnets -->
         <div class="dict-cat-card">
           <div class="dict-cat-header cat-title-4">
-            <span>4. Volatility & Magnets</span>
+            <span>4. Volatility &amp; Magnets</span>
             <span style="font-size: 9px; color: var(--text-muted);">LIQUIDITY DEPTH</span>
           </div>
           <div class="dict-rows">
@@ -1127,76 +1200,209 @@ self.addEventListener('fetch', (e) => {
 
       </div>
 
-      <!-- Action Button moved to bottom of 4. Volatility & Magnets -->
+      <!-- Action Button at bottom of 4 Categories -->
       <button class="btn-copy-prompt" onclick="copyAIPrompt()">
-        <span style="font-size: 15px;">📋</span>
-        <span id="copy-btn-text">Copy Data & Prompt for AI</span>
+        <span style="font-size: 16px;">📋</span>
+        <span id="copy-btn-text">Copy Verified Data &amp; Prompt for AI</span>
       </button>
-    </div>
+    </section>
 
-    <!-- SEPARATOR: ALGORITHMIC REFERENCE BENCHMARK -->
+    <!-- SEPARATOR: INSTITUTIONAL REFERENCE SUITE -->
     <div class="section-separator">
-      <span>Algorithmic Reference Benchmark</span>
+      <span>Institutional Reference Suite (Advanced)</span>
     </div>
 
     <!-- ======================================================== -->
-    <!-- STEP 1 • MACRO REGIME DIAGNOSIS                          -->
+    <!-- LEVEL 4: VISUAL LIQUIDATION HEATMAP (PROPORTIONAL BARS)  -->
     <!-- ======================================================== -->
-    <div class="benchmark-card highlight-cyan">
-      <div class="step-header">
-        <div class="step-tag" style="color: var(--info);">
-          <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--info);"></span>
-          <span>STEP 1 • MACRO REGIME DIAGNOSIS</span>
+    <section class="heatmap-visual-card">
+      <div class="panel-header">
+        <div class="panel-title" style="color: var(--warning);">
+          <span>🔥</span>
+          <span>Liquidation Heatmap &amp; Depth Map</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);">{score_str}</span>
-          <a href="https://aikeluargalee-tech.github.io/btc-magnet-monitor/regimes.html" class="subpage-link" target="_blank">
-            <span>Learn About 5 Regimes</span>
-            <span>&rarr;</span>
-          </a>
+        <span style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px;">
+          10x - 100x Bands
+        </span>
+      </div>
+
+      <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4;">
+        Bar width visually illustrates estimated forced-liquidation concentrations. Inside consolidation, price gravitates toward the widest cluster.
+      </div>
+
+      <!-- Proportional Bars Ladder -->
+      <div class="visual-ladder-stack">
+        <!-- 10x Shorts -->
+        <div class="v-ladder-item short">
+          <div class="v-row-meta">
+            <span style="font-weight: 700; color: var(--danger);">10x Shorts (${p_10x_short:,.0f})</span>
+            <span style="color: var(--text-muted);">+{d_10x_short:.2f}% • ~$85M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-short" style="width: {w_10x_short}%;"></div></div>
+        </div>
+
+        <!-- 25x Shorts -->
+        <div class="v-ladder-item short">
+          <div class="v-row-meta">
+            <span style="font-weight: 700; color: var(--danger);">25x Shorts (${p_25x_short:,.0f})</span>
+            <span style="color: var(--text-muted);">+{d_25x_short:.2f}% • ~$110M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-short" style="width: {w_25x_short}%;"></div></div>
+        </div>
+
+        <!-- 50-100x Shorts -->
+        <div class="v-ladder-item short">
+          <div class="v-row-meta">
+            <span style="font-weight: 700; color: var(--danger);">50-100x Shorts (${u_p:,.0f})</span>
+            <span style="color: var(--danger); font-weight: 800;">+{u_d:.2f}% • ${u_vol:.1f}M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-short" style="width: {w_50_short}%;"></div></div>
+        </div>
+
+        <!-- Zero Axis Anchor -->
+        <div class="v-ladder-item spot-zero">
+          <div class="v-row-meta">
+            <span style="font-weight: 900; color: var(--info);">● SPOT PRICE ZERO-AXIS</span>
+            <span style="font-weight: 900; font-size: 13px; color: #ffffff;">${spot_price:,.2f}</span>
+          </div>
+          <div style="font-size: 9.5px; color: var(--info);">Current Microstructure Equilibrium Anchor</div>
+        </div>
+
+        <!-- 100x Longs Dominant Core -->
+        <div class="v-ladder-item long dominant">
+          <div class="v-row-meta">
+            <span style="font-weight: 900; color: var(--primary);">🔥 100x Longs (${l_p:,.0f})</span>
+            <span style="color: var(--primary); font-weight: 900;">-{l_d:.2f}% • ${l_vol:.1f}M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-dominant" style="width: {w_100_long}%;"></div></div>
+        </div>
+
+        <!-- 25x Longs -->
+        <div class="v-ladder-item long">
+          <div class="v-row-meta">
+            <span style="font-weight: 700; color: var(--primary);">25x Longs (${p_25x_long:,.0f})</span>
+            <span style="color: var(--text-muted);">-{d_25x_long:.2f}% • ~$140M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-long" style="width: {w_25x_long}%;"></div></div>
+        </div>
+
+        <!-- 10x Longs -->
+        <div class="v-ladder-item long">
+          <div class="v-row-meta">
+            <span style="font-weight: 700; color: var(--primary);">10x Longs (${p_10x_long:,.0f})</span>
+            <span style="color: var(--text-muted);">-{d_10x_long:.2f}% • ~$95M</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill-long" style="width: {w_10x_long}%;"></div></div>
         </div>
       </div>
 
-      <!-- Active Regime Hero Banner -->
-      <div class="regime-hero-banner">
-        <div class="regime-pill-badge" style="background: rgba(0, 229, 255, 0.15); color: var(--info); border: 1px solid rgba(0, 229, 255, 0.35);">
-          <span>{regime_icon}</span>
-          <span id="regime-name">{regime_name}</span>
+      <!-- Skew Summary Chips -->
+      <div class="skew-chips-row">
+        <div class="skew-chip">
+          <span style="color: var(--text-muted); font-size: 9px; text-transform: uppercase; font-weight: 800; display: block;">Immediate Skew (100x)</span>
+          <span style="font-size: 14px; font-weight: 900; color: var(--warning); font-family: var(--font-mono);">{imm_ratio:.1f}x Skew</span>
+          <span style="font-size: 9.5px; color: var(--text-muted); display: block;">Lower: ${l_vol:.1f}M vs Upper: ${u_vol:.1f}M</span>
         </div>
-        <div class="regime-diag-title" id="regime-diag">
-          {diagnosis}
-        </div>
-        <div class="regime-tagline">
-          {regime_tagline}
+        <div class="skew-chip">
+          <span style="color: var(--text-muted); font-size: 9px; text-transform: uppercase; font-weight: 800; display: block;">Total Ladder Skew</span>
+          <span style="font-size: 14px; font-weight: 900; color: var(--primary); font-family: var(--font-mono);">{tot_ratio:.2f}x Downside</span>
+          <span style="font-size: 9.5px; color: var(--text-muted); display: block;">Total Lower (~${tot_l_vol:.0f}M) dominates</span>
         </div>
       </div>
 
-      <!-- Methodology Box -->
-      <div class="methodology-box">
-        <div style="font-weight: 800; color: #ffffff; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <span>🧠</span>
-          <span>How the Regime Engine Works:</span>
-        </div>
-        Bitcoin is always classified into one of <strong>5 distinct market regimes</strong> (Spot-Led Expansion, Leveraged Upside, Range / Liquidation Magnet, Cascade, or Distribution; defaulting to Transition/Mixed). A regime is confirmed strictly when a <strong>majority (&ge;3 of 4)</strong> on-exchange positioning observations are verified without subjective guesswork.
-      </div>
-
-      <!-- How We Derived This State (Evidence Checklist) -->
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
-            How We Derived This State (Verified On-Exchange Evidence):
+      <!-- Reconciled LSCE Status Box -->
+      <div style="background: {lsce_badge_bg}; border: 1px solid {lsce_badge_border}; border-radius: 10px; padding: 11px;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+          <span style="font-size: 14px;">{lsce_badge_icon}</span>
+          <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
+            Liquidation Sweep Confirmation Engine (LSCE)
           </span>
-          <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--primary);">{score_str}</span>
         </div>
-        <div class="evidence-checklist">
-          {evidence_items_html}
+        <div style="font-size: 12px; font-weight: 900; color: {lsce_badge_color}; margin-bottom: 4px;">
+          {lsce_badge_title}
+        </div>
+        <div style="font-size: 11px; color: var(--text-main); line-height: 1.35; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 6px;">
+          {lsce_detail}
+        </div>
+      </div>
+    </section>
+
+    <!-- SIX-FACTOR DECISION HIERARCHY -->
+    <section class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🧠</span>
+          <span>Magnet Decision Analysis</span>
+        </div>
+        <span style="font-size: 9.5px; color: var(--text-muted);">Pool Size &gt; CVD &gt; Crowding &gt; ATR</span>
+      </div>
+
+      <div class="factors-grid">
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">1. Cluster Magnitude:</strong>{f1}</div>
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">2. Spot vs. Perp CVD:</strong>{f2}</div>
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">3. Crowding Fuel:</strong>{f3}</div>
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">4. Macro Structure:</strong>{f4}</div>
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">5. Distance Asymmetry:</strong>{f5}</div>
+        <div class="factor-item"><strong style="color: var(--text-muted); font-size: 10px; display: block;">6. Volatility Regime (ATR):</strong>{f6}</div>
+      </div>
+
+      <div style="background: rgba(255, 184, 0, 0.08); border: 1px solid rgba(255, 184, 0, 0.3); border-radius: 8px; padding: 9px 11px; font-size: 11px;">
+        <span style="color: var(--warning); font-weight: 800; text-transform: uppercase;">Dominant Gravitational Bias:</span>
+        <div style="color: #ffffff; font-weight: 700; margin-top: 2px;">{dom_reason}</div>
+      </div>
+    </section>
+
+    <!-- MICROSTRUCTURE GAUGES & 5-REGIME MATRIX -->
+    <section class="card-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⚡</span>
+          <span>Microstructure Telemetry Gauges</span>
+        </div>
+      </div>
+
+      <div class="gauges-grid">
+        <div class="gauge-card">
+          <div class="gauge-lbl">Spot CVD Ratio</div>
+          <div class="gauge-val" id="g-cvd">{spot_cvd_ratio:.2f}</div>
+          <div class="gauge-sub">Taker Buy/Sell</div>
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-lbl">Perp CVD Flow</div>
+          <div class="gauge-val" id="g-perp" style="text-transform: capitalize;">{perp_trend}</div>
+          <div class="gauge-sub">Futures Trend</div>
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-lbl">Open Interest</div>
+          <div class="gauge-val" id="g-oi-chg">{oi_24h:+.2f}%</div>
+          <div class="gauge-sub" id="g-oi">{oi:,.0f} BTC</div>
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-lbl">Funding Rate (8h)</div>
+          <div class="gauge-val" id="g-funding">{funding_rate/100:+.4f}%</div>
+          <div class="gauge-sub">{funding_rate_ann:.1f}% Ann.</div>
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-lbl">Futures Basis</div>
+          <div class="gauge-val" id="g-basis">{basis:.1f}%</div>
+          <div class="gauge-sub">Annualized Spread</div>
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-lbl">Retail Long/Short</div>
+          <div class="gauge-val" id="g-ls" style="color: var(--warning);">{ls_ratio:.2f}</div>
+          <div class="gauge-sub">Account Ratio</div>
         </div>
       </div>
 
       <!-- 5-Regime Radar Framework Matrix -->
-      <div>
-        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
-          5-Regime Radar Framework Matrix
+      <div style="margin-top: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
+            5-Regime Framework Matrix
+          </span>
+          <a href="https://aikeluargalee-tech.github.io/btc-magnet-monitor/regimes.html" target="_blank" style="font-size: 10px; color: var(--info); text-decoration: none; font-weight: 700;">
+            Math Guide &rarr;
+          </a>
         </div>
         <div class="matrix-grid">
           <div class="matrix-item {'active' if regime_id == 'SPOT_LED_EXPANSION' else ''}">1. Spot Expansion</div>
@@ -1206,363 +1412,20 @@ self.addEventListener('fetch', (e) => {
           <div class="matrix-item {'active' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else ''}">5. Distribution</div>
         </div>
       </div>
+    </section>
+
+  </div>
+
+  <!-- STICKY BOTTOM QUICK-AUDIT BAR -->
+  <div class="sticky-audit-bar">
+    <div class="sticky-ticker">
+      <span class="sticky-px" id="sticky-spot-px">${spot_price:,.0f}</span>
+      <span class="sticky-state" id="sticky-state-lbl">{'REMAIN USDT (0.0x)' if sizing == 0 else f'ROTATE BTC ({sizing:.2f}x)'}</span>
     </div>
-
-    <!-- ======================================================== -->
-    <!-- STEP 2 • ACTIONABLE PORTFOLIO ROTATION                   -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div class="step-header">
-        <div class="step-tag" style="color: var(--primary);">
-          <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--primary);"></span>
-          <span>STEP 2 • ACTIONABLE PORTFOLIO ROTATION</span>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size: 15px; font-weight: 900; color: #ffffff; line-height: 1.25;">
-          Spot Execution Directives &amp; Inviolable Risk Controls
-        </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-          Spot-only capital rotation. Strictly zero borrowed leverage, zero futures gambling, zero shorting.
-        </div>
-      </div>
-
-      <!-- Action Hero Callout Box -->
-      <div class="rotation-hero-box">
-        <div style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">
-          Recommended Rotation
-        </div>
-        <div class="rotation-value-row">
-          <div class="rotation-target" id="rotation-val">{rotation}</div>
-          <div class="action-badge" style="{action_badge_style}" id="action-pill-val">
-            {action_pill} • Sizing: {sizing:.2f}x
-          </div>
-        </div>
-      </div>
-
-      <!-- 3 Protocol Boxes -->
-      <div class="protocols-stack">
-        <!-- Playbook Protocol -->
-        <div class="protocol-box">
-          <div class="proto-lbl">Playbook Protocol</div>
-          <div class="proto-val">{playbook}</div>
-          <div class="proto-sub">{entry_inst}</div>
-        </div>
-
-        <!-- Dual Inviolable Stop-Loss -->
-        <div class="protocol-box">
-          <div class="proto-lbl">
-            <span>Dual Inviolable Stop-Loss</span>
-            <span style="color: var(--danger); font-family: var(--font-mono);">Hard Risk Bound</span>
-          </div>
-          <div class="proto-val" style="color: var(--danger); font-family: var(--font-mono);">
-            ${disaster_stop:,.2f} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">({disaster_dist:.2f}% Disaster Hard Stop)</span>
-          </div>
-          <div style="font-size: 11px; font-family: var(--font-mono); color: var(--warning); margin: 2px 0;">
-            Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
-          </div>
-          <div class="proto-sub">{stop_rule}</div>
-        </div>
-
-        <!-- Risk Management -->
-        <div class="protocol-box">
-          <div class="proto-lbl">Risk Management</div>
-          <div class="proto-val" style="color: {'var(--primary)' if risk_budget_ok else 'var(--warning)'}; font-size: 12.5px;">
-            {"✓ Approved (Within 1% Risk Budget)" if risk_budget_ok else "Hold Cash / Reduced Exposure"}
-          </div>
-          <div class="proto-sub">{actionable_trade_instruction}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- BOTTOM LINE VERDICT • PLAIN ENGLISH                      -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase;">
-        <span>Bottom Line Verdict • Plain English</span>
-        <span style="color: var(--text-muted); font-weight: normal;">(No Jargon Required)</span>
-      </div>
-
-      <div style="font-size: 14.5px; font-weight: 900; color: #ffffff;">
-        Why This Recommendation?
-      </div>
-
-      <div class="plain-verdict-box">
-        <span style="font-size: 14px; margin-right: 4px;">💡</span>
-        <span>{plain_verdict}</span>
-      </div>
-
-      <!-- 3 Key Factors -->
-      <div>
-        <div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">
-          The 3 Key Market Factors Driving This Call
-        </div>
-        {why_points_html}
-      </div>
-
-      <!-- Safeguard Cards -->
-      <div class="protocols-stack" style="margin-top: 4px;">
-        <div class="protocol-box">
-          <div class="proto-lbl" style="color: var(--info);">Why This Exact Sizing?</div>
-          <div class="proto-sub" style="color: var(--text-main);">{why_sizing}</div>
-        </div>
-        <div class="protocol-box">
-          <div class="proto-lbl" style="color: var(--danger);">Where Is Your Safety Net?</div>
-          <div class="proto-sub" style="color: var(--text-main);">{why_stop}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- LIQUIDATION MAGNETS & KEY PRICE POOLS                    -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 900; color: #ffffff;">
-            <span>Liquidation Magnets &amp; Key Price Pools</span>
-          </div>
-          <div style="font-size: 10px; color: var(--info); font-weight: 700; margin-top: 2px;">
-            🎯 Primary Active Playbook
-          </div>
-        </div>
-      </div>
-      <div style="font-size: 10.5px; color: var(--text-muted);">
-        Modeled liquidation concentration zones derived from 10x, 25x, 50x, and 100x leverage bands
-      </div>
-
-      <!-- Dominant Magnet Pill -->
-      <div style="background: rgba(255, 184, 0, 0.1); border: 1px solid rgba(255, 184, 0, 0.35); padding: 8px 10px; border-radius: 8px; font-size: 11px;">
-        <span style="color: var(--text-muted);">Dominant Magnet:</span>
-        <strong style="color: #ffffff; margin-left: 4px;">{dom_reason}</strong>
-      </div>
-
-      <!-- LSCE Execution State Banner -->
-      <div style="background: {lsce_badge_bg}; border: 1px solid {lsce_badge_border}; border-radius: 10px; padding: 11px;">
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-          <span style="font-size: 14px;">{lsce_badge_icon}</span>
-          <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
-            Liquidation Sweep Confirmation Engine (LSCE)
-          </span>
-        </div>
-        <div style="font-size: 12.5px; font-weight: 900; color: {lsce_badge_color}; margin-bottom: 4px;">
-          {lsce_badge_title}
-        </div>
-        <div style="font-size: 11px; color: var(--text-main); line-height: 1.35; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 6px;">
-          {lsce_detail}
-        </div>
-      </div>
-
-      <!-- Dual Pools Comparison -->
-      <div class="pools-dual-grid">
-        <!-- Upper Short Pool -->
-        <div class="pool-card upper">
-          <div class="pool-title" style="color: var(--danger);">Upper Short Pool</div>
-          <div class="pool-dist" style="color: var(--danger);">+{u_d:.2f}% (+{u_atr:.2f} ATR)</div>
-          <div class="pool-px">${u_p:,.0f}</div>
-          <div class="pool-vol">Est. Pool: <strong style="color: #ffffff;">${u_vol:.1f}M</strong></div>
-        </div>
-
-        <!-- Lower Long Pool -->
-        <div class="pool-card lower">
-          <div class="pool-title" style="color: var(--primary);">Lower Long Pool</div>
-          <div class="pool-dist" style="color: var(--primary);">-{l_d:.2f}% (-{l_atr:.2f} ATR)</div>
-          <div class="pool-px">${l_p:,.0f}</div>
-          <div class="pool-vol">Est. Pool: <strong style="color: #ffffff;">${l_vol:.1f}M</strong></div>
-        </div>
-      </div>
-
-      <!-- Heatmap Ladder -->
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <div style="font-size: 11px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 4px;">
-            <span>🔥</span>
-            <span>Liquidation Heatmap &amp; Leverage Depth Map</span>
-          </div>
-          <span style="font-size: 9px; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px;">
-            10x - 100x Bands
-          </span>
-        </div>
-
-        <div class="ladder-stack">
-          <!-- 10x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">10x Shorts</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_10x_short:,.0f}</span>
-            <span style="color: var(--text-muted);">+{d_10x_short:.2f}% • ~$85M</span>
-          </div>
-
-          <!-- 25x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">25x Shorts</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_25x_short:,.0f}</span>
-            <span style="color: var(--text-muted);">+{d_25x_short:.2f}% • ~$110M</span>
-          </div>
-
-          <!-- 50-100x Shorts -->
-          <div class="ladder-row short">
-            <span style="font-weight: 700; color: var(--danger);">50-100x Shorts</span>
-            <span style="font-weight: 800; color: var(--danger);">${u_p:,.0f}</span>
-            <span style="color: var(--danger); font-weight: 700;">+{u_d:.2f}% • ${u_vol:.1f}M</span>
-          </div>
-
-          <!-- Zero Axis Spot Price -->
-          <div class="ladder-row spot-anchor">
-            <span style="font-weight: 900; color: var(--info);">● SPOT PRICE ZERO-AXIS</span>
-            <span style="font-weight: 900; font-size: 13px; color: #ffffff;">${spot_price:,.2f}</span>
-            <span style="font-size: 9px; color: var(--info);">Microstructure Anchor</span>
-          </div>
-
-          <!-- 100x Longs (Dominant Core) -->
-          <div class="ladder-row long dominant-core">
-            <span style="font-weight: 900; color: var(--primary);">🔥 100x Longs</span>
-            <span style="font-weight: 900; color: var(--primary);">${l_p:,.0f}</span>
-            <span style="color: var(--primary); font-weight: 800;">-{l_d:.2f}% • ${l_vol:.1f}M</span>
-          </div>
-
-          <!-- 25x Longs -->
-          <div class="ladder-row long">
-            <span style="font-weight: 700; color: var(--primary);">25x Longs</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_25x_long:,.0f}</span>
-            <span style="color: var(--text-muted);">-{d_25x_long:.2f}% • ~$140M</span>
-          </div>
-
-          <!-- 10x Longs -->
-          <div class="ladder-row long">
-            <span style="font-weight: 700; color: var(--primary);">10x Longs</span>
-            <span style="font-weight: 800; color: #ffffff;">${p_10x_long:,.0f}</span>
-            <span style="color: var(--text-muted);">-{d_10x_long:.2f}% • ~$95M</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Imbalance Dual Boxes -->
-      <div class="imbalance-grid">
-        <div class="imbalance-box">
-          <div class="imbalance-title">Immediate Nearest Tier Imbalance (100x vs 50-100x)</div>
-          <div class="imbalance-val" style="color: var(--warning);">{imm_ratio:.1f}x Skew</div>
-          <div style="font-size: 10px; color: var(--text-muted);">
-            Comparing single nearest bands: Lower Longs (${l_vol:.1f}M) vs Upper Shorts (${u_vol:.1f}M).
-          </div>
-        </div>
-
-        <div class="imbalance-box">
-          <div class="imbalance-title">Total Leverage Ladder Imbalance (10x - 100x Spectrum)</div>
-          <div class="imbalance-val" style="color: var(--primary);">{tot_ratio:.2f}x Downside Skew</div>
-          <div style="font-size: 10px; color: var(--text-muted);">
-            Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Institutional reality across all tiers.
-          </div>
-        </div>
-      </div>
-
-      <!-- How Heatmap Works Callout -->
-      <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px;">
-        <strong style="color: #ffffff;">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a Range, price gravitates toward the heaviest cluster.<br>
-        <strong style="color: var(--primary); margin-top: 4px; display: inline-block;">Dominant Gravitational Pull: {dom_magnet}</strong>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- MAGNET DECISION ANALYSIS (SIX-FACTOR EVALUATION)         -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div>
-        <div style="font-size: 13px; font-weight: 900; color: #ffffff;">
-          Magnet Decision Analysis (Six-Factor Evaluation)
-        </div>
-        <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 2px;">
-          Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; ATR
-        </div>
-      </div>
-
-      <div class="factors-grid">
-        <div class="factor-item">
-          <span class="factor-title">1. Cluster Size / Magnitude:</span>
-          <span>{f1}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">2. Spot vs. Derivatives Leadership:</span>
-          <span>{f2}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">3. Crowding &amp; Market Fuel:</span>
-          <span>{f3}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">4. Higher-Timeframe Market Structure:</span>
-          <span>{f4}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">5. Distance Asymmetry:</span>
-          <span>{f5}</span>
-        </div>
-        <div class="factor-item">
-          <span class="factor-title">6. Volatility Regime (ATR):</span>
-          <span>{f6}</span>
-        </div>
-      </div>
-
-      <div style="background: rgba(255, 184, 0, 0.08); border: 1px solid rgba(255, 184, 0, 0.3); border-radius: 8px; padding: 9px 11px; font-size: 11px;">
-        <span style="color: var(--warning); font-weight: 800; text-transform: uppercase;">Decisive Conclusion:</span>
-        <div style="color: #ffffff; font-weight: 700; margin-top: 2px;">{dom_reason}</div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- MARKET TELEMETRY & MICROSTRUCTURE GAUGES                 -->
-    <!-- ======================================================== -->
-    <div class="benchmark-card">
-      <div style="font-size: 13px; font-weight: 900; color: #ffffff;">
-        Market Telemetry &amp; Microstructure Gauges
-      </div>
-
-      <div class="gauges-grid">
-        <!-- Spot CVD Ratio -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Spot CVD Ratio</div>
-          <div class="gauge-val" id="g-cvd">{spot_cvd_ratio:.2f}</div>
-          <div class="gauge-sub">Taker Buy/Sell</div>
-        </div>
-
-        <!-- Perp CVD Flow -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Perp CVD Flow</div>
-          <div class="gauge-val" id="g-perp" style="text-transform: capitalize;">{perp_trend}</div>
-          <div class="gauge-sub">Futures Trend</div>
-        </div>
-
-        <!-- Open Interest -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Open Interest (24h)</div>
-          <div class="gauge-val" id="g-oi-chg">{oi_24h:+.2f}%</div>
-          <div class="gauge-sub" id="g-oi">{oi:,.0f} BTC</div>
-        </div>
-
-        <!-- Funding Rate -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Funding Rate</div>
-          <div class="gauge-val" id="g-funding">{funding_rate/100:+.3f}%</div>
-          <div class="gauge-sub">{funding_rate_ann:.1f}% Ann.</div>
-        </div>
-
-        <!-- Futures Basis -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Futures Basis</div>
-          <div class="gauge-val" id="g-basis">{basis:.1f}%</div>
-          <div class="gauge-sub">Annualized Spread</div>
-        </div>
-
-        <!-- Retail Long/Short -->
-        <div class="gauge-card">
-          <div class="gauge-lbl">Retail Long/Short</div>
-          <div class="gauge-val" id="g-ls" style="color: var(--warning);">{ls_ratio:.2f}</div>
-          <div class="gauge-sub">Account Ratio</div>
-        </div>
-      </div>
-    </div>
-
+    <button class="sticky-btn" onclick="copyAIPrompt()">
+      <span>📋</span>
+      <span id="sticky-btn-text">Copy AI Audit Prompt</span>
+    </button>
   </div>
 
   <!-- TOAST NOTIFICATION -->
@@ -1599,13 +1462,18 @@ self.addEventListener('fetch', (e) => {
     // COPY AI PROMPT
     async function copyAIPrompt() {{
       const btnText = document.getElementById('copy-btn-text');
-      const originalText = btnText ? btnText.textContent : 'Copy Data & Prompt for AI';
+      const stickyBtn = document.getElementById('sticky-btn-text');
+      const originalText = btnText ? btnText.textContent : 'Copy Verified Data & Prompt for AI';
       try {{
         await navigator.clipboard.writeText(currentAIPrompt);
         if (navigator.vibrate) navigator.vibrate(50);
-        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
+        if (btnText) btnText.textContent = '✓ Verified Data & Prompt Copied!';
+        if (stickyBtn) stickyBtn.textContent = '✓ Copied!';
         showToast("📋 AI Prompt copied! Paste into Claude / ChatGPT / Grok");
-        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
+        setTimeout(() => {{
+          if (btnText) btnText.textContent = originalText;
+          if (stickyBtn) stickyBtn.textContent = 'Copy AI Audit Prompt';
+        }}, 2500);
       }} catch (err) {{
         const ta = document.createElement('textarea');
         ta.value = currentAIPrompt;
@@ -1613,9 +1481,13 @@ self.addEventListener('fetch', (e) => {
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
+        if (btnText) btnText.textContent = '✓ Verified Data & Prompt Copied!';
+        if (stickyBtn) stickyBtn.textContent = '✓ Copied!';
         showToast("📋 AI Prompt copied to clipboard!");
-        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
+        setTimeout(() => {{
+          if (btnText) btnText.textContent = originalText;
+          if (stickyBtn) stickyBtn.textContent = 'Copy AI Audit Prompt';
+        }}, 2500);
       }}
     }}
 
@@ -1627,38 +1499,62 @@ self.addEventListener('fetch', (e) => {
       setTimeout(() => {{ t.classList.remove('active'); }}, 3000);
     }}
 
-    // LIVE POLLING (every 45s)
+    // DATA FRESHNESS SENTINEL
+    function updateFreshness() {{
+      const now = new Date();
+      const sec = Math.max(0, Math.round((now - lastSnapshotTime) / 1000));
+      const el = document.getElementById('data-age-tag');
+      if (el) {{
+        el.textContent = (sec < 60 ? (sec + 's ago') : (Math.floor(sec / 60) + 'm ago'));
+      }}
+    }}
+    setInterval(updateFreshness, 5000);
+    updateFreshness();
+
+    // LIVE REST API POLLING (every 45s)
     async function pollLiveFeed() {{
       try {{
         const url = './regime.json?t=' + Date.now();
         const res = await fetch(url, {{ cache: 'no-store' }});
         if (!res.ok) return;
         const data = await res.json();
+        if (data.timestamp) lastSnapshotTime = new Date(data.timestamp);
+        updateFreshness();
 
         const m = data.metrics || {{}};
         const r = data.regime || {{}};
 
-        if (m.price) document.getElementById('d-spot-px').textContent = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        if (m.daily_vwap) document.getElementById('d-vwap').textContent = '$' + Number(m.daily_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        if (m.weekly_vwap) document.getElementById('d-w-vwap').textContent = '$' + Number(m.weekly_vwap).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        if (m.ema_20d) document.getElementById('d-ema20').textContent = '$' + Number(m.ema_20d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        if (m.ema_50d) document.getElementById('d-ema50').textContent = '$' + Number(m.ema_50d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        if (m.ma_200d) document.getElementById('d-sma200').textContent = '$' + Number(m.ma_200d).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
-        
+        if (m.price) {{
+          const pStr = '$' + Number(m.price).toLocaleString('en-US', {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+          if (document.getElementById('d-spot-px')) document.getElementById('d-spot-px').textContent = pStr;
+          if (document.getElementById('d-spot-px-2')) document.getElementById('d-spot-px-2').textContent = pStr;
+          if (document.getElementById('sticky-spot-px')) document.getElementById('sticky-spot-px').textContent = '$' + Number(m.price).toLocaleString('en-US', {{maximumFractionDigits: 0}});
+        }}
+        if (m.daily_vwap && m.price) {{
+          const delta = ((m.price - m.daily_vwap) / m.daily_vwap) * 100;
+          const el = document.getElementById('d-vwap-delta');
+          if (el) {{
+            el.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2) + '%';
+            el.style.color = delta >= 0 ? 'var(--primary)' : 'var(--danger)';
+          }}
+        }}
         if (m.spot_cvd_ratio !== undefined) {{
-          document.getElementById('d-cvd-ratio').textContent = Number(m.spot_cvd_ratio).toFixed(2);
+          if (document.getElementById('d-cvd-ratio')) document.getElementById('d-cvd-ratio').textContent = Number(m.spot_cvd_ratio).toFixed(2);
           if (document.getElementById('g-cvd')) document.getElementById('g-cvd').textContent = Number(m.spot_cvd_ratio).toFixed(2);
         }}
         if (m.funding_rate !== undefined) {{
-          document.getElementById('d-funding').textContent = (m.funding_rate * 100 >= 0 ? '+' : '') + (m.funding_rate * 100).toFixed(4) + '%';
+          const fStr = (m.funding_rate * 100 >= 0 ? '+' : '') + (m.funding_rate * 100).toFixed(4) + '%';
+          if (document.getElementById('d-funding')) document.getElementById('d-funding').textContent = fStr;
+          if (document.getElementById('g-funding')) document.getElementById('g-funding').textContent = fStr;
         }}
         if (m.open_interest !== undefined) {{
-          document.getElementById('d-oi').textContent = Number(m.open_interest).toLocaleString('en-US', {{maximumFractionDigits: 0}}) + ' BTC';
+          const oiStr = Number(m.open_interest).toLocaleString('en-US', {{maximumFractionDigits: 0}}) + ' BTC';
+          if (document.getElementById('d-oi')) document.getElementById('d-oi').textContent = oiStr;
+          if (document.getElementById('g-oi')) document.getElementById('g-oi').textContent = oiStr;
         }}
-        
-        if (r.name) document.getElementById('regime-name').textContent = r.name;
-        if (r.diagnosis) document.getElementById('regime-diag').textContent = r.diagnosis;
-        if (r.rotation) document.getElementById('rotation-val').textContent = r.rotation;
+        if (r.name && document.getElementById('regime-name')) {{
+          document.getElementById('regime-name').textContent = r.name;
+        }}
       }} catch (err) {{
         console.warn('Poll failed:', err);
       }}

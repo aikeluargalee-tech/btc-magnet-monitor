@@ -285,9 +285,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         structural_inval = regime.get("structural_invalidation_level", metrics.get("swing_low_4h", 0.0))
 
         if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
-            lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-            lsce_badge_icon = "✅"
-            lsce_badge_title = "SWEEP &amp; RECLAIM CONFIRMED (BUY AUTHORIZED)"
+            if sizing > 0 and "USDT -> BTC" in rotation:
+                lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                lsce_badge_icon = "✅"
+                lsce_badge_title = f"SWEEP &amp; RECLAIM CONFIRMED (BUY AUTHORIZED {sizing:.2f}x)"
+            else:
+                lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                lsce_badge_icon = "🛡️"
+                lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
         elif lsce_status == "SWEEP_IN_PROGRESS":
             lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300 animate-pulse"
             lsce_badge_icon = "⚠️"

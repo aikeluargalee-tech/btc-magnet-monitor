@@ -262,5 +262,28 @@ class TestBTCMagnetIntegrity(unittest.TestCase):
         self.assertTrue(len(result.why_sizing_reason) > 10)
         self.assertTrue(len(result.why_stop_reason) > 10)
 
+    def test_distribution_blocks_lsce_buy_authorization(self):
+        """P0 Test: When macro regime is Distribution/Cash, LSCE must NEVER claim buy authorization."""
+        dist_metrics = MarketMetrics(
+            price=74000.0, daily_vwap=76000.0, weekly_vwap=76500.0,
+            ema_20d=77000.0, ema_50d=78000.0, ma_200d=73000.0,
+            spot_vol_24h=10000.0, spot_vol_ma20=20000.0, spot_vol_ratio=0.5,
+            spot_cvd_ratio=1.10, spot_cvd_slope_7d=-2000.0, spot_cvd_slope_14d=-4000.0,
+            perp_cvd_slope_24h=-1000.0, perp_cvd_trend="declining",
+            open_interest=90000.0, oi_change_1h_pct=-0.1, oi_change_4h_pct=-0.2,
+            oi_change_24h_pct=0.5, oi_change_3d_pct=1.0,
+            funding_rate=0.015, funding_rate_annualized=16.4, futures_basis_annualized=-1.5,
+            atr=500.0, atr_compression_pct=60.0, price_change_1h_pct=-0.2, price_change_24h_pct=-2.0,
+            long_short_account_ratio=2.5, top_trader_long_short_ratio=2.5,
+            taker_buy_sell_ratio=1.10, bids_asks_depth_ratio=0.6,
+            swing_low_4h=73500.0, swing_high_4h=76000.0, base_floor=73000.0,
+            capitulation_wick_low=73750.0, data_quality="LIVE"
+        )
+        result = self.classifier.classify(dist_metrics, self.mock_clusters)
+        self.assertEqual(result.regime_id, "DISTRIBUTION_BEAR_CONTINUATION")
+        self.assertEqual(result.sizing_factor, 0.0)
+        self.assertIn("BLOCKED", result.lsce_detail)
+        self.assertNotIn("Authorized 0.75x entry", result.lsce_detail)
+
 if __name__ == "__main__":
     unittest.main()
