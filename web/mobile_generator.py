@@ -1687,7 +1687,7 @@ self.addEventListener('fetch', (e) => {
       <div class="ai-copy-helper-box">
         <span class="ai-helper-icon">💡</span>
         <div class="ai-helper-text">
-          <strong>Interactive AI Second Opinion:</strong> Users are encouraged to tap the button above to copy all live on-exchange metrics and paste them directly into their favourite AI &mdash; such as <strong>Claude, ChatGPT, Grok, DeepSeek, or Meta AI</strong> &mdash; for deep independent analysis and interactive discussion for a second verdict.
+          <strong>Interactive AI Discussion:</strong> Users are encouraged to tap the button above to copy all live on-exchange metrics and paste them directly into their favourite AI &mdash; such as <strong>Claude, ChatGPT, Grok, DeepSeek, or Meta AI</strong> &mdash; for deep independent analysis and interactive discussion for a deeper verdict.
         </div>
       </div>
     </div>
@@ -2088,12 +2088,13 @@ self.addEventListener('fetch', (e) => {
 </html>"""
 
 
-    def render_verdict_subpage(self, data: Dict[str, Any]) -> str:
+    def render_verdict_subpage(self, data: Dict[str, Any], raw_llm_prompt: str = "") -> str:
         """Renders the dedicated, plain-English, 7-card numbered subpage for the Algorithmic Verdict."""
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
         ts_iso = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+        escaped_prompt = json.dumps(raw_llm_prompt)
 
         spot_price = metrics.get("price", 74827.09)
         p_chg_24h = metrics.get("price_change_24h_pct", 0.71)
@@ -2802,8 +2803,22 @@ self.addEventListener('fetch', (e) => {
       </div>
     </div>
 
+    <!-- Action Button: Copy Data & Prompt for AI -->
+    <button class="btn-copy-prompt" onclick="copyAIPrompt()" style="margin-top: 18px; margin-bottom: 8px;">
+      <span style="font-size: 15px;">📋</span>
+      <span id="copy-btn-text">Copy Data &amp; Prompt for AI</span>
+    </button>
+
+    <!-- USER GUIDANCE NOTE: EXTERNAL AI PROMPT INVITATION -->
+    <div class="ai-copy-helper-box" style="margin-bottom: 20px;">
+      <span class="ai-helper-icon">💡</span>
+      <div class="ai-helper-text">
+        <strong>Interactive AI Discussion:</strong> Users are encouraged to tap the button above to copy all live on-exchange metrics and paste them directly into their favourite AI &mdash; such as <strong>Claude, ChatGPT, Grok, DeepSeek, or Meta AI</strong> &mdash; for deep independent analysis and interactive discussion for a deeper verdict.
+      </div>
+    </div>
+
     <!-- RETURN FOOTER BUTTON -->
-    <div style="text-align: center; padding: 16px 0 30px 0;">
+    <div style="text-align: center; padding: 6px 0 30px 0;">
       <a href="./app.html" class="btn-return-cockpit">
         <span>&larr;</span>
         <span>Return to Live Cockpit</span>
@@ -2813,6 +2828,39 @@ self.addEventListener('fetch', (e) => {
   </div>
 
   <script>
+    let currentAIPrompt = {escaped_prompt};
+
+    async function copyAIPrompt() {{
+      const btnText = document.getElementById('copy-btn-text');
+      const originalText = btnText ? btnText.textContent : 'Copy Data & Prompt for AI';
+      try {{
+        await navigator.clipboard.writeText(currentAIPrompt);
+        if (navigator.vibrate) navigator.vibrate(50);
+        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
+        showToast("📋 AI Prompt copied! Paste into Claude / ChatGPT / Grok");
+        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
+      }} catch (err) {{
+        const ta = document.createElement('textarea');
+        ta.value = currentAIPrompt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (btnText) btnText.textContent = '✓ Data & Prompt Copied!';
+        showToast("📋 AI Prompt copied to clipboard!");
+        setTimeout(() => {{ if (btnText) btnText.textContent = originalText; }}, 2500);
+      }}
+    }}
+
+    function showToast(msg) {{
+      const t = document.getElementById('toast');
+      const m = document.getElementById('toast-msg');
+      if (!t || !m) return;
+      m.textContent = msg;
+      t.classList.add('active');
+      setTimeout(() => {{ t.classList.remove('active'); }}, 3000);
+    }}
+
     const themes = ['theme-nvg', 'theme-ibm', 'theme-slate'];
     const themeLabels = {{ 'theme-nvg': 'NVG', 'theme-ibm': 'IBM', 'theme-slate': 'SLATE' }};
     let currentThemeIdx = 0;

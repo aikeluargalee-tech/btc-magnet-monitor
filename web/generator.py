@@ -44,7 +44,7 @@ class WebGenerator:
                 f.write(mob_html)
 
             # 5. Render dedicated Full Analytical Details & Verdict Subpage (verdict.html)
-            verdict_html = mob_gen.render_verdict_subpage(payload)
+            verdict_html = mob_gen.render_verdict_subpage(payload, raw_llm_prompt=raw_prompt)
             verdict_path = os.path.join(self.output_dir, "verdict.html")
             with open(verdict_path, "w", encoding="utf-8") as f:
                 f.write(verdict_html)
