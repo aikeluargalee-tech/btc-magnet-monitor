@@ -2322,19 +2322,32 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       line-height: 1.4;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    .panel-box {
+      background: #0d0e12;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 12px 12px 8px 12px;
+      margin-bottom: 14px;
+    }
+    .panel-box-hero {
+      background: linear-gradient(180deg, #0d1615 0%, #090a0d 100%);
+      border: 1.5px solid #059669;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+    }
+    .panel-box-hero .panel-hdr {
+      color: #34d399;
+      border-bottom-color: rgba(5, 150, 105, 0.35);
+    }
     .panel-hdr {
       font-size: 12px;
       font-weight: 900;
       color: #38bdf8;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-top: 20px;
-      margin-bottom: 6px;
-      padding-bottom: 4px;
-      border-bottom: 1.5px solid #27272a;
-    }
-    .panel-hdr:first-of-type {
       margin-top: 0;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid #27272a;
     }
     pre.ascii {
       font-family: inherit;
@@ -2345,7 +2358,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       word-break: break-all !important;
       overflow-wrap: break-word !important;
       color: #d4d4d8;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
     }
     .c-gold   { color: #fde047; font-weight: bold; }
     .c-cyan   { color: #38bdf8; font-weight: bold; }
@@ -2450,7 +2463,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- ============================================================ -->
     <!-- PANEL 1: REAL-TIME BTC SPOT PRICE (LIVE)                     -->
     <!-- ============================================================ -->
-    <div id="panel-1">
+    <div id="panel-1" class="panel-box panel-box-hero">
       <div class="panel-hdr">Panel 1 &bull; Real-Time BTC Spot Price (Live)</div>
       <pre class="ascii"><span class="c-gold" style="font-size: 19px; display: block; padding: 2px 0;" id="live-btc-price">$__PRICE__</span>
 <span class="c-drift" id="live-price-drift">__CHANGE_24H__% (24h)
@@ -2480,7 +2493,7 @@ Expansion &amp; Sweep Fuel</span></pre>
     <!-- ============================================================ -->
     <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
     <!-- ============================================================ -->
-    <div id="panel-2">
+    <div id="panel-2" class="panel-box">
       <div class="panel-hdr">Panel 2 &bull; On-Exchange Telemetry (4 Microstructure Feeds)</div>
       <pre class="ascii"><span class="c-cyan">25+ Verified Metrics</span>
 Real-Time Market Microstructure Feeds
@@ -2528,7 +2541,7 @@ Lower Pool Volume:  <span class="c-rose">$__LOWER_V__M</span></pre>
     <!-- ============================================================ -->
     <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
     <!-- ============================================================ -->
-    <div id="panel-3">
+    <div id="panel-3" class="panel-box">
       <div class="panel-hdr">Panel 3 &bull; Macro Market Regime Diagnosis</div>
       <pre class="ascii"><span class="c-green">✓ __RULE_SCORE__</span>
 What market environment is Bitcoin
@@ -2564,7 +2577,7 @@ __MATCHED_CRITERIA_ASCII__
     <!-- ============================================================ -->
     <!-- HOW TO GET YOUR TRADING VERDICT: TWO INDEPENDENT METHODS     -->
     <!-- ============================================================ -->
-    <div style="margin-top: 24px; padding: 8px 0; border-top: 1px dashed #27272a; border-bottom: 1px dashed #27272a;">
+    <div style="margin: 16px 0 14px 0; padding: 10px 12px; border: 1px dashed #27272a; border-radius: 8px; background: rgba(39, 39, 42, 0.15);">
       <div style="font-size: 11.5px; font-weight: 800; color: #f4f4f5; text-align: center;">
         ⚖️ How to Get Your Trading Verdict:
         Two Independent Methods
@@ -2578,7 +2591,7 @@ __MATCHED_CRITERIA_ASCII__
     <!-- ============================================================ -->
     <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
     <!-- ============================================================ -->
-    <div id="method-1" style="margin-top: 16px;">
+    <div id="method-1" class="panel-box">
       <div class="panel-hdr">Method 1 &bull; Verdict by Copy Data &amp; Prompt to AI</div>
       <pre class="ascii">Analyze Live Telemetry with Your Own AI
 Click below to copy the verified live
@@ -2615,7 +2628,7 @@ regime vote, liquidity path, and stop check.
     <!-- ============================================================ -->
     <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW)                  -->
     <!-- ============================================================ -->
-    <div id="method-2" style="margin-top: 20px;">
+    <div id="method-2" class="panel-box">
       <div class="panel-hdr">Method 2 &bull; Our System Verdict (Full-On View)</div>
       <pre class="ascii">Dominant Magnet:
 <span class="c-rose">__DOM_REASON__</span>
