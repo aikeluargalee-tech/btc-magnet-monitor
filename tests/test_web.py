@@ -60,6 +60,16 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertIn("res.ok && res.status === 200", sw)
         self.assertIn("pwa-v6", sw)
 
+    def test_text_terminal_page_generated_and_clean(self):
+        text_path = os.path.join(self.tmp, "text.html")
+        self.assertTrue(os.path.exists(text_path), "text.html was not generated")
+        with open(text_path, "r", encoding="utf-8") as fh:
+            text_html = fh.read()
+        for token in ("#sticky-header", "copyPrompt", "PROMPT_TEXT", "sec-action", "sec-magnets", "sec-telemetry"):
+            self.assertIn(token, text_html)
+        self.assertNotIn("cdn.tailwindcss.com", text_html)
+        self.assertNotIn("fonts.googleapis.com", text_html)
+
 
 class TestOfflineBundler(unittest.TestCase):
     def test_bundler_removes_every_cdn_reference(self):

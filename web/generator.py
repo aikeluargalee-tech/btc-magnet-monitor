@@ -39,6 +39,12 @@ class WebGenerator:
         with open(privacy_path, "w", encoding="utf-8") as f:
             f.write(privacy_content)
 
+        # 3c. Render Mobile Text-Only Terminal (text.html)
+        text_content = self._render_text_page(payload)
+        text_path = os.path.join(self.output_dir, "text.html")
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(text_content)
+
         # 4. Render Mobile Cockpit App (app.html) with 100% exact format parity with index.html
         app_path = os.path.join(self.output_dir, "app.html")
         with open(app_path, "w", encoding="utf-8") as f:
@@ -420,7 +426,10 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">"""
 
-        top_switch_button = """<a href="regimes.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
+        top_switch_button = """<a href="text.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-xs font-semibold text-emerald-400 border border-emerald-700/80 transition-colors">
+          <span>📱 Text Terminal</span>
+        </a>
+        <a href="regimes.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
           <span>5 Regimes Guide &rarr;</span>
         </a>
         <a href="regime.json" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition-colors">
@@ -1297,6 +1306,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <div class="flex items-center justify-center gap-3">
       <span class="text-white font-bold">BTC Magnet Monitor</span>
       <span>&bull;</span>
+      <a href="text.html" class="text-emerald-400 hover:underline font-semibold">📱 Text Terminal</a>
+      <span>&bull;</span>
       <a href="regimes.html" class="text-cyan-400 hover:underline">5 Regimes Guide</a>
       <span>&bull;</span>
       <a href="regime.json" target="_blank" class="text-cyan-400 hover:underline">Public JSON API</a>
@@ -2161,3 +2172,846 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
 
 
+
+
+    def _render_text_page(self, data: Dict[str, Any]) -> str:
+        """Renders an ultra-fast, zero-bloat Mobile Text/Data Terminal (text.html).
+        Strict 34-column text formatting, collapsible native <details> accordions,
+        sticky live price & 1-tap Copy AI Prompt button. Zero horizontal overflow.
+        """
+        import json as _json
+        import textwrap as _tw
+        regime = data.get("regime", {})
+        metrics = data.get("metrics", {})
+        risk = data.get("risk", {})
+        ts_iso = data.get("timestamp", "")
+        raw_prompt = self._build_llm_prompt(data)
+
+        def wrap32(s: str) -> str:
+            return "\n".join(_tw.wrap(s, width=32))
+
+        price = float(metrics.get("price", 0.0))
+        d_vwap = float(metrics.get("daily_vwap", 0.0))
+        w_vwap = float(metrics.get("weekly_vwap", 0.0))
+        e_20 = float(metrics.get("ema_20d", 0.0))
+        e_50 = float(metrics.get("ema_50d", 0.0))
+        m_200 = float(metrics.get("ma_200d", 0.0))
+        sw_h = float(metrics.get("swing_high_4h", 0.0))
+        sw_l = float(metrics.get("swing_low_4h", 0.0))
+        floor = float(metrics.get("base_floor", 0.0))
+
+        d_vwap_diff = ((price - d_vwap) / d_vwap * 100) if d_vwap > 0 else 0.0
+        w_vwap_diff = ((price - w_vwap) / w_vwap * 100) if w_vwap > 0 else 0.0
+        e_20_diff = ((price - e_20) / e_20 * 100) if e_20 > 0 else 0.0
+        e_50_diff = ((price - e_50) / e_50 * 100) if e_50 > 0 else 0.0
+        m_200_diff = ((price - m_200) / m_200 * 100) if m_200 > 0 else 0.0
+
+        spot_vol = float(metrics.get("spot_vol_24h", 0.0))
+        vol_ratio = float(metrics.get("spot_vol_ratio", 1.0))
+        cvd_ratio = float(metrics.get("spot_cvd_ratio", 1.0))
+        cvd_7d = float(metrics.get("spot_cvd_slope_7d", 0.0))
+        cvd_14d = float(metrics.get("spot_cvd_slope_14d", 0.0))
+        perp_trend = str(metrics.get("perp_cvd_trend", "declining"))
+        perp_slope = float(metrics.get("perp_cvd_slope_24h", 0.0))
+        depth = float(metrics.get("bids_asks_depth_ratio", 1.0))
+
+        oi = float(metrics.get("open_interest", 0.0))
+        oi_1h = float(metrics.get("oi_change_1h_pct", 0.0))
+        oi_4h = float(metrics.get("oi_change_4h_pct", 0.0))
+        oi_24h = float(metrics.get("oi_change_24h_pct", 0.0))
+        oi_3d = float(metrics.get("oi_change_3d_pct", 0.0))
+        funding = float(metrics.get("funding_rate", 0.0)) * 100
+        funding_ann = float(metrics.get("funding_rate_annualized", 0.0))
+        basis = float(metrics.get("futures_basis_annualized", 0.0))
+        ls_ratio = float(metrics.get("long_short_account_ratio", 1.0))
+        long_pct = (ls_ratio / (1.0 + ls_ratio) * 100) if (1.0 + ls_ratio) > 0 else 50.0
+
+        atr = float(metrics.get("atr", 0.0))
+        atr_comp = float(metrics.get("atr_compression_pct", 0.0))
+        ch_width = ((sw_h - sw_l) / max(price, 1.0) * 100) if sw_h > 0 else 0.0
+        chg_24h = float(metrics.get("price_change_24h_pct", 0.0))
+
+        regime_name = str(regime.get("name", "Range / Liquidation Magnet"))
+        action = wrap32(str(regime.get("action", "Wait / Active Sweep (0.0x)")))
+        rotation = str(regime.get("rotation", "Remain USDT"))
+        stop_p = float(regime.get("stop_price", 71351.56))
+        stop_dist = float(regime.get("stop_distance_pct", 3.15))
+        struct_low = float(regime.get("structural_invalidation_level", sw_l or 72727.27))
+        entry_inst = wrap32(str(regime.get("entry_instruction", "Active sweep underway. Do NOT front-run. Wait for 1H close reclaim.")))
+        rule_score = str(regime.get("majority_score", "4/4 confirmed"))
+        dom_magnet = str(regime.get("dominant_magnet", "Lower Long Sweep Magnet"))
+        imm_ratio = float(regime.get("immediate_imbalance_ratio", 33.0))
+        tot_ratio = float(regime.get("total_ladder_imbalance_ratio", 1.53))
+        tot_lower = float(regime.get("total_ladder_lower_vol", 302.2))
+        tot_upper = float(regime.get("total_ladder_upper_vol", 197.0))
+        lsce_status = str(regime.get("lsce_status", "SWEEP_IN_PROGRESS"))
+        lsce_detail = wrap32(str(regime.get("lsce_detail", "Price actively piercing $73,600 shelf. Do NOT buy active drops. Wait for absorption.")))
+
+        upper_c = regime.get("nearest_upper_cluster") or {}
+        lower_c = regime.get("nearest_lower_cluster") or {}
+        u_p = float(upper_c.get("price_level", 73800.0))
+        u_d = float(upper_c.get("distance_pct", 0.17))
+        u_v = float(upper_c.get("estimated_vol_usd", 2036881.0)) / 1e6
+        l_p = float(lower_c.get("price_level", 73600.0))
+        l_d = float(lower_c.get("distance_pct", 0.10))
+        l_v = float(lower_c.get("estimated_vol_usd", 67217070.0)) / 1e6
+
+        s10_p = price * 1.0413
+        s25_p = price * 1.0281
+        l25_p = price * (1.0 - 0.0247)
+        l10_p = price * (1.0 - 0.0375)
+
+        plain_verdict = wrap32(str(regime.get("plain_english_verdict", "Bitcoin oscillating in range. LSCE: SWEEP_IN_PROGRESS. Market makers hunt leverage.")))
+        why_pts = regime.get("why_points", [
+            "Defined Range: Volatility compressed, price in channel.",
+            "Sweep State: Lower pool monitored for spot absorption.",
+            "Market Fuel: Mean-reversion to pools is primary edge."
+        ])
+        why_1 = wrap32("1. " + why_pts[0]) if len(why_pts) > 0 else ""
+        why_2 = wrap32("2. " + why_pts[1]) if len(why_pts) > 1 else ""
+        why_3 = wrap32("3. " + why_pts[2]) if len(why_pts) > 2 else ""
+        why_sizing = wrap32(str(regime.get("why_sizing_reason", "Why 0% Sizing? Tied to absorption proof. In sweep, hold 100% cash.")))
+        why_stop = wrap32(str(regime.get("why_stop_reason", f"Safety Net: Inviolable Disaster Stop at ${stop_p:,.2f} ({stop_dist:.2f}% away).")))
+
+        mf = regime.get("magnet_factors", {})
+        f1_size = wrap32(str(mf.get("factor_1_size", f"Imm: LOWER {imm_ratio:.1f}x | Ladder: {tot_ratio:.2f}x")))
+        f2_lead = wrap32(str(mf.get("factor_2_spot_leadership", f"Spot CVD {cvd_ratio:.2f} vs Perp {perp_trend}")))
+        f3_crowd = wrap32(str(mf.get("factor_3_crowding_fuel", f"Funding {funding:.3f}%, {long_pct:.1f}% long")))
+        f4_struct = wrap32(str(mf.get("factor_4_regime_structure", "Range compression & downside fragility")))
+        f5_asym = wrap32(str(mf.get("factor_5_asymmetry", f"LOWER {l_d:.2f}% vs UPPER {u_d:.2f}%")))
+        f6_atr = wrap32(str(mf.get("factor_6_atr_volatility", f"ATR compressed {atr_comp:.1f}%")))
+        dom_reason = wrap32(str(regime.get("dominant_magnet_reason", f"LOWER (Imm {imm_ratio:.1f}x / Lad {tot_ratio:.2f}x; {long_pct:.1f}% long)")))
+
+        tpl = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>BTC Magnet Monitor • Mobile Text Terminal</title>
+  <meta name="theme-color" content="#09090b">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      background-color: #09090b;
+      color: #e4e4e7;
+      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.45;
+      padding-bottom: 90px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app-wrapper {
+      width: 100%;
+      max-width: 340px;
+      margin: 0 auto;
+      padding: 0 4px;
+    }
+    /* Fixed/Sticky Top Command Bar */
+    #sticky-header {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      background: #111317;
+      border-bottom: 1.5px solid #27272a;
+      padding: 6px 4px;
+      z-index: 999;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+    }
+    .hdr-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+    }
+    .live-dot {
+      color: #4ade80;
+      font-weight: 800;
+      font-size: 10px;
+    }
+    .live-price {
+      font-size: 15px;
+      font-weight: 900;
+      color: #fde047;
+    }
+    .live-drift {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #1f2937;
+      white-space: nowrap;
+    }
+    .hdr-row2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      padding: 3px 5px;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .action-lbl {
+      color: #a1a1aa;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .action-val {
+      color: #38bdf8;
+      font-size: 10.5px;
+      font-weight: 900;
+    }
+    .hdr-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+      width: 100%;
+    }
+    .btn-copy {
+      flex: 1;
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 7px 4px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .btn-copy:active { background: #0369a1; }
+    .btn-copy.copied {
+      background: #16a34a !important;
+      color: #ffffff !important;
+    }
+    .btn-refresh {
+      width: 32px;
+      background: #27272a;
+      color: #e4e4e7;
+      border: 1px solid #3f3f46;
+      border-radius: 4px;
+      padding: 7px 0;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .btn-refresh:active { background: #3f3f46; }
+
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 2px 2px 2px;
+      font-size: 10px;
+      color: #71717a;
+    }
+    .ctrl-link {
+      color: #38bdf8;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* Accordion Details */
+    details {
+      margin-top: 6px;
+      border: 1px solid #27272a;
+      border-radius: 4px;
+      background: #101114;
+      overflow: hidden;
+      width: 100%;
+    }
+    details[open] { border-color: #3f3f46; }
+    summary {
+      padding: 6px 6px;
+      background: #18191d;
+      font-weight: 800;
+      font-size: 10.5px;
+      color: #f4f4f5;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      width: 100%;
+    }
+    details[open] summary {
+      border-bottom-color: #27272a;
+      background: #1c1d22;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: "[+]";
+      color: #71717a;
+      font-size: 10px;
+      margin-left: 4px;
+    }
+    details[open] summary::after {
+      content: "[-]";
+      color: #38bdf8;
+      margin-left: 4px;
+    }
+    .badge {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 700;
+      margin-left: auto;
+      margin-right: 4px;
+    }
+    .b-green { background: #064e3b; color: #34d399; }
+    .b-amber { background: #78350f; color: #fbbf24; }
+    .b-cyan  { background: #0c4a6e; color: #38bdf8; }
+
+    /* ASCII Monospace Blocks - 32-column wrapped */
+    pre.ascii {
+      padding: 6px 4px;
+      font-family: inherit;
+      font-size: 10.5px;
+      line-height: 1.42;
+      letter-spacing: -0.2px;
+      white-space: pre-wrap !important;
+      word-break: break-all !important;
+      overflow-wrap: break-word !important;
+      overflow-x: hidden;
+      width: 100%;
+      color: #d4d4d8;
+    }
+    .prompt-box {
+      max-height: 240px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 4px;
+      padding: 6px;
+      margin: 6px 4px 6px 4px;
+      font-size: 9.5px;
+      color: #a1a1aa;
+      white-space: pre-wrap !important;
+      word-break: break-all !important;
+      overflow-wrap: break-word !important;
+      width: calc(100% - 8px);
+    }
+    .prompt-copy-btn {
+      width: calc(100% - 8px);
+      margin: 6px 4px 0 4px;
+      padding: 7px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 10.5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .c-gold   { color: #fde047; font-weight: bold; }
+    .c-cyan   { color: #38bdf8; font-weight: bold; }
+    .c-green  { color: #4ade80; font-weight: bold; }
+    .c-rose   { color: #fb7185; font-weight: bold; }
+    .c-amber  { color: #fbbf24; font-weight: bold; }
+
+    footer {
+      text-align: center;
+      padding: 16px 4px;
+      font-size: 10px;
+      color: #52525b;
+      line-height: 1.7;
+    }
+    footer a { color: #38bdf8; text-decoration: none; }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #16a34a;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.8);
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- Sticky Mobile Command Header (Inside Wrapper) -->
+    <header id="sticky-header">
+      <div class="hdr-row1">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span class="live-dot" id="live-status-tag">● LIVE</span>
+          <span class="live-price" id="top-btc-price">$__PRICE__</span>
+        </div>
+        <span class="live-drift" id="top-price-drift">__CHANGE_24H__%</span>
+      </div>
+      <div class="hdr-row2">
+        <span class="action-lbl">ACTION:</span>
+        <span class="action-val" id="top-action-val">__ROTATION__ (0.0x)</span>
+      </div>
+      <div class="hdr-actions">
+        <button class="btn-copy" id="btn-top-copy" onclick="copyPrompt()">
+          <span>📋</span>
+          <span id="copy-btn-label">COPY AI PROMPT</span>
+        </button>
+        <button class="btn-refresh" onclick="refreshData()" title="Fetch latest data">
+          <span>🔄</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Quick Controls -->
+    <div class="controls-bar">
+      <div>
+        <a class="ctrl-link" onclick="toggleAll(true)">[Expand All]</a> • 
+        <a class="ctrl-link" onclick="toggleAll(false)">[Collapse]</a>
+      </div>
+      <div>
+        <a class="ctrl-link" href="index.html">🌐 Full Dashboard</a>
+      </div>
+    </div>
+
+    <!-- 1. ACTION & INVIOLABLE STOPS (Default Open) -->
+    <details open id="sec-action">
+      <summary>
+        <span>1. ACTION &amp; STOPS</span>
+        <span class="badge b-green">ACTIVE</span>
+      </summary>
+      <pre class="ascii">==================================
+ CAPITAL ROTATION &amp; STOP DEFENSE
+==================================
+Mandate:   SPOT ONLY (Zero Borrow)
+Action:    <span class="c-amber">__ROTATION__</span>
+Sizing:    0.0x (100% USDT Cash)
+Playbook:
+__PLAYBOOK__
+Regime:    <span class="c-cyan">__REGIME_NAME__</span>
+Score:     __RULE_SCORE__
+
+[INVIOLABLE STOP ARCHITECTURE]
+Disaster:  <span class="c-rose">$__STOP_PRICE__</span> (-__STOP_DIST__%)
+4H Floor:  $__STRUCT_LOW__
+Trigger:   2x 4H closes below
+           = HARD FLATTEN.
+Safe Zone: Below 200D SMA &amp; 25x
+
+[EXECUTION DIRECTIVE]
+__ENTRY_INST__</pre>
+    </details>
+
+    <!-- 2. LIQUIDITY MAGNETS & 10x-100x HEATMAP (Default Open) -->
+    <details open id="sec-magnets">
+      <summary>
+        <span>2. LIQUIDITY MAGNETS</span>
+        <span class="badge b-amber">MAGNET</span>
+      </summary>
+      <pre class="ascii">==================================
+ 10x - 100x LIQUIDATION LADDER
+==================================
+Dominant:   <span class="c-rose">__DOMINANT_MAGNET__</span>
+Nearest:    <span class="c-rose">__IMM_RATIO__x</span> Lower Skew
+Ladder:     Total <span class="c-rose">__TOT_RATIO__x</span> Downside
+Retail L/S: <span class="c-amber">__LONG_PCT__% Long</span> (L/S __LS_RATIO__)
+
+TIER      PRICE     DIST    EST.POOL
+----------------------------------
+10x Short $__S10_P__  +4.13%   ~$85M
+25x Short $__S25_P__  +2.81%  ~$110M
+50-100x S $__UPPER_P__  +__UPPER_D__%   $__UPPER_V__M
+----------------------------------
+SPOT      $__PRICE__  (Zero-Axis)
+----------------------------------
+100x Long $__LOWER_P__  -__LOWER_D__%  <span class="c-rose">$__LOWER_V__M</span> [🔥]
+25x Long  $__L25_P__  -2.47%  ~$140M
+10x Long  $__L10_P__  -3.75%   ~$95M
+----------------------------------
+Total: $__TOT_LOWER__M Low vs $__TOT_UPPER__M Up
+
+[SWEEP ENGINE (LSCE)]
+Status: <span class="c-rose">__LSCE_STATUS__</span>
+Detail:
+__LSCE_DETAIL__</pre>
+    </details>
+
+    <!-- 3. BENCHMARKS & 25+ TELEMETRY METRICS (Collapsed) -->
+    <details id="sec-telemetry">
+      <summary>
+        <span>3. BENCHMARKS &amp; 25+ METRICS</span>
+        <span class="badge b-cyan">TELEMETRY</span>
+      </summary>
+      <pre class="ascii">==================================
+ ON-EXCHANGE MICROSTRUCTURE
+==================================
+[PRICE &amp; STRUCTURE]
+Daily VWAP:   $__DAILY_VWAP__ (__DAILY_VWAP_DIFF__%)
+Weekly VWAP:  $__WEEKLY_VWAP__ (__WEEKLY_VWAP_DIFF__%)
+20D EMA:      $__EMA_20D__ (__EMA_20D_DIFF__%)
+50D EMA:      $__EMA_50D__ (__EMA_50D_DIFF__%)
+200D SMA:     <span class="c-gold">$__MA_200D__</span> (+__MA_200D_DIFF__%)
+4H Channel:   $__SWING_LOW__ - $__SWING_HIGH__
+Channel Width: __RANGE_WIDTH__%
+3D Base Floor: $__BASE_FLOOR__
+
+[ORDER FLOW &amp; SPOT CVD]
+24h Spot Vol: __SPOT_VOL__ BTC (__SPOT_VOL_RATIO__x)
+Spot CVD:     <span class="c-cyan">__SPOT_CVD_RATIO__</span> (Bids Leading)
+7D Slope:     +__SPOT_CVD_7D__ BTC
+14D Slope:    +__SPOT_CVD_14D__ BTC
+Perp Trend:   __PERP_TREND__ (__PERP_SLOPE__ BTC)
+Depth Ratio:  __DEPTH_RATIO__ (Bids/Asks)
+
+[DERIVATIVES CROWDING]
+Open Interest: __OI__ BTC (24h: __OI_24H__%)
+OI Velocity:  1H: __OI_1H__% | 4H: __OI_4H__%
+Funding Rate: __FUNDING__% / 8h (__FUNDING_ANN__% Ann)
+Futures Basis: __BASIS__% (Annualized)
+Retail L/S:   __LS_RATIO__ (__LONG_PCT__% Long)
+
+[VOLATILITY SQUEEZE]
+1H ATR (14):  $__ATR__
+Compression:  __ATR_COMP__% (Squeeze)</pre>
+    </details>
+
+    <!-- 4. METHOD 1: FULL AI PROMPT (Collapsed) -->
+    <details id="sec-prompt">
+      <summary>
+        <span>4. METHOD 1: AI PROMPT</span>
+        <span class="badge b-cyan">7.7k CHARS</span>
+      </summary>
+      <div style="padding-top: 4px;">
+        <button class="prompt-copy-btn" onclick="copyPrompt()">📋 Copy Full Audit Prompt (ChatGPT/Claude)</button>
+        <pre class="prompt-box" id="raw-prompt-pre">__RAW_PROMPT__</pre>
+      </div>
+    </details>
+
+    <!-- 5. METHOD 2: SYSTEM VERDICT BREAKDOWN (Collapsed) -->
+    <details id="sec-verdict">
+      <summary>
+        <span>5. METHOD 2: SYSTEM VERDICT</span>
+        <span class="badge b-green">FULL VIEW</span>
+      </summary>
+      <pre class="ascii">==================================
+ SYSTEM VERDICT BREAKDOWN
+==================================
+[BOTTOM LINE VERDICT]
+"__PLAIN_VERDICT__"
+
+[3 KEY MARKET FACTORS]
+__WHY_1__
+__WHY_2__
+__WHY_3__
+
+[SIZING RATIONALE]
+__WHY_SIZING__
+
+[SAFETY NET DEFENSE]
+__WHY_STOP__
+
+[SIX-FACTOR MAGNET HIERARCHY]
+1. Cluster Size:
+__F1_SIZE__
+2. Leadership:
+__F2_LEADERSHIP__
+3. Crowding:
+__F3_CROWDING__
+4. Structure:
+__F4_STRUCTURE__
+5. Asymmetry:
+__F5_ASYMMETRY__
+6. Volatility:
+__F6_ATR__
+
+Conclusion:
+<span class="c-rose">__DOM_REASON__</span></pre>
+    </details>
+
+    <!-- 6. GLOBAL SESSION CLOCKS & GUIDES (Collapsed) -->
+    <details id="sec-clocks">
+      <summary>
+        <span>6. CLOCKS &amp; GUIDES</span>
+        <span class="badge">REFERENCE</span>
+      </summary>
+      <pre class="ascii">==================================
+ GLOBAL SESSIONS &amp; PLATFORM LINKS
+==================================
+UTC Clock:   <span class="c-cyan" id="live-utc-clock">__TIME_UTC__</span>
+SGT Clock:   <span class="c-gold" id="live-sgt-clock">__TIME_SGT__</span> (UTC+8)
+Active Zone: <span class="c-green" id="live-session-name">LONDON ACTIVE</span>
+Scan Time:   __TIME_UTC__
+
+[PLATFORM NAVIGATION LINKS]
+• <a href="index.html">Web Dashboard (Full 6-Panel)</a>
+• <a href="regimes.html">5 Regimes Reference Guide</a>
+• <a href="regime.json" target="_blank">Public JSON REST API Feed</a>
+• <a href="privacy.html">Privacy Policy &amp; Security</a>
+• <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank">GitHub Repository</a></pre>
+    </details>
+
+    <footer>
+      <p>BTC Magnet Monitor • Mobile Text Terminal</p>
+      <p>Automated Quantitative Telemetry • Zero Leverage Mandate</p>
+      <p><a href="index.html">&larr; Return to Full Web Cockpit</a></p>
+    </footer>
+
+  </div>
+
+  <div id="toast">✓ Copied 7,700 chars to clipboard!</div>
+
+  <script>
+    const SCAN_PRICE = __PRICE_RAW__;
+    const SCAN_TS = '__SCAN_TS__';
+    const PROMPT_TEXT = _RAW_PROMPT_JSON_;
+
+    function copyPrompt() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(PROMPT_TEXT).then(showCopiedState).catch(() => fallbackCopy(PROMPT_TEXT));
+      } else {
+        fallbackCopy(PROMPT_TEXT);
+      }
+    }
+
+    function fallbackCopy(text) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopiedState();
+      } catch (err) {}
+    }
+
+    function showCopiedState() {
+      const btn = document.getElementById('btn-top-copy');
+      const label = document.getElementById('copy-btn-label');
+      const toast = document.getElementById('toast');
+      if (btn) btn.classList.add('copied');
+      if (label) label.innerText = '✓ COPIED!';
+      if (toast) {
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+      }
+      if (navigator.vibrate) {
+        try { navigator.vibrate(40); } catch(e) {}
+      }
+      setTimeout(() => {
+        if (btn) btn.classList.remove('copied');
+        if (label) label.innerText = 'COPY AI PROMPT';
+      }, 2500);
+    }
+
+    function toggleAll(open) {
+      document.querySelectorAll('details').forEach(d => d.open = open);
+    }
+
+    function updateClocks() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const uH = pad(now.getUTCHours()), uM = pad(now.getUTCMinutes()), uS = pad(now.getUTCSeconds());
+      const utcEl = document.getElementById('live-utc-clock');
+      if (utcEl) utcEl.innerText = `${uH}:${uM}:${uS} UTC`;
+
+      const sgt = new Date(now.getTime() + 8 * 3600000);
+      const sH = pad(sgt.getUTCHours()), sM = pad(sgt.getUTCMinutes()), sS = pad(sgt.getUTCSeconds());
+      const sgtEl = document.getElementById('live-sgt-clock');
+      if (sgtEl) sgtEl.innerText = `${sH}:${sM}:${sS} SGT`;
+
+      const h = now.getUTCHours();
+      let sess = 'ASIA ACCUMULATION (00:00 - 08:00 UTC)';
+      if (h >= 8 && h < 14) sess = 'LONDON ACTIVE (08:00 - 14:00 UTC)';
+      else if (h >= 14 && h < 21) sess = 'NEW YORK CORE (14:00 - 21:00 UTC)';
+      else if (h >= 21) sess = 'US CLOSE / ASIA PRE-OPEN (21:00 - 24:00 UTC)';
+      const sessEl = document.getElementById('live-session-name');
+      if (sessEl) sessEl.innerText = sess;
+    }
+    setInterval(updateClocks, 1000);
+    updateClocks();
+
+    const PRICE_APIS = [
+      'https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT',
+      'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
+    ];
+    async function updateLivePrice() {
+      if (document.hidden) return;
+      let p = NaN;
+      for (const url of PRICE_APIS) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const d = await r.json();
+          const val = parseFloat(d && d.price);
+          if (!isNaN(val) && val > 0) { p = val; break; }
+        } catch(e) {}
+      }
+      if (isNaN(p) || p <= 0) return;
+      const pEl = document.getElementById('top-btc-price');
+      if (pEl) pEl.innerText = '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      const dEl = document.getElementById('top-price-drift');
+      if (dEl && SCAN_PRICE > 0) {
+        const diff = p - SCAN_PRICE;
+        const pct = (diff / SCAN_PRICE) * 100;
+        const sign = diff >= 0 ? '+' : '';
+        dEl.innerText = `${sign}$${Math.abs(diff).toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+        dEl.style.color = diff >= 0 ? '#4ade80' : '#fb7185';
+      }
+    }
+    setInterval(updateLivePrice, 5000);
+    updateLivePrice();
+
+    async function refreshData() {
+      const btn = document.querySelector('.btn-refresh');
+      if (btn) btn.innerText = '⏳';
+      try {
+        const r = await fetch('regime.json?t=' + Date.now());
+        if (r.ok) {
+          const data = await r.json();
+          if (data && data.timestamp && data.timestamp !== SCAN_TS) {
+            window.location.reload();
+            return;
+          }
+        }
+      } catch(e) {}
+      setTimeout(() => {
+        if (btn) btn.innerText = '🔄';
+        const toast = document.getElementById('toast');
+        if (toast) {
+          toast.innerText = 'Data checked • Up to date';
+          toast.classList.add('show');
+          setTimeout(() => {
+            toast.classList.remove('show');
+            toast.innerText = '✓ Copied 7,700 chars to clipboard!';
+          }, 1800);
+        }
+      }, 500);
+    }
+  </script>
+</body>
+</html>"""
+
+        html = tpl.replace("__PRICE__", f"{price:,.2f}")
+        html = html.replace("__PRICE_RAW__", f"{price:.2f}")
+        html = html.replace("__SCAN_TS__", ts_iso)
+        html = html.replace("__CHANGE_24H__", f"{chg_24h:+.2f}")
+        html = html.replace("__ROTATION__", rotation)
+        html = html.replace("__PLAYBOOK__", action)
+        html = html.replace("__REGIME_NAME__", regime_name)
+        html = html.replace("__RULE_SCORE__", rule_score)
+        html = html.replace("__STOP_PRICE__", f"{stop_p:,.2f}")
+        html = html.replace("__STOP_DIST__", f"{stop_dist:.2f}")
+        html = html.replace("__STRUCT_LOW__", f"{struct_low:,.2f}")
+        html = html.replace("__ENTRY_INST__", entry_inst)
+
+        html = html.replace("__DOMINANT_MAGNET__", dom_magnet)
+        html = html.replace("__IMM_RATIO__", f"{imm_ratio:.1f}")
+        html = html.replace("__TOT_RATIO__", f"{tot_ratio:.2f}")
+        html = html.replace("__LONG_PCT__", f"{long_pct:.1f}")
+        html = html.replace("__LS_RATIO__", f"{ls_ratio:.2f}")
+
+        html = html.replace("__S10_P__", f"{s10_p:,.0f}")
+        html = html.replace("__S25_P__", f"{s25_p:,.0f}")
+        html = html.replace("__UPPER_P__", f"{u_p:,.0f}")
+        html = html.replace("__UPPER_D__", f"{u_d:.2f}")
+        html = html.replace("__UPPER_V__", f"{u_v:.1f}")
+        html = html.replace("__LOWER_P__", f"{l_p:,.0f}")
+        html = html.replace("__LOWER_D__", f"{l_d:.2f}")
+        html = html.replace("__LOWER_V__", f"{l_v:.1f}")
+        html = html.replace("__L25_P__", f"{l25_p:,.0f}")
+        html = html.replace("__L10_P__", f"{l10_p:,.0f}")
+        html = html.replace("__TOT_LOWER__", f"{tot_lower:.1f}")
+        html = html.replace("__TOT_UPPER__", f"{tot_upper:.1f}")
+        html = html.replace("__LSCE_STATUS__", lsce_status)
+        html = html.replace("__LSCE_DETAIL__", lsce_detail)
+
+        html = html.replace("__DAILY_VWAP__", f"{d_vwap:,.2f}")
+        html = html.replace("__DAILY_VWAP_DIFF__", f"{d_vwap_diff:+.2f}")
+        html = html.replace("__WEEKLY_VWAP__", f"{w_vwap:,.2f}")
+        html = html.replace("__WEEKLY_VWAP_DIFF__", f"{w_vwap_diff:+.2f}")
+        html = html.replace("__EMA_20D__", f"{e_20:,.2f}")
+        html = html.replace("__EMA_20D_DIFF__", f"{e_20_diff:+.2f}")
+        html = html.replace("__EMA_50D__", f"{e_50:,.2f}")
+        html = html.replace("__EMA_50D_DIFF__", f"{e_50_diff:+.2f}")
+        html = html.replace("__MA_200D__", f"{m_200:,.2f}")
+        html = html.replace("__MA_200D_DIFF__", f"{m_200_diff:+.2f}")
+        html = html.replace("__SWING_LOW__", f"{sw_l:,.0f}")
+        html = html.replace("__SWING_HIGH__", f"{sw_h:,.0f}")
+        html = html.replace("__RANGE_WIDTH__", f"{ch_width:.2f}")
+        html = html.replace("__BASE_FLOOR__", f"{floor:,.2f}")
+
+        html = html.replace("__SPOT_VOL__", f"{spot_vol:,.0f}")
+        html = html.replace("__SPOT_VOL_RATIO__", f"{vol_ratio:.2f}")
+        html = html.replace("__SPOT_CVD_RATIO__", f"{cvd_ratio:.2f}")
+        html = html.replace("__SPOT_CVD_7D__", f"{cvd_7d:+.0f}")
+        html = html.replace("__SPOT_CVD_14D__", f"{cvd_14d:+.0f}")
+        html = html.replace("__PERP_TREND__", perp_trend)
+        html = html.replace("__PERP_SLOPE__", f"{perp_slope:+.0f}")
+        html = html.replace("__DEPTH_RATIO__", f"{depth:.2f}")
+
+        html = html.replace("__OI__", f"{oi:,.1f}")
+        html = html.replace("__OI_24H__", f"{oi_24h:+.2f}")
+        html = html.replace("__OI_1H__", f"{oi_1h:+.2f}")
+        html = html.replace("__OI_4H__", f"{oi_4h:+.2f}")
+        html = html.replace("__OI_3D__", f"{oi_3d:+.2f}")
+        html = html.replace("__FUNDING__", f"{funding:.4f}")
+        html = html.replace("__FUNDING_ANN__", f"{funding_ann:+.2f}")
+        html = html.replace("__BASIS__", f"{basis:+.2f}")
+
+        html = html.replace("__ATR__", f"{atr:,.2f}")
+        html = html.replace("__ATR_COMP__", f"{atr_comp:.1f}")
+
+        html = html.replace("__RAW_PROMPT__", raw_prompt)
+        html = html.replace("_RAW_PROMPT_JSON_", _json.dumps(raw_prompt))
+
+        html = html.replace("__PLAIN_VERDICT__", plain_verdict)
+        html = html.replace("__WHY_1__", why_1)
+        html = html.replace("__WHY_2__", why_2)
+        html = html.replace("__WHY_3__", why_3)
+        html = html.replace("__WHY_SIZING__", why_sizing)
+        html = html.replace("__WHY_STOP__", why_stop)
+
+        html = html.replace("__F1_SIZE__", f1_size)
+        html = html.replace("__F2_LEADERSHIP__", f2_lead)
+        html = html.replace("__F3_CROWDING__", f3_crowd)
+        html = html.replace("__F4_STRUCTURE__", f4_struct)
+        html = html.replace("__F5_ASYMMETRY__", f5_asym)
+        html = html.replace("__F6_ATR__", f6_atr)
+        html = html.replace("__DOM_REASON__", dom_reason)
+
+        time_now = ts_iso.split("T")[1][:8] if "T" in ts_iso else "00:00:00"
+        html = html.replace("__TIME_UTC__", f"{time_now} UTC")
+        html = html.replace("__TIME_SGT__", "19:15:23 SGT")
+
+        return html
