@@ -11,3 +11,4 @@ node_modules/
 .gradle/
 *.apk
 *.aab
+build-apk-output/
