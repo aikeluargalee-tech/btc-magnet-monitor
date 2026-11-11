@@ -94,7 +94,12 @@ class MarketDataFetcher:
         # Technical Indicators calculation
         daily_closes = [float(k[4]) for k in daily_klines]
         daily_volumes = [float(k[5]) for k in daily_klines]
-        ma_200d = sum(daily_closes[-200:]) / len(daily_closes[-200:]) if len(daily_closes) >= 200 else daily_closes[-1]
+        # Strict data integrity: never substitute a made-up value for the 200-day average.
+        if len(daily_closes) < 200:
+            raise RuntimeError(
+                f"Insufficient daily history for 200D MA: need 200 closes, got {len(daily_closes)}"
+            )
+        ma_200d = sum(daily_closes[-200:]) / 200
         ema_20d = self._calc_ema(daily_closes, 20)
         ema_50d = self._calc_ema(daily_closes, 50)
 

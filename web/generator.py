@@ -455,6 +455,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 </head>
 <body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased {body_padding}">
 
+  <!-- Data-Age / Staleness Banner (filled in by script; always tells the user how old the verdict is) -->
+  <div id="data-age-banner" role="status" aria-live="polite" class="px-4 py-2 text-center text-xs font-semibold border-b border-zinc-800 bg-zinc-900 text-zinc-300">
+    Checking scan freshness...
+  </div>
+
+  <!-- Swappable content root: the script replaces this with the latest live scan when a newer one exists -->
+  <div id="app-root" data-scan-ts="{data.get("timestamp", "")}">
+
   <!-- Top Navigation Bar -->
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
@@ -1274,6 +1282,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   </main>
 
+  </div><!-- /#app-root -->
+
 {mobile_nav_bar}
 
   <!-- Sticky Toast Notification for Copying -->
@@ -1435,30 +1445,147 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     setInterval(updateClocksAndSession, 1000);
     updateClocksAndSession();
 
-    // Live Tick-by-Tick WebSocket / REST Ticker
-    const scanPrice = {price};
-    function updateLivePriceTicker() {{
-      fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')
-        .then(r => r.json())
-        .then(data => {{
-          if (!data || !data.price) return;
-          const livePrice = parseFloat(data.price);
-          const priceEl = document.getElementById('live-btc-price');
-          const driftEl = document.getElementById('live-price-drift');
-          if (priceEl) priceEl.innerText = '$' + livePrice.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
-          
-          if (driftEl && scanPrice > 0) {{
-            const diff = livePrice - scanPrice;
-            const diffPct = (diff / scanPrice) * 100;
-            const sign = diff >= 0 ? '+' : '';
-            const color = diff >= 0 ? 'text-emerald-400' : 'text-rose-400';
-            driftEl.innerHTML = `<span class="${{color}}">${{sign}}$${{Math.abs(diff).toFixed(2)}} (${{sign}}${{diffPct.toFixed(2)}}%)</span>`;
-          }}
-        }})
-        .catch(() => {{}});
+    // Live BTC price ticker (Binance Vision first: it is not geo-blocked; falls back to api.binance.com)
+    let scanPrice = {price};
+    const PRICE_ENDPOINTS = [
+      'https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT',
+      'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
+    ];
+    let priceFailCount = 0;
+    let priceTick = 0;
+    async function updateLivePriceTicker() {{
+      if (document.hidden) return;  // save battery and data while the app is in the background
+      if (priceFailCount >= 3 && (priceTick++ % 10) !== 0) return;  // back off while the feed is unreachable
+      let livePrice = NaN;
+      for (const url of PRICE_ENDPOINTS) {{
+        try {{
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const d = await r.json();
+          const p = parseFloat(d && d.price);
+          if (!isNaN(p) && p > 0) {{ livePrice = p; break; }}
+        }} catch (e) {{}}
+      }}
+      const priceEl = document.getElementById('live-btc-price');
+      const driftEl = document.getElementById('live-price-drift');
+      if (isNaN(livePrice)) {{
+        priceFailCount++;
+        if (priceFailCount >= 3 && driftEl) {{
+          driftEl.className = 'text-amber-400 font-medium';
+          driftEl.textContent = 'live price feed unreachable (showing last known price)';
+        }}
+        return;
+      }}
+      priceFailCount = 0;
+      if (priceEl) priceEl.innerText = '$' + livePrice.toLocaleString('en-US', {{ minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+      if (driftEl && scanPrice > 0) {{
+        const diff = livePrice - scanPrice;
+        const diffPct = (diff / scanPrice) * 100;
+        const up = diff >= 0;
+        driftEl.className = (up ? 'text-emerald-400' : 'text-rose-400') + ' font-medium';
+        driftEl.textContent = (up ? '+' : '-') + '$' + Math.abs(diff).toFixed(2) + ' (' + (up ? '+' : '') + diffPct.toFixed(2) + '%)';
+      }}
     }}
     setInterval(updateLivePriceTicker, 3000);
     updateLivePriceTicker();
+
+    // Live scan refresh + data-age banner
+    // The Android app ships with a snapshot of the page taken at build time. To make sure users never act on an
+    // outdated verdict, the app fetches the latest published scan from the live site, swaps it in when newer,
+    // and always shows how old the data on screen is.
+    const IS_NATIVE_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || location.protocol === 'file:';
+    const LIVE_BASE = IS_NATIVE_APP ? 'https://aikeluargalee-tech.github.io/btc-magnet-monitor/' : './';
+    const rootAtLoad = document.getElementById('app-root');
+    let currentScanTs = Date.parse(rootAtLoad ? rootAtLoad.getAttribute('data-scan-ts') : '') || 0;
+    let lastFetchOk = null;
+
+    function formatAge(mins) {{
+      if (mins < 60) return mins + ' min';
+      return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }}
+
+    function renderAgeBanner() {{
+      const el = document.getElementById('data-age-banner');
+      if (!el) return;
+      const base = 'px-4 py-2 text-center text-xs font-semibold border-b ';
+      if (currentScanTs <= 0) {{
+        el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+        el.textContent = '⚠ Scan time unknown - verify the data before acting on it.';
+        return;
+      }}
+      const ageMin = Math.max(0, Math.floor((Date.now() - currentScanTs) / 60000));
+      const age = formatAge(ageMin);
+      if (ageMin > 180) {{
+        el.className = base + 'border-rose-500/50 bg-rose-500/15 text-rose-300';
+        el.textContent = '⛔ STALE DATA - this scan is ' + age + ' old' + (lastFetchOk === false ? ' and the live feed is unreachable' : '') + '. Do NOT act on this verdict until it refreshes.';
+      }} else if (lastFetchOk === false) {{
+        el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+        el.textContent = '⚠ Cannot reach the live feed - showing the last known scan (' + age + ' old).';
+      }} else if (ageMin > 90) {{
+        el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+        el.textContent = '⚠ Scan is ' + age + ' old - waiting for the next automated scan.';
+      }} else {{
+        el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+        el.textContent = '● Scan data is ' + age + ' old - checking for updates every minute.';
+      }}
+    }}
+
+    // Defence in depth: only our own markup is allowed in. Strip scripts, frames, unknown event handlers and javascript: links.
+    function sanitizeLiveNode(root) {{
+      root.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(function (n) {{ n.remove(); }});
+      root.querySelectorAll('*').forEach(function (n) {{
+        Array.from(n.attributes).forEach(function (a) {{
+          const name = a.name.toLowerCase();
+          const val = (a.value || '').trim().toLowerCase();
+          if (name.indexOf('on') === 0 && !(name === 'onclick' && a.value.trim() === 'copyTelemetryPrompt()')) {{
+            n.removeAttribute(a.name);
+          }} else if ((name === 'href' || name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0) {{
+            n.removeAttribute(a.name);
+          }}
+        }});
+      }});
+    }}
+
+    async function refreshLiveScan() {{
+      if (document.hidden) return;
+      try {{
+        const res = await fetch(LIVE_BASE + 'regime.json?t=' + Date.now(), {{ cache: 'no-store' }});
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const liveTs = Date.parse(data && data.timestamp);
+        if (isNaN(liveTs)) throw new Error('invalid scan timestamp');
+        lastFetchOk = true;
+        if (liveTs > currentScanTs) {{
+          const hres = await fetch(LIVE_BASE + 'index.html?t=' + Date.now(), {{ cache: 'no-store' }});
+          if (!hres.ok) throw new Error('HTTP ' + hres.status);
+          const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
+          const newRoot = doc.getElementById('app-root');
+          const root = document.getElementById('app-root');
+          const newTs = newRoot ? Date.parse(newRoot.getAttribute('data-scan-ts')) : NaN;
+          // Only swap when the live page really carries the newer scan (guards against half-deployed or cached pages).
+          if (root && newRoot && !isNaN(newTs) && newTs > currentScanTs) {{
+            sanitizeLiveNode(newRoot);
+            root.innerHTML = newRoot.innerHTML;
+            root.setAttribute('data-scan-ts', newRoot.getAttribute('data-scan-ts'));
+            currentScanTs = newTs;
+            const livePx = Number(data.metrics && data.metrics.price);
+            if (livePx > 0) scanPrice = livePx;
+            updateClocksAndSession();
+            updateLivePriceTicker();
+          }}
+        }}
+      }} catch (e) {{
+        lastFetchOk = false;
+      }}
+      renderAgeBanner();
+    }}
+    setInterval(refreshLiveScan, 60000);
+    setInterval(renderAgeBanner, 30000);
+    document.addEventListener('visibilitychange', function () {{
+      if (!document.hidden) {{ refreshLiveScan(); updateLivePriceTicker(); }}
+    }});
+    renderAgeBanner();
+    refreshLiveScan();
 
     // PWA Service Worker Registration & Stale Cache Purge
     if ('serviceWorker' in navigator) {{
@@ -1474,7 +1601,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     if ('caches' in window) {{
       caches.keys().then((keys) => {{
         keys.forEach((key) => {{
-          if (key !== 'btc-magnet-pwa-v5') {{
+          if (key !== 'btc-magnet-pwa-v6') {{
             caches.delete(key);
           }}
         }});
@@ -1620,6 +1747,16 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <p class="text-sm text-zinc-300 leading-relaxed">
         The market metrics displayed by BTC Magnet Monitor (spot prices, taker volume deltas, open interest, funding rates, and basis spreads) are retrieved from public, anonymized market data APIs provided by major digital asset exchanges (Binance Vision, Deribit). These feeds contain strictly aggregated market statistics and do not expose or process any personal trader information.
       </p>
+      <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 text-sm text-zinc-300 leading-relaxed">
+        <p><strong>Direct connections made from your device.</strong> We operate no servers that receive your data. However, to show live information, the Application makes network requests directly from your device to the following third parties. Like any internet request, these providers can see your device's IP address and basic request details, and handle them under their own privacy policies:</p>
+        <ul class="list-disc pl-5 space-y-1 text-zinc-400">
+          <li><strong>Binance</strong> (<span class="mono">data-api.binance.vision</span>, <span class="mono">api.binance.com</span>) &mdash; live BTC spot price, requested every few seconds while the Application is open.</li>
+          <li><strong>GitHub Pages</strong> (<span class="mono">aikeluargalee-tech.github.io</span>) &mdash; the latest published market scan (<span class="mono">regime.json</span>) and dashboard page, checked about once a minute while the Application is open.</li>
+          <li><strong>Google AdMob</strong> &mdash; advertisements in the mobile app (see section 3).</li>
+          <li><strong>Web version only:</strong> the website (not the Android app) additionally loads the Tailwind CSS library (<span class="mono">cdn.tailwindcss.com</span>) and fonts from Google Fonts. The Android app bundles these files and does not contact those services.</li>
+        </ul>
+        <p>No account identifiers, clipboard contents, or personal information are included in these requests. The only data stored on your device is your display-theme preference (in local storage) and cached copies of the app's own pages.</p>
+      </div>
     </section>
 
     <!-- Section 5: AI Audit Copy Functionality -->

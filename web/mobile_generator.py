@@ -33,7 +33,7 @@ class MobileWebGenerator:
         return json.dumps(manifest, indent=2)
 
     def render_service_worker(self) -> str:
-        return """const CACHE_NAME = 'btc-magnet-pwa-v5';
+        return """const CACHE_NAME = 'btc-magnet-pwa-v6';
 const STATIC_ASSETS = [
   './index.html',
   './app.html',
@@ -63,6 +63,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') {
+    return; // Never intercept POST/PUT etc.
+  }
   if (!e.request.url.startsWith(self.location.origin)) {
     return; // Pass through external feeds (Binance, Deribit) directly
   }
@@ -71,8 +74,11 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+          // Only cache good, complete responses - never cache 404/500 or partial (206) replies
+          if (res && res.ok && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+          }
           return res;
         })
         .catch(() => caches.match(e.request))
@@ -1979,7 +1985,8 @@ self.addEventListener('fetch', (e) => {
     // REAL-TIME BINANCE SPOT TICKER (Fetches live whenever opened + periodic poll)
     async function fetchLiveBinanceSpot() {{
       try {{
-        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+        const res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT').catch(() => null)
+          || await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
         if (!res.ok) return;
         const data = await res.json();
         const livePx = parseFloat(data.lastPrice);
@@ -2005,10 +2012,16 @@ self.addEventListener('fetch', (e) => {
       }}
     }}
 
-    // Real-Time WebSocket for tick-by-tick streaming
+    // Real-Time WebSocket for tick-by-tick streaming (exponential back-off so a blocked/offline network never drains the battery)
+    let wsRetryDelay = 5000;
     function connectBinanceWs() {{
+      if (document.hidden) {{
+        setTimeout(connectBinanceWs, wsRetryDelay);
+        return;
+      }}
       try {{
         const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+        ws.onopen = () => {{ wsRetryDelay = 5000; }};
         ws.onmessage = (event) => {{
           try {{
             const msg = JSON.parse(event.data);
@@ -2035,8 +2048,9 @@ self.addEventListener('fetch', (e) => {
           // Fallback to polling on error
         }};
         ws.onclose = () => {{
-          // Reconnect after 5 seconds if connection dropped
-          setTimeout(connectBinanceWs, 5000);
+          // Reconnect with exponential back-off (5s, 10s, 20s ... capped at 5 minutes)
+          setTimeout(connectBinanceWs, wsRetryDelay);
+          wsRetryDelay = Math.min(wsRetryDelay * 2, 300000);
         }};
       }} catch(e) {{
         // WebSocket unsupported, REST polling will handle it
