@@ -865,7 +865,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
-        <a href="#panel-5" class="p-4 rounded-xl bg-zinc-950/80 border border-cyan-500/30 hover:border-cyan-400 transition-all flex items-start gap-3">
+        <a href="#method-1" class="p-4 rounded-xl bg-zinc-950/80 border border-cyan-500/30 hover:border-cyan-400 transition-all flex items-start gap-3">
           <span class="text-2xl">📋</span>
           <div>
             <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider">Method 1</div>
@@ -874,7 +874,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           </div>
         </a>
 
-        <a href="#panel-6" class="p-4 rounded-xl bg-zinc-950/80 border border-emerald-500/30 hover:border-emerald-400 transition-all flex items-start gap-3">
+        <a href="#method-2" class="p-4 rounded-xl bg-zinc-950/80 border border-emerald-500/30 hover:border-emerald-400 transition-all flex items-start gap-3">
           <span class="text-2xl">🧠</span>
           <div>
             <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Method 2</div>
@@ -886,24 +886,23 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     </div>
 
     <!-- ============================================================ -->
-    <!-- PANEL 5: VERDICT BY COPY DATA & PROMPT TO AI (METHOD 1)      -->
+    <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
     <!-- ============================================================ -->
-    <div id="panel-5" class="rounded-2xl border border-cyan-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-5">
+    <div id="method-1" class="rounded-2xl border border-cyan-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-5">
       
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
         <div>
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
               <span>📋</span>
-              <span>Panel 5 &bull; Method 1: Verdict by Copy Data &amp; Prompt to AI</span>
+              <span>Method 1: Verdict by Copy Data &amp; Prompt to AI</span>
             </span>
-            <span class="text-[11px] text-zinc-400 font-mono hidden sm:inline">(Institutional Audit Format)</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Analyze Live Telemetry with Your Own AI
           </h2>
           <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
-            Click below to copy the verified live market positioning snapshot and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant, unbiased Chief Risk Officer audit.
+            Click below to copy the verified live market positioning snapshot and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant, unbiased risk audit and independent second opinion.
           </p>
         </div>
 
@@ -932,8 +931,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
           <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 3</span>
-          <div class="font-bold text-white">Receive Instant CRO Audit</div>
-          <p class="text-[11px] text-zinc-400">Get an independent 5-part institutional risk critique: regime vote, liquidity path, and stop-loss check.</p>
+          <div class="font-bold text-white">Receive Instant Risk Audit</div>
+          <p class="text-[11px] text-zinc-400">Get an independent 5-part risk critique: regime vote, liquidity path, and stop-loss check.</p>
         </div>
       </div>
 
@@ -953,20 +952,20 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     </div>
 
     <!-- ============================================================ -->
-    <!-- PANEL 6: VERDICT BY OUR SYSTEM VERDICT • FULL-ON VIEW         -->
+    <!-- METHOD 2: OUR SYSTEM VERDICT • FULL-ON VIEW                  -->
     <!-- ============================================================ -->
-    <div id="panel-6" class="rounded-2xl border border-emerald-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
+    <div id="method-2" class="rounded-2xl border border-emerald-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
       
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Panel 6 &bull; Method 2: Our System Verdict (Full-On View)</span>
+              <span>Method 2: Our System Verdict (Full-On View)</span>
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Complete Institutional System Verdict
+            Our System Verdict
           </h2>
           <p class="text-xs text-zinc-400 mt-0.5">
             Full-on view of our quantitative regime diagnosis, 3 key factors, LSCE sweep status, 10x-100x heatmap, and 6-factor decision hierarchy.
@@ -1216,7 +1215,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
               <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Total Leverage Ladder Imbalance (10x - 100x Spectrum)</span>
               <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">{tot_ratio:.2f}x Downside Skew</div>
-              <p class="text-[11px] text-zinc-400 mt-1">Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Institutional reality across all tiers.</p>
+              <p class="text-[11px] text-zinc-400 mt-1">Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Macro positioning reality across all tiers.</p>
             </div>
           </div>
           <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2 pt-1">
