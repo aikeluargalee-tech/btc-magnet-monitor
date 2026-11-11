@@ -21,8 +21,8 @@ class WebGenerator:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
-        # 2. Render main dashboard HTML (Desktop Web format)
-        html_content = self._render_html(payload, is_mobile=False)
+        # 2. Render main dashboard HTML (Unified 6-Panel Gold Standard Format)
+        html_content = self._render_html(payload)
         html_path = os.path.join(self.output_dir, "index.html")
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
@@ -33,16 +33,20 @@ class WebGenerator:
         with open(regimes_path, "w", encoding="utf-8") as f:
             f.write(regimes_content)
 
-        # 4. Render dedicated Mobile Cockpit PWA (app.html) with matching 6-panel layout + PWA support
+        # 4. Render Mobile Cockpit App (app.html) with 100% exact format parity with index.html
+        app_path = os.path.join(self.output_dir, "app.html")
+        with open(app_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        # 5. Render manifest.json and sw.js for PWA installation
         try:
+            import shutil
+            for icon_name in ["icon-192.png", "icon-512.png"]:
+                if os.path.exists(icon_name):
+                    shutil.copy(icon_name, os.path.join(self.output_dir, icon_name))
+
             from web.mobile_generator import MobileWebGenerator
             mob_gen = MobileWebGenerator()
-            app_html = self._render_html(payload, is_mobile=True)
-            app_path = os.path.join(self.output_dir, "app.html")
-            with open(app_path, "w", encoding="utf-8") as f:
-                f.write(app_html)
-
-            # 5. Render manifest.json and sw.js for PWA installation
             manifest_path = os.path.join(self.output_dir, "manifest.json")
             with open(manifest_path, "w", encoding="utf-8") as f:
                 f.write(mob_gen.render_manifest())
@@ -398,50 +402,26 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         llm_prompt = self._build_llm_prompt(data)
         llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-        # Mobile specific PWA meta and styling tags
-        page_title = "BTC Magnet Cockpit (Mobile App)" if is_mobile else "BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit"
-        body_padding = "pb-28" if is_mobile else "pb-16"
+        # Unified PWA meta and styling tags (applies to both index.html and app.html)
+        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit"
+        body_padding = "pb-16"
 
-        pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BTC Magnet">
   <meta name="theme-color" content="#09090b">
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">""" if is_mobile else """  <meta name="viewport" content="width=device-width, initial-scale=1.0">"""
+  <link rel="apple-touch-icon" href="icon-192.png">"""
 
-        top_switch_button = """<a href="index.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-bold text-cyan-400 border border-zinc-700/80 transition-all">
-          <span>🖥️ Desktop View</span>
-        </a>""" if is_mobile else """<a href="app.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs font-bold text-emerald-400 border border-emerald-500/40 transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]">
-          <span>📱 Mobile Cockpit</span>
+        top_switch_button = """<a href="regimes.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
+          <span>5 Regimes Guide &rarr;</span>
+        </a>
+        <a href="regime.json" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition-colors">
+          <span>REST API</span>
         </a>"""
 
-        mobile_nav_bar = """  <!-- Mobile Bottom Floating Quick-Jump Bar -->
-  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-800/80 px-2 py-2 flex items-center justify-around shadow-2xl safe-area-pb">
-    <a href="#panel-1" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
-      <span class="text-xs">⏱️</span>
-      <span>Live</span>
-    </a>
-    <a href="#panel-2" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
-      <span class="text-xs">📊</span>
-      <span>Data</span>
-    </a>
-    <a href="#panel-3" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
-      <span class="text-xs">🧲</span>
-      <span>Regime</span>
-    </a>
-    <a href="#panel-4" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
-      <span class="text-xs">🎯</span>
-      <span>Action</span>
-    </a>
-    <a href="#panel-5" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
-      <span class="text-xs">🤖</span>
-      <span>AI</span>
-    </a>
-    <a href="#panel-6" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
-      <span class="text-xs">🧠</span>
-      <span>Verdict</span>
-    </a>
-  </nav>""" if is_mobile else ""
+        mobile_nav_bar = ""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -479,7 +459,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">{'PWA Mobile App' if is_mobile else '5-Regime Radar'}</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
           </div>
           <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
         </div>
@@ -487,10 +467,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
       <div class="flex items-center gap-3 sm:gap-6">
         {top_switch_button}
-        <a href="regimes.html" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
-          <span>5 Regimes Guide</span>
-          <span>&rarr;</span>
-        </a>
         <div class="text-right">
           <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
           <div class="text-base font-bold mono text-white">${price:,.2f}</div>
@@ -1477,10 +1453,24 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     setInterval(updateLivePriceTicker, 3000);
     updateLivePriceTicker();
 
-    // PWA Service Worker Registration
-    if ('serviceWorker' in navigator && {'true' if is_mobile else 'false'}) {{
+    // PWA Service Worker Registration & Stale Cache Purge
+    if ('serviceWorker' in navigator) {{
       window.addEventListener('load', () => {{
-        navigator.serviceWorker.register('./sw.js').catch(() => {{}});
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {{
+            reg.update();
+          }})
+          .catch(() => {{}});
+      }});
+    }}
+    // Actively purge legacy caches from previous versions
+    if ('caches' in window) {{
+      caches.keys().then((keys) => {{
+        keys.forEach((key) => {{
+          if (key !== 'btc-magnet-pwa-v5') {{
+            caches.delete(key);
+          }}
+        }});
       }});
     }}
   </script>

@@ -12,10 +12,10 @@ class MobileWebGenerator:
             "name": "BTC Magnet Monitor",
             "short_name": "BTC Magnet",
             "description": "Observable 5-Regime Radar & Liquidation Telemetry Cockpit",
-            "start_url": "./app.html",
+            "start_url": "./index.html",
             "display": "standalone",
-            "background_color": "#060908",
-            "theme_color": "#00ff66",
+            "background_color": "#09090b",
+            "theme_color": "#10b981",
             "orientation": "portrait-primary",
             "icons": [
                 {
@@ -33,11 +33,14 @@ class MobileWebGenerator:
         return json.dumps(manifest, indent=2)
 
     def render_service_worker(self) -> str:
-        return """const CACHE_NAME = 'btc-magnet-mobile-v2';
+        return """const CACHE_NAME = 'btc-magnet-pwa-v5';
 const STATIC_ASSETS = [
+  './index.html',
   './app.html',
-  './verdict.html',
-  './manifest.json'
+  './regimes.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -60,13 +63,21 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (!e.request.url.startsWith(self.location.origin)) {
-    return; // Pass through external feeds like Binance directly
+    return; // Pass through external feeds (Binance, Deribit) directly
   }
-  if (e.request.url.includes('regime.json')) {
+  // NETWORK-FIRST FOR HTML PAGES AND LIVE METRICS (Always fresh, offline fallback)
+  if (e.request.mode === 'navigate' || e.request.url.endsWith('.html') || e.request.url.includes('regime.json')) {
     e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
     );
   } else {
+    // Cache-first for images, fonts, icons
     e.respondWith(
       caches.match(e.request).then((res) => res || fetch(e.request))
     );
