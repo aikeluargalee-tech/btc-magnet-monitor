@@ -66,13 +66,16 @@ class TestGeneratedSite(unittest.TestCase):
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
         for token in (
-            "panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "method-1", "method-2",
+            "panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "verdict-guide", "method-1", "method-2",
+            "How to Get Your Trading Verdict",
             "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
             "BTC MAGNET MONITOR :: 5-REGIME ENGINE", "Microstructure Positioning &amp; Liquidation Telemetry",
-            "MANDATE: SPOT ONLY", "view-switcher", "min-height: 44px", "[HUD]", "[JSON]", "[DELTA]", "[PROMPT]",
+            "MANDATE: SPOT ONLY", "min-height: 44px",
             "TIER", "EST.POOL", "[WARNING: TELEMETRY STALE &gt;30M]"
         ):
             self.assertIn(token, text_html)
+        for removed in ("view-switcher", "[HUD]", "[JSON]", "[DELTA]", "[PROMPT]"):
+            self.assertNotIn(removed, text_html)
         self.assertNotIn("panel-4", text_html)
         self.assertNotIn("Recommended Rotation", text_html)
         self.assertNotIn("cdn.tailwindcss.com", text_html)

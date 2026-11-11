@@ -1162,33 +1162,33 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- ============================================================ -->
     <!-- BRIDGE: TWO INDEPENDENT VERDICT METHODS                      -->
     <!-- ============================================================ -->
-    <div class="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-[0_0_25px_rgba(139,92,246,0.12)] text-center space-y-3">
+    <div id="verdict-guide" class="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-[0_0_25px_rgba(139,92,246,0.12)] text-center space-y-3">
       <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/40 text-violet-300 text-xs font-extrabold uppercase tracking-wider">
-        <span>⚖️ High-Conviction Decision Architecture</span>
+        <span>⚖️ Bridge &bull; How to Get Your Trading Verdict</span>
       </div>
       <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">
-        How to Get Your Trading Verdict: Two Independent Methods
+        Choose Method 1 (Your Own AI) or Method 2 (Our System Verdict)
       </h3>
       <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-        Don't rely blindly on our verdict or any single algorithm. Choose between an unanchored blind metrics export for your own AI, or inspect our system's deterministic verdict and liquidation model below.
+        Panels 1–3 give you pure market facts with zero advice. To get an actionable trading verdict, pick either method below—or use <strong>both together</strong> so your independent AI double-checks our engine before you risk spot capital.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
         <a href="#method-1" class="p-4 rounded-xl bg-zinc-950/85 border border-sky-500/50 hover:border-sky-400 transition-all flex items-start gap-3">
           <span class="text-2xl">📋</span>
           <div>
-            <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Method 1</div>
-            <div class="text-sm font-extrabold text-white">Copy Data &amp; Prompt to AI</div>
-            <p class="text-[11px] text-zinc-400 mt-0.5">Copy either Blind Telemetry (unanchored metrics-only vote) or Full Audit Prompt for ChatGPT, Claude, Grok, or Gemini.</p>
+            <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Method 1 &bull; Use Your Own AI</div>
+            <div class="text-sm font-extrabold text-white">Copy Data &amp; Paste into ChatGPT / Claude / Gemini</div>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 1 and tap <strong class="text-sky-300">Copy Blind Telemetry</strong> (raw metrics only, zero verdict shown) or <strong class="text-cyan-300">Full Audit Prompt</strong>.<br>2. Paste into your favorite AI to get an unbiased regime verdict and entry levels.</p>
           </div>
         </a>
 
         <a href="#method-2" class="p-4 rounded-xl bg-zinc-950/85 border border-purple-500/50 hover:border-purple-400 transition-all flex items-start gap-3">
           <span class="text-2xl">🧠</span>
           <div>
-            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Method 2</div>
-            <div class="text-sm font-extrabold text-white">Our System Verdict (Full-On View)</div>
-            <p class="text-[11px] text-zinc-400 mt-0.5">Explore our plain-English verdict, 3 empirical drivers, LSCE state gate, 10x-100x modeled ladder, and 6-factor logic.</p>
+            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Method 2 &bull; Built-In Rule Engine</div>
+            <div class="text-sm font-extrabold text-white">Read Our System Verdict (Full-On View)</div>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 2 for the deterministic regime call, 3 core drivers, and LSCE sweep/reclaim gate.<br>2. Check the 10x–100x modeled liquidation ladder, stop level, and 1% risk-budget sizing.</p>
           </div>
         </a>
       </div>
@@ -2821,8 +2821,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             )
         )
 
-        raw_json_str = _json.dumps(data, indent=2)
-
         tpl = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2937,40 +2935,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       overflow-wrap: break-word;
     }
 
-    /* Touch Ergonomics Top View Switcher (Min 44px Hitboxes) */
-    .view-switcher {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-    .view-btn {
-      min-height: 44px;
-      min-width: 44px;
-      padding: 10px 4px;
-      background: #14171f;
-      border: 1.5px solid rgba(99, 102, 241, 0.45);
-      border-radius: 6px;
-      color: #a1a1aa;
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 800;
-      text-align: center;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s ease;
-      touch-action: manipulation;
-    }
-    .view-btn.active {
-      background: #0284c7;
-      color: #ffffff;
-      border-color: #38bdf8;
-      box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
-    }
-    .view-btn:active { transform: scale(0.96); }
-
     .stale-banner {
       background: rgba(225, 29, 72, 0.15);
       border: 1.5px solid #e11d48;
@@ -3059,6 +3023,13 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       box-shadow: 0 0 14px rgba(168, 85, 247, 0.14);
     }
     .panel-box-purple .panel-hdr { color: #c084fc; border-bottom-color: rgba(168, 85, 247, 0.35); }
+
+    .panel-box-violet {
+      background: linear-gradient(180deg, #121024 0%, #090a0d 100%);
+      border-color: #8b5cf6;
+      box-shadow: 0 0 14px rgba(139, 92, 246, 0.16);
+    }
+    .panel-box-violet .panel-hdr { color: #a78bfa; border-bottom-color: rgba(139, 92, 246, 0.35); }
 
     .panel-box-gold {
       background: linear-gradient(180deg, #17150b 0%, #090a0d 100%);
@@ -3214,14 +3185,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
 
-    <!-- TOP VIEW SWITCHER -->
-    <nav class="view-switcher" role="tablist" aria-label="HUD Navigation Modes">
-      <button class="view-btn active" id="btn-view-hud" onclick="switchView('hud')" role="tab" aria-selected="true">[HUD]</button>
-      <button class="view-btn" id="btn-view-json" onclick="switchView('json')" role="tab" aria-selected="false">[JSON]</button>
-      <button class="view-btn" id="btn-view-delta" onclick="switchView('delta')" role="tab" aria-selected="false">[DELTA]</button>
-      <button class="view-btn" id="btn-view-prompt" onclick="switchView('prompt')" role="tab" aria-selected="false">[PROMPT]</button>
-    </nav>
-
     <!-- STALE TELEMETRY BANNER (>30M TARGET) -->
     <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
       ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target + CI grace. Live spot REST feed active below.
@@ -3234,15 +3197,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div style="margin-top: 6px;">
         <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
       </div>
-    </div>
-
-    <!-- RAW JSON VIEW CONTAINER -->
-    <div id="json-view-container" style="display: none;" class="panel-box panel-box-gold">
-      <div class="panel-hdr">Raw Telemetry JSON Feed (regime.json)</div>
-      <button class="btn-copy" onclick="copyJsonFeed()" style="margin-top: 0; margin-bottom: 10px;">
-        📋 COPY RAW JSON TELEMETRY
-      </button>
-      <pre class="prompt-box" id="raw-json-pre" style="max-height: 480px;">__RAW_JSON__</pre>
     </div>
 
     <!-- MAIN HUD VIEW CONTAINER -->
@@ -3368,6 +3322,38 @@ __MATCHED_CRITERIA_ASCII__</pre>
         </div>
       </div>
 
+      <!-- BRIDGE: HOW TO GET YOUR VERDICT (METHOD 1 VS METHOD 2) -->
+      <div id="verdict-guide" class="panel-box panel-box-violet">
+        <div class="panel-hdr">Bridge &bull; How to Get Your Trading Verdict</div>
+
+        <div class="sub-card sub-card-indigo">
+          <pre class="ascii"><span class="c-indigo">Panels 1-3 = Observable Facts Only.</span>
+To get an actionable verdict, use Method 1
+or Method 2 below (or compare both):</pre>
+        </div>
+
+        <div class="sub-card sub-card-sky">
+          <pre class="ascii"><span class="c-cyan">Method 1 &bull; Use Your Own AI (Unbiased)</span>
+1. Scroll to Method 1 &amp; tap <span class="c-green">COPY BLIND
+   TELEMETRY</span> (raw metrics, no verdict shown)
+   or <span class="c-cyan">COPY FULL AUDIT PROMPT</span>.
+2. Paste into ChatGPT, Claude, Grok, or
+   Gemini for an independent verdict &amp; levels.</pre>
+          <a href="#method-1" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#38bdf8;text-decoration:none;">&darr; Go to Method 1</a>
+        </div>
+
+        <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
+          <pre class="ascii"><span class="c-purple">Method 2 &bull; Our System Verdict (Built-In)</span>
+1. Scroll to Method 2 for our system's
+   plain-English call &amp; 3 empirical drivers.
+2. Verify LSCE gate, 10x-100x ladder, and
+   1% risk-budget stop before acting.
+Tip: Highest conviction when Method 1
+(Blind AI) and Method 2 agree.</pre>
+          <a href="#method-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Method 2</a>
+        </div>
+      </div>
+
       <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI -->
       <div id="method-1" class="panel-box panel-box-sky">
         <div class="panel-hdr">Method 1 &bull; Copy Data &amp; Prompt to AI</div>
@@ -3490,44 +3476,6 @@ Decisive Call:
     let SCAN_TS = '__SCAN_TS__';
     let PROMPT_TEXT = _RAW_PROMPT_JSON_;
     let BLIND_PROMPT_TEXT = _BLIND_PROMPT_JSON_;
-    let RAW_JSON_PAYLOAD = _RAW_JSON_TEXT_;
-    let currentViewMode = 'hud';
-
-    function switchView(mode, skipScroll) {
-      currentViewMode = mode;
-      document.querySelectorAll('.view-btn').forEach(b => {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      const activeBtn = document.getElementById('btn-view-' + mode);
-      if (activeBtn) {
-        activeBtn.classList.add('active');
-        activeBtn.setAttribute('aria-selected', 'true');
-      }
-
-      const hudView = document.getElementById('hud-view-container');
-      const jsonView = document.getElementById('json-view-container');
-
-      if (mode === 'hud') {
-        hudView.style.display = 'block';
-        jsonView.style.display = 'none';
-        if (!skipScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (mode === 'json') {
-        hudView.style.display = 'none';
-        jsonView.style.display = 'block';
-        if (!skipScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (mode === 'delta') {
-        hudView.style.display = 'block';
-        jsonView.style.display = 'none';
-        const d = document.getElementById('method-2');
-        if (d && !skipScroll) d.scrollIntoView({ behavior: 'smooth' });
-      } else if (mode === 'prompt') {
-        hudView.style.display = 'block';
-        jsonView.style.display = 'none';
-        const p = document.getElementById('method-1');
-        if (p && !skipScroll) p.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
 
     function copyTextPayload(txt, msg, btnId) {
       function markBtn() {
@@ -3551,9 +3499,6 @@ Decisive Call:
     function copyPrompt() { copyTelemetryPrompt(); }
     function copyBlindPrompt() {
       copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied Blind Telemetry (No Verdict)!', 'copy-blind-btn');
-    }
-    function copyJsonFeed() {
-      copyTextPayload(RAW_JSON_PAYLOAD, '✓ Copied Raw JSON Telemetry!', null);
     }
 
     function fallbackCopy(text, onOk) {
@@ -3693,11 +3638,6 @@ Decisive Call:
     function sanitizeTextNode(root) {
       root.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(function (n) { n.remove(); });
       const allowedClicks = new Set([
-        "switchView('hud')",
-        "switchView('json')",
-        "switchView('delta')",
-        "switchView('prompt')",
-        "copyJsonFeed()",
         "copyTelemetryPrompt()",
         "copyBlindPrompt()",
         "refreshLiveScan(true)"
@@ -3743,8 +3683,6 @@ Decisive Call:
                 if (livePx > 0) SCAN_PRICE = livePx;
                 if (typeof payload.prompt_text === 'string') PROMPT_TEXT = payload.prompt_text;
                 if (typeof payload.blind_prompt_text === 'string') BLIND_PROMPT_TEXT = payload.blind_prompt_text;
-                if (typeof payload.raw_json_text === 'string') RAW_JSON_PAYLOAD = payload.raw_json_text;
-                switchView(currentViewMode, true);
                 updateClocks();
                 updateLivePrice();
                 updated = true;
@@ -3910,7 +3848,6 @@ Decisive Call:
             "scan_price": round(float(price), 2),
             "prompt_text": raw_prompt,
             "blind_prompt_text": blind_prompt,
-            "raw_json_text": raw_json_str,
         }).replace("</", "<\\/")
 
         html = html.replace("__PROMPT_LEN__", f"{len(raw_prompt)}")
@@ -3918,8 +3855,6 @@ Decisive Call:
         html = html.replace("_TEXT_LIVE_PAYLOAD_JSON_", live_payload_json)
         html = html.replace("_RAW_PROMPT_JSON_", _json.dumps(raw_prompt))
         html = html.replace("_BLIND_PROMPT_JSON_", _json.dumps(blind_prompt))
-        html = html.replace("__RAW_JSON__", raw_json_str)
-        html = html.replace("_RAW_JSON_TEXT_", _json.dumps(raw_json_str))
         html = html.replace("__STATIC_STALE_STYLE__", "display: block;" if is_stale_telemetry else "display: none;")
 
         html = html.replace("__PLAIN_VERDICT__", plain_verdict)

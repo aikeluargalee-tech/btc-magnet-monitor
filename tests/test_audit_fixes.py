@@ -232,8 +232,10 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
             WebGenerator(output_dir=tmp).generate(payload)
             with open(os.path.join(tmp, "text.html"), encoding="utf-8") as f:
                 text_html = f.read()
-        for token in ("refreshLiveScan(true)", "renderTextStaleState", "sanitizeTextNode", 'id="text-live-payload"'):
+        for token in ("refreshLiveScan(true)", "renderTextStaleState", "sanitizeTextNode", 'id="text-live-payload"', 'id="verdict-guide"', "panel-box-violet"):
             self.assertIn(token, text_html)
+        for removed in ("view-switcher", "[HUD]", "[JSON]", "[DELTA]", "[PROMPT]"):
+            self.assertNotIn(removed, text_html)
 
         radar_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".github", "workflows", "radar.yml")
         with open(radar_path, encoding="utf-8") as f:
