@@ -1,19 +1,7 @@
 name: Build Android APK (Capacitor Mobile App)
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
-  push:
-    branches:
-      - main
-    paths:
-      - 'web/**'
-      - 'engine/**'
-      - 'scripts/**'
-      - 'assets/**'
-      - 'tailwind.config.js'
-      - 'capacitor.config.json'
-      - 'package.json'
-      - '.github/workflows/build-android-apk.yml'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab only
 
 # Least privilege: this job only needs to read the repository (it never pushes or deploys).
 permissions:
