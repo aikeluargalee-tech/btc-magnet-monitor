@@ -1,87 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Dark background squircle -->
+    <!-- Background squircle -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#141419"/>
-      <stop offset="100%" stop-color="#08080a"/>
+      <stop offset="0%" stop-color="#0e0e12"/>
+      <stop offset="100%" stop-color="#060608"/>
     </linearGradient>
-    
-    <!-- Red pole (Left) -->
+
+    <!-- Red pole: pure vibrant red from screenshot rgb(253, 34, 56) -->
     <linearGradient id="redPole" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#f87171"/>
-      <stop offset="50%" stop-color="#ef4444"/>
-      <stop offset="100%" stop-color="#dc2626"/>
+      <stop offset="0%" stop-color="#ff334b"/>
+      <stop offset="100%" stop-color="#ea1d36"/>
     </linearGradient>
 
-    <!-- Cyan/Blue pole (Right) -->
+    <!-- Blue pole: pure electric cyan/blue from screenshot rgb(0, 173, 229) -->
     <linearGradient id="bluePole" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="50%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#0284c7"/>
+      <stop offset="0%" stop-color="#00bcf2"/>
+      <stop offset="100%" stop-color="#009ad9"/>
     </linearGradient>
 
-    <!-- Neon Lime Green body -->
-    <linearGradient id="greenBody" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#00e676"/>
-      <stop offset="100%" stop-color="#00c853"/>
+    <!-- Neon Green body from screenshot rgb(0, 234, 67) -->
+    <linearGradient id="neonGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00ea47"/>
+      <stop offset="100%" stop-color="#00d43f"/>
     </linearGradient>
-
-    <!-- Bitcoin Gold -->
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#fffbeb"/>
-      <stop offset="25%" stop-color="#fde047"/>
-      <stop offset="70%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-    
-    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <filter id="magnetGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#00e676" flood-opacity="0.35"/>
-    </filter>
   </defs>
 
-  <!-- Squircle Outer Shell (One UI style) -->
-  <rect x="8" y="8" width="496" height="496" rx="118" ry="118" fill="url(#bgGrad)" stroke="#27272a" stroke-width="3"/>
+  <!-- Dark Squircle Shell -->
+  <rect x="8" y="8" width="496" height="496" rx="118" ry="118" fill="url(#bgGrad)" stroke="#1a1a20" stroke-width="2"/>
 
-  <!-- Magnet Group with subtle glow -->
-  <g filter="url(#magnetGlow)">
-    <!-- Magnet Body: Green Left Vertical Arm -->
-    <path d="M 96,164 L 168,164 L 168,280 L 96,280 Z" fill="url(#greenBody)"/>
+  <!-- Top Bridge Green Arc -->
+  <path d="M 152,48 C 182,36 218,30 256,30 C 294,30 330,36 360,48 L 360,86 C 330,76 294,70 256,70 C 218,70 182,76 152,86 Z" fill="url(#neonGreen)"/>
 
-    <!-- Magnet Body: Green Right Vertical Arm -->
-    <path d="M 344,164 L 416,164 L 416,280 L 344,280 Z" fill="url(#greenBody)"/>
+  <!-- Left Pole (Red) -->
+  <path d="M 84,72 C 84,58 92,50 106,48 L 152,48 L 152,185 L 84,185 Z" fill="url(#redPole)"/>
 
-    <!-- Magnet Body: Bottom U-Curve Green (Outer r=160, Inner r=88, Center=(256, 280)) -->
-    <path d="M 96,280 A 160,160 0 0,0 416,280 L 344,280 A 88,88 0 0,1 168,280 Z" fill="url(#greenBody)"/>
+  <!-- Right Pole (Cyan/Blue) -->
+  <path d="M 360,48 L 406,48 C 420,50 428,58 428,72 L 428,185 L 360,185 Z" fill="url(#bluePole)"/>
 
-    <!-- Magnet Left Pole (Red) -->
-    <path d="M 104,76 L 160,76 A 8,8 0 0,1 168,84 L 168,164 L 96,164 L 96,84 A 8,8 0 0,1 104,76 Z" fill="url(#redPole)"/>
-    <!-- Divider Line -->
-    <line x1="96" y1="164" x2="168" y2="164" stroke="#08080a" stroke-width="3"/>
+  <!-- Left Vertical Arm (Neon Green) -->
+  <rect x="84" y="185" width="68" height="130" fill="url(#neonGreen)"/>
 
-    <!-- Magnet Right Pole (Cyan/Blue) -->
-    <path d="M 352,76 L 408,76 A 8,8 0 0,1 416,84 L 416,164 L 344,164 L 344,84 A 8,8 0 0,1 352,76 Z" fill="url(#bluePole)"/>
-    <!-- Divider Line -->
-    <line x1="344" y1="164" x2="416" y2="164" stroke="#08080a" stroke-width="3"/>
-  </g>
+  <!-- Right Vertical Arm (Neon Green) -->
+  <rect x="360" y="185" width="68" height="130" fill="url(#neonGreen)"/>
 
-  <!-- Central Bitcoin B Symbol inside the hollow U -->
-  <g filter="url(#goldGlow)">
-    <!-- Decorative subtle circular gold aura behind ₿ -->
-    <circle cx="256" cy="226" r="64" fill="#f59e0b" opacity="0.12"/>
-    <text x="256" y="232" 
-          font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" 
-          font-size="142" 
-          font-weight="900" 
-          text-anchor="middle" 
-          dominant-baseline="central" 
-          fill="url(#goldGrad)">₿</text>
-  </g>
+  <!-- Bottom U-Curve (Neon Green) -->
+  <path d="M 84,315 A 172,172 0 0,0 428,315 L 360,315 A 104,104 0 0,1 152,315 Z" fill="url(#neonGreen)"/>
 </svg>
