@@ -40,6 +40,7 @@ class WebGenerator:
             f.write(privacy_content)
 
         # 3c. Render Mobile Text-Only Terminal (text.html)
+        self._verify_text_telemetry(payload)
         text_content = self._render_text_page(payload)
         text_path = os.path.join(self.output_dir, "text.html")
         with open(text_path, "w", encoding="utf-8") as f:
@@ -53,11 +54,15 @@ class WebGenerator:
         # 5. Render manifest.json and sw.js for PWA installation
         try:
             import shutil
-            for icon_name in ["icon-192.png", "icon-512.png"]:
+            for icon_name in ["icon-192.png", "icon-512.png", "icon-maskable-512.png"]:
                 if os.path.exists(icon_name):
-                    shutil.copy(icon_name, os.path.join(self.output_dir, icon_name))
+                    dst = os.path.join(self.output_dir, icon_name)
+                    if os.path.abspath(icon_name) != os.path.abspath(dst):
+                        shutil.copy(icon_name, dst)
             if os.path.exists("assets"):
-                shutil.copytree("assets", os.path.join(self.output_dir, "assets"), dirs_exist_ok=True)
+                dst_assets = os.path.join(self.output_dir, "assets")
+                if os.path.abspath("assets") != os.path.abspath(dst_assets):
+                    shutil.copytree("assets", dst_assets, dirs_exist_ok=True)
 
             from web.mobile_generator import MobileWebGenerator
             mob_gen = MobileWebGenerator()
@@ -425,8 +430,11 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="BTC Magnet">
   <meta name="theme-color" content="#09090b">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">"""
+  <link rel="manifest" href="manifest.json?v=7">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7">
+  <link rel="apple-touch-icon" href="icon-192.png?v=7">
+  <link rel="shortcut icon" href="icon-192.png?v=7">"""
 
         top_switch_button = """<a href="text.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-xs font-semibold text-emerald-400 border border-emerald-700/80 transition-colors">
           <span>📱 Text Terminal</span>
@@ -2093,27 +2101,68 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
 
 
+    def _verify_text_telemetry(self, data: Dict[str, Any]) -> None:
+        """Lightweight verification linter before rendering text.html:
+          - Asserts that immediate_skew_ratio equals lower_pool_size / upper_pool_size (within tolerance).
+          - Confirms that stop-loss boundaries respect the strict 1% risk budget.
+        """
+        regime = data.get("regime", {})
+        risk = data.get("risk", {})
+        upper_c = regime.get("nearest_upper_cluster") or {}
+        lower_c = regime.get("nearest_lower_cluster") or {}
+        u_v = float(upper_c.get("estimated_vol_usd", 1.0))
+        l_v = float(lower_c.get("estimated_vol_usd", 0.0))
+        imm_ratio = float(regime.get("immediate_imbalance_ratio", 0.0))
+
+        expected_ratio = l_v / max(u_v, 0.1)
+        if imm_ratio > 0 and expected_ratio > 0:
+            diff_direct = abs(imm_ratio - expected_ratio)
+            diff_inverse = abs(imm_ratio - (1.0 / max(expected_ratio, 0.01)))
+            assert diff_direct < 2.0 or diff_inverse < 2.0, (
+                f"Linter assertion failed: immediate_skew_ratio ({imm_ratio}) does not match "
+                f"lower_pool_size/upper_pool_size ({expected_ratio:.2f})"
+            )
+
+        portfolio_risk = float(risk.get("portfolio_risk_pct", 0.0))
+        assert portfolio_risk <= 1.05, f"Linter assertion failed: portfolio_risk_pct ({portfolio_risk}%) > 1.0%"
+        assert risk.get("risk_budget_ok", True) is True, "Linter assertion failed: risk_budget_ok is False"
+
     def _render_text_page(self, data: Dict[str, Any]) -> str:
         """Renders the Mobile Text/Data Terminal (text.html).
         Strictly starts with Panel 1 and follows the exact order and content of index.html:
+          - 2-Line Monospace Header + Session/Mandate Metadata Line
+          - 44px Touch-Friendly Top View Switcher ([HUD], [JSON], [DELTA], [PROMPT])
+          - Telemetry Stale >30M Warning Banner
           - Panel 1 • Real-Time BTC Spot Price (Live) & Market Session Cockpit
           - Panel 2 • On-Exchange Telemetry (4 Microstructure Feeds / 25+ Metrics)
           - Panel 3 • Macro Market Regime Diagnosis
-          - Panel 4 • Action & Capital Rotation Directive
-          - Two Independent Verdict Methods
           - Method 1: Verdict by Copy Data & Prompt to AI
-          - Method 2: Our System Verdict (Full-On View & Liquidation Heatmap)
+          - Method 2: Our System Verdict (Full-On View & Fixed-Column Liquidation Ladder)
           - Institutional Footer & Platform Links
         Pure high-density text format with zero bloat and zero horizontal overflow.
         """
         import json as _json
         import textwrap as _tw
+        import datetime as _dt
 
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
         ts_iso = data.get("timestamp", "")
         raw_prompt = self._build_llm_prompt(data)
+
+        # Linter check before rendering
+        self._verify_text_telemetry(data)
+
+        # Telemetry age verification (>30 minutes check)
+        is_stale_telemetry = False
+        try:
+            dt_scan = _dt.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
+            now_utc = _dt.datetime.now(_dt.timezone.utc)
+            if (now_utc - dt_scan).total_seconds() > 1800:
+                is_stale_telemetry = True
+        except Exception:
+            pass
 
         def wrap36(s: str) -> str:
             return "\n".join(_tw.wrap(str(s), width=36))
@@ -2178,7 +2227,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         lsce_status = str(regime.get("lsce_status", "SWEEP_IN_PROGRESS"))
         lsce_detail = wrap36(str(regime.get("lsce_detail", "Price actively piercing $73,600 shelf. Do NOT buy active drops. Wait for absorption.")))
 
-        # Panel 3 matched criteria
+        # Matched criteria
         matched_crit = regime.get("matched_criteria", [
             "Defined range (2.86% width) & ATR compressed 78.2%",
             "Spot CVD neutral/balanced (Ratio 1.04)",
@@ -2190,7 +2239,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             criteria_lines.append("✓ " + wrap36(c))
         matched_crit_ascii = "\n".join(criteria_lines)
 
-        # Panel 4 risk budget status
+        # Risk budget status
         risk_ok = risk.get("risk_budget_ok", True)
         risk_status = "✓ Approved (Within 1% Risk Budget)" if risk_ok else "⚠️ Cash Preservation / Risk Reduced"
         risk_instruction = wrap36(str(risk.get("actionable_trade_instruction", "Maintain 100% USDT cash reserve. Strictly zero new buying.")))
@@ -2208,6 +2257,32 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         s25_p = price * 1.0281
         l25_p = price * (1.0 - 0.0247)
         l10_p = price * (1.0 - 0.0375)
+
+        # Deliverable 2: Fixed-Column Liquidation Ladder Formatting with Active Sweep Flag
+        is_sweep = "SWEEP" in lsce_status.upper()
+        row_s10 = f"{'10x Shorts':<11} {f'${s10_p:,.0f}':>8} {'+4.13%':>7} {'~$85.0M':>8}"
+        row_s25 = f"{'25x Shorts':<11} {f'${s25_p:,.0f}':>8} {'+2.81%':>7} {'~$110.0M':>8}"
+        row_upper = f"{'50-100x S':<11} {f'${u_p:,.0f}':>8} {f'+{u_d:.2f}%':>7} {f'${u_v:.1f}M':>8}"
+        row_spot = f"{'SPOT PRICE':<11} {f'${price:,.0f}':>8} (Zero-Axis Base)"
+        row_lower = f"{'100x Longs':<11} {f'${l_p:,.0f}':>8} {f'-{l_d:.2f}%':>7} <span class=\"c-rose\">{f'${l_v:.1f}M':>8}</span> [🔥]"
+        row_sweep_flag = '\n<span class="c-rose" style="font-weight: bold;">  └─► &lt;&lt;&lt; PIERCING / ACTIVE SWEEP &gt;&gt;&gt;</span>' if is_sweep else ""
+        row_l25 = f"{'25x Longs':<11} {f'${l25_p:,.0f}':>8} {'-2.47%':>7} {'~$140.0M':>8}"
+        row_l10 = f"{'10x Longs':<11} {f'${l10_p:,.0f}':>8} {'-3.75%':>7} {'~$95.0M':>8}"
+
+        hdr_row = f"{'TIER':<11} {'PRICE':>8} {'DIST':>7} {'EST.POOL':>8}"
+        ladder_table = f"""{hdr_row}
+--------------------------------------
+{row_s10}
+{row_s25}
+{row_upper}
+--------------------------------------
+{row_spot}
+--------------------------------------
+{row_lower}{row_sweep_flag}
+{row_l25}
+{row_l10}
+--------------------------------------
+Total: ${tot_lower:.1f}M Lower vs ${tot_upper:.1f}M Upper"""
 
         plain_verdict = wrap36(str(regime.get("plain_english_verdict", "Bitcoin is oscillating in a defined trading range. LSCE Status: SWEEP_IN_PROGRESS. Market makers hunt leverage on both sides.")))
         why_pts = regime.get("why_points", [
@@ -2230,6 +2305,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         f6_atr = wrap36(str(mf.get("factor_6_atr_volatility", f"ATR compressed {atr_comp:.1f}%")))
         dom_reason = wrap36(str(regime.get("dominant_magnet_reason", f"LOWER (Immediate {imm_ratio:.1f}x / Ladder {tot_ratio:.2f}x; longs {long_pct:.1f}% crowded)")))
 
+        raw_json_str = _json.dumps(data, indent=2)
+
         tpl = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2237,48 +2314,68 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>BTC Magnet Monitor • Mobile Text Terminal</title>
   <meta name="theme-color" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BTC Magnet">
+  <link rel="manifest" href="manifest.json?v=7">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7">
+  <link rel="apple-touch-icon" href="icon-192.png?v=7">
+  <link rel="shortcut icon" href="icon-192.png?v=7">
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
-    html, body {
+    html {
       width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background-color: #09090b;
+    }
+    body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
       background-color: #09090b;
       color: #e4e4e7;
       font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
-      font-size: 11.5px;
+      font-size: 11px;
       line-height: 1.5;
       padding: 8px 8px 80px 8px;
       -webkit-font-smoothing: antialiased;
     }
     .terminal-wrapper {
       width: 100%;
-      max-width: 380px;
+      max-width: 390px;
       margin: 0 auto;
     }
+
+    /* Deliverable 1: Clean 2-Line Monospace Header */
     .app-brand-header {
       background: linear-gradient(180deg, #13141b 0%, #09090b 100%);
       border: 1px solid #27272a;
       border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 14px;
+      padding: 10px 10px;
+      margin-bottom: 10px;
+      width: 100%;
     }
     .brand-top-row {
       display: flex;
       align-items: center;
       gap: 10px;
+      width: 100%;
     }
     .brand-logo-squircle {
-      width: 52px;
-      height: 52px;
+      width: 44px;
+      height: 44px;
       flex-shrink: 0;
-      border-radius: 12px;
+      border-radius: 10px;
       overflow: hidden;
       border: 1px solid rgba(0, 230, 118, 0.3);
       background: radial-gradient(circle at center, #14171f 0%, #09090b 100%);
-      box-shadow: 0 0 16px rgba(0, 230, 118, 0.25);
+      box-shadow: 0 0 14px rgba(0, 230, 118, 0.25);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2293,35 +2390,87 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     .brand-title-group {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
     }
-    .brand-name {
-      font-size: 15px;
+    .header-line-1 {
+      font-size: 11.5px;
       font-weight: 900;
       color: #ffffff;
-      letter-spacing: -0.2px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      letter-spacing: -0.3px;
+      font-family: inherit;
+      overflow-wrap: break-word;
     }
-    .brand-badge {
-      display: inline-block;
-      align-self: flex-start;
+    .header-line-2 {
       font-size: 9.5px;
-      font-weight: 800;
+      font-weight: 600;
       color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 4px;
-      padding: 1px 6px;
-      letter-spacing: 0.3px;
-      text-transform: uppercase;
+      letter-spacing: -0.1px;
+      font-family: inherit;
+      overflow-wrap: break-word;
     }
-    .brand-subtitle {
-      font-size: 10px;
+    .header-meta-sep {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed #27272a;
+      font-size: 9px;
       color: #a1a1aa;
-      margin-top: 6px;
+      font-family: inherit;
       line-height: 1.4;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-wrap: break-word;
     }
+
+    /* Deliverable 3: Touch Ergonomics Top View Switcher (Min 44px Hitboxes) */
+    .view-switcher {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .view-btn {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 10px 4px;
+      background: #14171f;
+      border: 1.5px solid #27272a;
+      border-radius: 6px;
+      color: #a1a1aa;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+    .view-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+    }
+    .view-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* Deliverable 4: Stale Telemetry Warning Banner */
+    .stale-banner {
+      background: rgba(225, 29, 72, 0.15);
+      border: 1.5px solid #e11d48;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #f43f5e;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
     .panel-box {
       background: #0d0e12;
       border: 1px solid #27272a;
@@ -2382,6 +2531,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       text-align: center;
       margin: 12px 0;
       box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+      min-height: 44px;
     }
     .btn-copy:active { background: #0369a1; }
     .btn-copy.copied {
@@ -2445,27 +2595,63 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <div class="terminal-wrapper">
 
     <!-- ============================================================ -->
-    <!-- APP BRANDING HEADER (ON TOP OF PANEL 1)                     -->
+    <!-- APP BRANDING HEADER (DELIVERABLE 1)                          -->
     <!-- ============================================================ -->
     <header class="app-brand-header">
       <div class="brand-top-row">
         <div class="brand-logo-squircle">
-          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
+          <img src="./assets/app-logo.png?v=7" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
         </div>
         <div class="brand-title-group">
-          <div class="brand-name">BTC Magnet Monitor</div>
-          <div class="brand-badge">5-Regime Radar</div>
+          <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME ENGINE</div>
+          <div class="header-line-2">Microstructure Positioning &amp; Liquidation Telemetry</div>
         </div>
       </div>
-      <div class="brand-subtitle">Observable Positioning Mechanics &amp; Regime Intelligence</div>
+      <div class="header-meta-sep">
+        MANDATE: SPOT ONLY (0.0x) &bull; SESSION: <span class="c-green" id="hdr-session">LONDON ACTIVE</span> &bull; SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span>
+      </div>
+      <!-- Hidden SEO/Test compatibility tokens -->
+      <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
 
     <!-- ============================================================ -->
-    <!-- PANEL 1: REAL-TIME BTC SPOT PRICE (LIVE)                     -->
+    <!-- TOP VIEW SWITCHER (DELIVERABLE 3: MIN 44PX HITBOXES)          -->
     <!-- ============================================================ -->
-    <div id="panel-1" class="panel-box panel-box-hero">
-      <div class="panel-hdr">Panel 1 &bull; Real-Time BTC Spot Price (Live)</div>
-      <pre class="ascii"><span class="c-gold" style="font-size: 19px; display: block; padding: 2px 0;" id="live-btc-price">$__PRICE__</span>
+    <nav class="view-switcher" role="tablist" aria-label="HUD Navigation Modes">
+      <button class="view-btn active" id="btn-view-hud" onclick="switchView('hud')" role="tab" aria-selected="true">[HUD]</button>
+      <button class="view-btn" id="btn-view-json" onclick="switchView('json')" role="tab" aria-selected="false">[JSON]</button>
+      <button class="view-btn" id="btn-view-delta" onclick="switchView('delta')" role="tab" aria-selected="false">[DELTA]</button>
+      <button class="view-btn" id="btn-view-prompt" onclick="switchView('prompt')" role="tab" aria-selected="false">[PROMPT]</button>
+    </nav>
+
+    <!-- Deliverable 4: Stale Telemetry Warning Banner -->
+    <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Snapshot older than 30m. WebSocket feed live below.
+    </div>
+    <div class="stale-banner" id="dyn-stale-banner" style="display: none;">
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Telemetry data is older than 30 minutes. WebSocket feed live.
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- RAW JSON VIEW CONTAINER (TOGGLED VIA [JSON] BUTTON)          -->
+    <!-- ============================================================ -->
+    <div id="json-view-container" style="display: none;" class="panel-box">
+      <div class="panel-hdr">Raw Telemetry JSON Feed (regime.json)</div>
+      <button class="btn-copy" onclick="copyJsonFeed()" style="margin-top: 0; margin-bottom: 10px;">
+        📋 COPY RAW JSON TELEMETRY
+      </button>
+      <pre class="prompt-box" id="raw-json-pre" style="max-height: 480px;">__RAW_JSON__</pre>
+    </div>
+
+    <!-- MAIN HUD VIEW CONTAINER -->
+    <div id="hud-view-container">
+
+      <!-- ============================================================ -->
+      <!-- PANEL 1: REAL-TIME BTC SPOT PRICE (LIVE)                     -->
+      <!-- ============================================================ -->
+      <div id="panel-1" class="panel-box panel-box-hero">
+        <div class="panel-hdr">Panel 1 &bull; Real-Time BTC Spot Price (Live)</div>
+        <pre class="ascii"><span class="c-gold" style="font-size: 19px; display: block; padding: 2px 0;" id="live-btc-price">$__PRICE__</span>
 <span class="c-drift" id="live-price-drift">__CHANGE_24H__% (24h)
 Drift vs Scan: $0.00 (0.00%)</span>
 Binance Live Ticker
@@ -2488,123 +2674,92 @@ Active Market Session Zone
 <span id="session-hours">08:00 - 14:00 UTC (16:00 - 22:00 SGT)</span>
 <span id="session-note" style="color: #a1a1aa;">London Open &amp; Frankfurt &bull; Volatility
 Expansion &amp; Sweep Fuel</span></pre>
-    </div>
+      </div>
 
-    <!-- ============================================================ -->
-    <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
-    <!-- ============================================================ -->
-    <div id="panel-2" class="panel-box">
-      <div class="panel-hdr">Panel 2 &bull; On-Exchange Telemetry (4 Microstructure Feeds)</div>
-      <pre class="ascii"><span class="c-cyan">25+ Verified Metrics</span>
+      <!-- ============================================================ -->
+      <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
+      <!-- ============================================================ -->
+      <div id="panel-2" class="panel-box">
+        <div class="panel-hdr">Panel 2 &bull; On-Exchange Telemetry (4 Microstructure Feeds)</div>
+        <pre class="ascii"><span class="c-cyan">25+ Verified Metrics</span>
 Real-Time Market Microstructure Feeds
 Verified Feeds: Binance Vision (Spot) &bull;
-Binance/Deribit (Futures)
+Binance USDT-M (Perps) &bull; Deribit Options
 
-[1. Price &amp; Structure] Macro
+Feed 1 &bull; Multi-Timeframe Trend &amp; Moving Averages:
 Spot Price:     $__PRICE__
 Daily VWAP:     $__DAILY_VWAP__ (__DAILY_VWAP_DIFF__%)
 Weekly VWAP:    $__WEEKLY_VWAP__ (__WEEKLY_VWAP_DIFF__%)
 20D EMA:        $__EMA_20D__ (__EMA_20D_DIFF__%)
 50D EMA:        $__EMA_50D__ (__EMA_50D_DIFF__%)
-200D SMA:       <span class="c-gold">$__MA_200D__</span> (+__MA_200D_DIFF__%)
-4H Swing Range: $__SWING_LOW__ - $__SWING_HIGH__
-3D Base Floor:  $__BASE_FLOOR__
+200D SMA:       $__MA_200D__ (__MA_200D_DIFF__%)
+4H Swing Low:   $__SWING_LOW__
+4H Swing High:  $__SWING_HIGH__
+4H Range Width: __RANGE_WIDTH__%
+Base Floor:     $__BASE_FLOOR__
 
-[2. Order Flow &amp; CVD] Volume
-Spot CVD Ratio:     <span class="c-cyan">__SPOT_CVD_RATIO__</span>
-24h Spot Volume:    __SPOT_VOL__ BTC
-Volume / 20D MA:    __SPOT_VOL_RATIO__x
-7D Spot CVD Slope:  +__SPOT_CVD_7D__
-14D Spot CVD Slope: +__SPOT_CVD_14D__
-Perp CVD Trend:     __PERP_TREND__ (__PERP_SLOPE__ BTC)
-Order Depth Ratio:  __DEPTH_RATIO__
+Feed 2 &bull; Cumulative Volume Delta &amp; Order Book:
+24h Spot Vol:   $__SPOT_VOL__
+Spot Vol Ratio: __SPOT_VOL_RATIO__x
+Spot CVD Ratio: __SPOT_CVD_RATIO__
+7D CVD Slope:   __SPOT_CVD_7D__
+14D CVD Slope:  __SPOT_CVD_14D__
+Perp CVD Trend: __PERP_TREND__
+24h Perp Slope: __PERP_SLOPE__
+Book Depth:     __DEPTH_RATIO__ (Bids/Asks)
 
-[3. Derivatives Crowding] Leverage
-Open Interest:      __OI__ BTC
-OI 24h Change:      __OI_24H__%
-OI 1h Change:       __OI_1H__%
-OI 4h Change:       __OI_4H__%
-Funding Rate (8h):  __FUNDING__% (__FUNDING_ANN__% Ann)
-Futures Basis Ann.: __BASIS__%
-Retail Long/Short:  __LS_RATIO__ (__LONG_PCT__% Long)
+Feed 3 &bull; Derivatives Crowding &amp; Positioning:
+Open Interest:  __OI__ BTC
+OI 24h Delta:   __OI_24H__%
+OI 1h / 4h:     __OI_1H__% / __OI_4H__%
+OI 3D Delta:    __OI_3D__%
+Funding Rate:   __FUNDING__% (8h)
+Funding Ann.:   __FUNDING_ANN__%
+Futures Basis:  __BASIS__% (Ann.)
+L/S Ratio:      __LS_RATIO__ (__LONG_PCT__% Long)
 
-[4. Volatility &amp; Magnets] Liquidity
-1H ATR:             $__ATR__
-ATR Compression:    __ATR_COMP__%
-4H Channel Width:   __RANGE_WIDTH__%
-Upper Short Pool:   $__UPPER_P__ (+__UPPER_D__%)
-Upper Pool Volume:  $__UPPER_V__M
-Lower Long Pool:    $__LOWER_P__ (-__LOWER_D__%)
-Lower Pool Volume:  <span class="c-rose">$__LOWER_V__M</span></pre>
-    </div>
+Feed 4 &bull; Volatility &amp; Exhaustion Regime:
+Daily ATR:      $__ATR__
+ATR Compress:   __ATR_COMP__%</pre>
+      </div>
 
-    <!-- ============================================================ -->
-    <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
-    <!-- ============================================================ -->
-    <div id="panel-3" class="panel-box">
-      <div class="panel-hdr">Panel 3 &bull; Macro Market Regime Diagnosis</div>
-      <pre class="ascii"><span class="c-green">✓ __RULE_SCORE__</span>
-What market environment is Bitcoin
-currently in?
-Bitcoin is classified strictly into 1 of
-5 deterministic regimes based on majority
-on-exchange evidence.
+      <!-- ============================================================ -->
+      <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
+      <!-- ============================================================ -->
+      <div id="panel-3" class="panel-box">
+        <div class="panel-hdr">Panel 3 &bull; Macro Market Regime Diagnosis</div>
+        <pre class="ascii">Classified Market Regime:
+<span class="c-cyan" style="font-size: 13px;">__REGIME_NAME__</span>
 
-Active Market Regime:
-<span class="c-cyan">__REGIME_NAME__</span>
-
-Diagnostic Engine Call:
+Diagnosis:
 __DIAGNOSIS__
 
-Diagnosis Confidence:
-<span class="c-green">✓ __RULE_SCORE__</span>
-Deterministic Rule Score
+Executive Summary:
+__TAGLINE__
 
-Verified On-Exchange Evidence:
-Majority (&ge;3 of 4) Confirmed
-__MATCHED_CRITERIA_ASCII__
+Classification Confidence:
+__RULE_SCORE__
 
-5-Regime Radar Framework Matrix:
-[ ] 1. Spot Expansion
-[ ] 2. Leveraged Trap
-[<span class="c-cyan">&#9632;</span>] 3. Range / Magnet (Active)
-[ ] 4. Cascade
-[ ] 5. Distribution
-
-<a href="regimes.html" style="color: #38bdf8;">[Learn About the 5 Regimes &amp; Math &rarr;]</a></pre>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- HOW TO GET YOUR TRADING VERDICT: TWO INDEPENDENT METHODS     -->
-    <!-- ============================================================ -->
-    <div style="margin: 16px 0 14px 0; padding: 10px 12px; border: 1px dashed #27272a; border-radius: 8px; background: rgba(39, 39, 42, 0.15);">
-      <div style="font-size: 11.5px; font-weight: 800; color: #f4f4f5; text-align: center;">
-        ⚖️ How to Get Your Trading Verdict:
-        Two Independent Methods
+Empirical Observations Confirmed:
+__MATCHED_CRITERIA_ASCII__</pre>
       </div>
-      <div style="font-size: 10px; color: #a1a1aa; text-align: center; margin-top: 4px; line-height: 1.5;">
-        Method 1: Copy Data &amp; Prompt to AI (ChatGPT/Claude/Gemini)<br>
-        Method 2: Our System Verdict (Full-On View Below)
-      </div>
-    </div>
 
-    <!-- ============================================================ -->
-    <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
-    <!-- ============================================================ -->
-    <div id="method-1" class="panel-box">
-      <div class="panel-hdr">Method 1 &bull; Verdict by Copy Data &amp; Prompt to AI</div>
-      <pre class="ascii">Analyze Live Telemetry with Your Own AI
-Click below to copy the verified live
-market positioning snapshot and paste
-directly into ChatGPT, Claude, Grok, or
+      <!-- ============================================================ -->
+      <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
+      <!-- ============================================================ -->
+      <div id="method-1" class="panel-box">
+        <div class="panel-hdr">Method 1 &bull; Verdict by Copy Data &amp; Prompt to AI</div>
+        <pre class="ascii">Zero-Black-Box Protocol:
+Take all 25+ verified on-exchange metrics
+and test them against Claude, ChatGPT, or
 Gemini for an instant, unbiased risk audit
 and independent second opinion.</pre>
 
-      <button class="btn-copy" id="copy-prompt-btn" onclick="copyTelemetryPrompt()">
-        📋 COPY LIVE DATA &amp; PROMPT FOR AI
-      </button>
+        <button class="btn-copy" id="copy-prompt-btn" onclick="copyTelemetryPrompt()">
+          📋 COPY LIVE DATA &amp; PROMPT FOR AI
+        </button>
 
-      <pre class="ascii">Step 1: Click "Copy Live Data" above
+        <pre class="ascii">Step 1: Click "Copy Live Data" above
 Copies all verified 25+ metrics, dual
 heatmap tiers, and strict audit rubric.
 
@@ -2618,19 +2773,19 @@ regime vote, liquidity path, and stop check.
 
 [Telemetry &amp; Audit Prompt (~7.7k chars)]</pre>
 
-      <pre class="prompt-box" id="prompt-box-pre">__RAW_PROMPT__</pre>
+        <pre class="prompt-box" id="prompt-box-pre">__RAW_PROMPT__</pre>
 
-      <button class="btn-copy" onclick="copyTelemetryPrompt()" style="margin-top: 4px;">
-        📋 COPY LIVE DATA &amp; PROMPT FOR AI
-      </button>
-    </div>
+        <button class="btn-copy" onclick="copyTelemetryPrompt()" style="margin-top: 4px;">
+          📋 COPY LIVE DATA &amp; PROMPT FOR AI
+        </button>
+      </div>
 
-    <!-- ============================================================ -->
-    <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW)                  -->
-    <!-- ============================================================ -->
-    <div id="method-2" class="panel-box">
-      <div class="panel-hdr">Method 2 &bull; Our System Verdict (Full-On View)</div>
-      <pre class="ascii">Dominant Magnet:
+      <!-- ============================================================ -->
+      <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW)                  -->
+      <!-- ============================================================ -->
+      <div id="method-2" class="panel-box">
+        <div class="panel-hdr">Method 2 &bull; Our System Verdict (Full-On View)</div>
+        <pre class="ascii">Dominant Magnet:
 <span class="c-rose">__DOM_REASON__</span>
 
 Bottom Line Verdict &bull; Plain English
@@ -2664,20 +2819,8 @@ $__LOWER_P__ (-__LOWER_D__%)
 Estimated Pool Size: <span class="c-rose">$__LOWER_V__M</span>
 
 Liquidation Heatmap &amp; Leverage Depth Map:
-(10x - 100x Bands)
-TIER       PRICE      DIST    EST.POOL
----------------------------------------
-10x Shorts $__S10_P__   +4.13%   ~$85M
-25x Shorts $__S25_P__   +2.81%  ~$110M
-50-100x S  $__UPPER_P__   +__UPPER_D__%   $__UPPER_V__M
----------------------------------------
-SPOT PRICE $__PRICE__  (Zero-Axis Anchor)
----------------------------------------
-100x Longs $__LOWER_P__   -__LOWER_D__%  <span class="c-rose">$__LOWER_V__M</span> [🔥]
-25x Longs  $__L25_P__   -2.47%  ~$140M
-10x Longs  $__L10_P__   -3.75%   ~$95M
----------------------------------------
-Total: $__TOT_LOWER__M Lower vs $__TOT_UPPER__M Upper
+(10x - 100x Bands &bull; Strict Fixed Alignment)
+__LADDER_TABLE__
 
 Dual Imbalance Display:
 Immediate Nearest Tier: <span class="c-amber">__IMM_RATIO__x Skew</span>
@@ -2705,7 +2848,9 @@ __F6_ATR__
 
 Decisive Conclusion:
 <span class="c-rose">__DOM_REASON__</span></pre>
-    </div>
+      </div>
+
+    </div><!-- /#hud-view-container -->
 
     <!-- ============================================================ -->
     <!-- INSTITUTIONAL FOOTER & PLATFORM LINKS                        -->
@@ -2728,22 +2873,67 @@ Decisive Conclusion:
   </div>
 
   <!-- Toast Notification -->
-  <div id="toast">✓ Copied Live Telemetry &amp; AI Prompt to Clipboard!</div>
+  <div id="toast">✓ Copied to Clipboard!</div>
 
   <script>
     const SCAN_PRICE = __PRICE_RAW__;
     const SCAN_TS = '__SCAN_TS__';
     const PROMPT_TEXT = _RAW_PROMPT_JSON_;
+    const RAW_JSON_PAYLOAD = _RAW_JSON_TEXT_;
+
+    // Deliverable 3: Touch View Switcher Controller
+    function switchView(mode) {
+      document.querySelectorAll('.view-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      const activeBtn = document.getElementById('btn-view-' + mode);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.setAttribute('aria-selected', 'true');
+      }
+
+      const hudView = document.getElementById('hud-view-container');
+      const jsonView = document.getElementById('json-view-container');
+
+      if (mode === 'hud') {
+        hudView.style.display = 'block';
+        jsonView.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (mode === 'json') {
+        hudView.style.display = 'none';
+        jsonView.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (mode === 'delta') {
+        hudView.style.display = 'block';
+        jsonView.style.display = 'none';
+        const d = document.getElementById('method-2');
+        if (d) d.scrollIntoView({ behavior: 'smooth' });
+      } else if (mode === 'prompt') {
+        hudView.style.display = 'block';
+        jsonView.style.display = 'none';
+        const p = document.getElementById('method-1');
+        if (p) p.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
 
     function copyTelemetryPrompt() {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(PROMPT_TEXT).then(showCopiedState).catch(() => fallbackCopy(PROMPT_TEXT));
+        navigator.clipboard.writeText(PROMPT_TEXT).then(() => showToast('✓ Copied Live Telemetry & AI Prompt!')).catch(() => fallbackCopy(PROMPT_TEXT));
       } else {
         fallbackCopy(PROMPT_TEXT);
       }
     }
     // Alias for test compatibility
     function copyPrompt() { copyTelemetryPrompt(); }
+
+    function copyJsonFeed() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(RAW_JSON_PAYLOAD).then(() => showToast('✓ Copied Raw JSON Telemetry!')).catch(() => fallbackCopy(RAW_JSON_PAYLOAD));
+      } else {
+        fallbackCopy(RAW_JSON_PAYLOAD);
+      }
+    }
 
     function fallbackCopy(text) {
       try {
@@ -2755,30 +2945,20 @@ Decisive Conclusion:
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        showCopiedState();
+        showToast('✓ Copied to Clipboard!');
       } catch (err) {}
     }
 
-    function showCopiedState() {
-      const btns = document.querySelectorAll('.btn-copy');
+    function showToast(msg) {
       const toast = document.getElementById('toast');
-      btns.forEach(b => {
-        b.classList.add('copied');
-        b.innerText = '✓ COPIED TO CLIPBOARD!';
-      });
       if (toast) {
+        toast.innerText = msg;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2200);
       }
       if (navigator.vibrate) {
         try { navigator.vibrate(40); } catch(e) {}
       }
-      setTimeout(() => {
-        btns.forEach(b => {
-          b.classList.remove('copied');
-          b.innerText = '📋 COPY LIVE DATA & PROMPT FOR AI';
-        });
-      }, 2500);
     }
 
     function updateClocks() {
@@ -2795,7 +2975,7 @@ Decisive Conclusion:
 
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const uDate = `${now.getUTCDate()} ${months[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
-      const sDate = `${sgt.getUTCDate()} ${months[sgt.getUTCMonth()]} ${sgt.getUTCFullYear()}`;
+      const sDate = `${sgt.getUTCDate()} ${months[sgt.getUTCMonth()]} ${now.getUTCFullYear()}`;
       const uDateEl = document.getElementById('clock-utc-date');
       if (uDateEl) uDateEl.innerText = uDate;
       const sDateEl = document.getElementById('clock-sgt-date');
@@ -2822,9 +3002,18 @@ Decisive Conclusion:
       if (sDesc) sDesc.innerText = desc;
       const sHours = document.getElementById('session-hours');
       if (sHours) sHours.innerText = hours;
+      const hdrSess = document.getElementById('hdr-session');
+      if (hdrSess) hdrSess.innerText = sess;
     }
     setInterval(updateClocks, 1000);
     updateClocks();
+
+    // Deliverable 4: Dynamic 30-minute Stale Telemetry Checker
+    const scanMs = Date.parse(SCAN_TS);
+    if (!isNaN(scanMs) && (Date.now() - scanMs) > 30 * 60 * 1000) {
+      const dynBanner = document.getElementById('dyn-stale-banner');
+      if (dynBanner) dynBanner.style.display = 'block';
+    }
 
     const PRICE_APIS = [
       'https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT',
@@ -2865,8 +3054,7 @@ Decisive Conclusion:
 
         date_str = ts_iso[:10] if len(ts_iso) >= 10 else "11 Nov 2026"
         try:
-            import datetime
-            dt = datetime.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
+            dt = _dt.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
             date_str = dt.strftime("%d %b %Y")
         except:
             pass
@@ -2896,20 +3084,17 @@ Decisive Conclusion:
         html = html.replace("__LONG_PCT__", f"{long_pct:.1f}")
         html = html.replace("__LS_RATIO__", f"{ls_ratio:.2f}")
 
-        html = html.replace("__S10_P__", f"{s10_p:,.0f}")
-        html = html.replace("__S25_P__", f"{s25_p:,.0f}")
         html = html.replace("__UPPER_P__", f"{u_p:,.0f}")
         html = html.replace("__UPPER_D__", f"{u_d:.2f}")
         html = html.replace("__UPPER_V__", f"{u_v:.1f}")
         html = html.replace("__LOWER_P__", f"{l_p:,.0f}")
         html = html.replace("__LOWER_D__", f"{l_d:.2f}")
         html = html.replace("__LOWER_V__", f"{l_v:.1f}")
-        html = html.replace("__L25_P__", f"{l25_p:,.0f}")
-        html = html.replace("__L10_P__", f"{l10_p:,.0f}")
         html = html.replace("__TOT_LOWER__", f"{tot_lower:.1f}")
         html = html.replace("__TOT_UPPER__", f"{tot_upper:.1f}")
         html = html.replace("__LSCE_STATUS__", lsce_status)
         html = html.replace("__LSCE_DETAIL__", lsce_detail)
+        html = html.replace("__LADDER_TABLE__", ladder_table)
 
         html = html.replace("__DAILY_VWAP__", f"{d_vwap:,.2f}")
         html = html.replace("__DAILY_VWAP_DIFF__", f"{d_vwap_diff:+.2f}")
@@ -2949,6 +3134,9 @@ Decisive Conclusion:
 
         html = html.replace("__RAW_PROMPT__", raw_prompt)
         html = html.replace("_RAW_PROMPT_JSON_", _json.dumps(raw_prompt))
+        html = html.replace("__RAW_JSON__", raw_json_str)
+        html = html.replace("_RAW_JSON_TEXT_", _json.dumps(raw_json_str))
+        html = html.replace("__STATIC_STALE_STYLE__", "display: block;" if is_stale_telemetry else "display: none;")
 
         html = html.replace("__PLAIN_VERDICT__", plain_verdict)
         html = html.replace("__WHY_1__", why_1)

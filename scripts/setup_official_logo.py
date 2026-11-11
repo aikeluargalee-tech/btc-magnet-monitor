@@ -8,6 +8,7 @@ repo = r'C:\Users\aikel\.gemini\antigravity\scratch\btc-magnet'
 logo_trans_src = os.path.join(brain, 'app_logo_transparent_512.png')
 icon512_src = os.path.join(brain, 'app_icon_512.png')
 icon192_src = os.path.join(brain, 'app_icon_192.png')
+maskable512_src = os.path.join(brain, 'app_icon_maskable_512.png')
 
 # Copy to repo and dist
 for base_dir in [repo, os.path.join(repo, 'dist')]:
@@ -16,6 +17,8 @@ for base_dir in [repo, os.path.join(repo, 'dist')]:
     shutil.copy2(logo_trans_src, os.path.join(base_dir, 'assets', 'logo.png'))
     shutil.copy2(icon512_src, os.path.join(base_dir, 'icon-512.png'))
     shutil.copy2(icon192_src, os.path.join(base_dir, 'icon-192.png'))
+    if os.path.exists(maskable512_src):
+        shutil.copy2(maskable512_src, os.path.join(base_dir, 'icon-maskable-512.png'))
 
 # Create SVG embedding the clean 512 transparent artwork
 with open(logo_trans_src, 'rb') as f:
@@ -30,4 +33,4 @@ with open(os.path.join(repo, 'assets', 'logo.svg'), 'w', encoding='utf-8') as f:
 with open(os.path.join(repo, 'dist', 'assets', 'logo.svg'), 'w', encoding='utf-8') as f:
     f.write(svg_content)
 
-print('Generated and deployed all official 3D logo files successfully!')
+print('Generated and deployed all official 3D logo and maskable icon files successfully!')

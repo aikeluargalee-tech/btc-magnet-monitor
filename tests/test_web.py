@@ -58,19 +58,54 @@ class TestGeneratedSite(unittest.TestCase):
         with open(os.path.join(self.tmp, "sw.js"), "r", encoding="utf-8") as fh:
             sw = fh.read()
         self.assertIn("res.ok && res.status === 200", sw)
-        self.assertIn("pwa-v6", sw)
+        self.assertTrue("pwa-v6" in sw or "pwa-v7" in sw)
 
     def test_text_terminal_page_generated_and_clean(self):
         text_path = os.path.join(self.tmp, "text.html")
         self.assertTrue(os.path.exists(text_path), "text.html was not generated")
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
-        for token in ("panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "method-1", "method-2", "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics"):
+        for token in (
+            "panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "method-1", "method-2",
+            "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
+            "BTC MAGNET MONITOR :: 5-REGIME ENGINE", "Microstructure Positioning &amp; Liquidation Telemetry",
+            "MANDATE: SPOT ONLY", "view-switcher", "min-height: 44px", "[HUD]", "[JSON]", "[DELTA]", "[PROMPT]",
+            "TIER", "EST.POOL", "[WARNING: TELEMETRY STALE &gt;30M]"
+        ):
             self.assertIn(token, text_html)
         self.assertNotIn("panel-4", text_html)
         self.assertNotIn("Recommended Rotation", text_html)
         self.assertNotIn("cdn.tailwindcss.com", text_html)
         self.assertNotIn("fonts.googleapis.com", text_html)
+
+    def test_text_telemetry_linter_and_stale_injection(self):
+        import copy
+        gen = WebGenerator(output_dir=self.tmp)
+        bad_risk_payload = copy.deepcopy(self.payload)
+        bad_risk_payload["risk"]["portfolio_risk_pct"] = 2.5
+        with self.assertRaises(AssertionError):
+            gen._verify_text_telemetry(bad_risk_payload)
+
+        bad_skew_payload = copy.deepcopy(self.payload)
+        bad_skew_payload["regime"]["immediate_imbalance_ratio"] = 999.0
+        bad_skew_payload["regime"]["nearest_lower_cluster"] = {"estimated_vol_usd": 10000000.0}
+        bad_skew_payload["regime"]["nearest_upper_cluster"] = {"estimated_vol_usd": 5000000.0}
+        with self.assertRaises(AssertionError):
+            gen._verify_text_telemetry(bad_skew_payload)
+
+        sweep_payload = copy.deepcopy(self.payload)
+        sweep_payload["regime"]["lsce_status"] = "SWEEP_IN_PROGRESS"
+        sweep_payload["timestamp"] = "2020-01-01T00:00:00Z"
+        sweep_html = gen._render_text_page(sweep_payload)
+        self.assertIn("PIERCING / ACTIVE SWEEP", sweep_html)
+        self.assertIn("id=\"static-stale-banner\" style=\"display: block;\"", sweep_html)
+
+    def test_manifest_includes_maskable_and_icons(self):
+        with open(os.path.join(self.tmp, "manifest.json"), "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        purposes = [i.get("purpose") for i in manifest.get("icons", [])]
+        self.assertIn("maskable", purposes)
+        self.assertIn("any", purposes)
 
 
 class TestOfflineBundler(unittest.TestCase):

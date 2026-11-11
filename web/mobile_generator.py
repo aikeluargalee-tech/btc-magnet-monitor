@@ -19,21 +19,29 @@ class MobileWebGenerator:
             "orientation": "portrait-primary",
             "icons": [
                 {
-                    "src": "./icon-192.png",
+                    "src": "./icon-192.png?v=7",
                     "sizes": "192x192",
-                    "type": "image/png"
+                    "type": "image/png",
+                    "purpose": "any"
                 },
                 {
-                    "src": "./icon-512.png",
+                    "src": "./icon-512.png?v=7",
                     "sizes": "512x512",
-                    "type": "image/png"
+                    "type": "image/png",
+                    "purpose": "any"
+                },
+                {
+                    "src": "./icon-maskable-512.png?v=7",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "maskable"
                 }
             ]
         }
         return json.dumps(manifest, indent=2)
 
     def render_service_worker(self) -> str:
-        return """const CACHE_NAME = 'btc-magnet-pwa-v6';
+        return """const CACHE_NAME = 'btc-magnet-pwa-v7';
 const STATIC_ASSETS = [
   './index.html',
   './app.html',
@@ -41,7 +49,8 @@ const STATIC_ASSETS = [
   './privacy.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (e) => {
