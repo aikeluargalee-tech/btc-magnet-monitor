@@ -65,7 +65,7 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertTrue(os.path.exists(text_path), "text.html was not generated")
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
-        for token in ("panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "method-1", "method-2"):
+        for token in ("panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "method-1", "method-2", "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics"):
             self.assertIn(token, text_html)
         self.assertNotIn("panel-4", text_html)
         self.assertNotIn("Recommended Rotation", text_html)

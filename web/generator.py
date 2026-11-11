@@ -56,6 +56,8 @@ class WebGenerator:
             for icon_name in ["icon-192.png", "icon-512.png"]:
                 if os.path.exists(icon_name):
                     shutil.copy(icon_name, os.path.join(self.output_dir, icon_name))
+            if os.path.exists("assets"):
+                shutil.copytree("assets", os.path.join(self.output_dir, "assets"), dirs_exist_ok=True)
 
             from web.mobile_generator import MobileWebGenerator
             mob_gen = MobileWebGenerator()
@@ -476,8 +478,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shadow-inner">
-          🧲
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950">
+          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -1789,8 +1791,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shadow-inner">
-          🧲
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950">
+          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
@@ -2260,6 +2262,66 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       max-width: 380px;
       margin: 0 auto;
     }
+    .app-brand-header {
+      background: linear-gradient(180deg, #13141b 0%, #09090b 100%);
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+    .brand-top-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo-squircle {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #3f3f46;
+      background: #09090b;
+      box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+    }
+    .brand-logo-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .brand-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .brand-name {
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .brand-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 4px;
+      padding: 1px 6px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .brand-subtitle {
+      font-size: 10px;
+      color: #a1a1aa;
+      margin-top: 6px;
+      line-height: 1.4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
     .panel-hdr {
       font-size: 12px;
       font-weight: 900;
@@ -2368,6 +2430,22 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 <body>
 
   <div class="terminal-wrapper">
+
+    <!-- ============================================================ -->
+    <!-- APP BRANDING HEADER (ON TOP OF PANEL 1)                     -->
+    <!-- ============================================================ -->
+    <header class="app-brand-header">
+      <div class="brand-top-row">
+        <div class="brand-logo-squircle">
+          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
+        </div>
+        <div class="brand-title-group">
+          <div class="brand-name">BTC Magnet Monitor</div>
+          <div class="brand-badge">5-Regime Radar</div>
+        </div>
+      </div>
+      <div class="brand-subtitle">Observable Positioning Mechanics &amp; Regime Intelligence</div>
+    </header>
 
     <!-- ============================================================ -->
     <!-- PANEL 1: REAL-TIME BTC SPOT PRICE (LIVE)                     -->
