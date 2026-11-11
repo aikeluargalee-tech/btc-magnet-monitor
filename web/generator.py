@@ -1680,7 +1680,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       if (p1Next) p1Next.innerText = nextStr;
       if (p1Cd) {{
         const ageMin = currentScanTs > 0 ? Math.max(0, Math.floor((utcMs - currentScanTs) / 60000)) : 0;
-        if (currentScanTs > 0 && ageMin > 35) {{
+        if (currentScanTs > 0 && ageMin > 40) {{
           p1Cd.className = 'ml-2 text-xs text-amber-300';
           p1Cd.innerText = `in ${{remM}}m ${{remS}}s (overdue)`;
         }} else {{
@@ -1824,12 +1824,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           confTag.className = 'text-[11px] text-amber-300 font-semibold';
           confTag.textContent = '⚠ Offline / Last Known Scan (' + age + ' old)';
         }}
-      }} else if (ageMin > 35) {{
+      }} else if (ageMin > 40) {{
         el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.textContent = '⚠ Scan is ' + age + ' old (past 30m scheduled cadence) - awaiting next automated CI run.';
+        el.textContent = '⚠ Scan is ' + age + ' old (past 30m target + CI backup grace) - awaiting next automated CI run.';
         if (confTag) {{
           confTag.className = 'text-[11px] text-amber-300 font-semibold';
-          confTag.textContent = '⚠ Confidence Downgraded: Scan ' + age + ' old (>30m cadence)';
+          confTag.textContent = '⚠ Confidence Downgraded: Scan ' + age + ' old (>40m)';
         }}
       }} else {{
         el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
@@ -2599,12 +2599,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         # Linter check before rendering
         self._verify_text_telemetry(data)
 
-        # Telemetry age verification (>35m grace buffer around 30m CI cadence)
+        # Telemetry age verification (>40m grace buffer allowing staggered CI backup slots)
         is_stale_telemetry = False
         try:
             dt_scan = _dt.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
             now_utc = _dt.datetime.now(_dt.timezone.utc)
-            if (now_utc - dt_scan).total_seconds() > 2100:
+            if (now_utc - dt_scan).total_seconds() > 2400:
                 is_stale_telemetry = True
         except Exception:
             pass
@@ -3224,10 +3224,16 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     <!-- STALE TELEMETRY BANNER (>30M TARGET) -->
     <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target cadence (awaiting next GitHub Actions run). Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target + CI grace. Live spot REST feed active below.
+      <div style="margin-top: 6px;">
+        <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
+      </div>
     </div>
     <div class="stale-banner" id="dyn-stale-banner" style="display: none;">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target cadence (awaiting next GitHub Actions run). Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target + CI grace. Live spot REST feed active below.
+      <div style="margin-top: 6px;">
+        <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
+      </div>
     </div>
 
     <!-- RAW JSON VIEW CONTAINER -->
@@ -3346,7 +3352,7 @@ __TAGLINE__
 
 Rule Match Confirmation:
 __RULE_SCORE__
-<span id="p3-conf-fresh" class="c-muted">Freshness: Verified &le;35m Cadence</span></pre>
+<span id="p3-conf-fresh" class="c-muted">Freshness: Verified &le;40m Window</span></pre>
         </div>
 
         <div class="sub-card sub-card-teal">
@@ -3620,7 +3626,7 @@ Decisive Call:
       if (hdrNext) hdrNext.innerText = `${nUH}:${nUM} UTC`;
       const p1Next = document.getElementById('p1-next-upd');
       if (p1Next) p1Next.innerText = `${nUH}:${nUM} UTC (${nSH}:${nSM} SGT)`;
-      const overdue = !isNaN(scanMs) && ((utcMs - scanMs) > 35 * 60 * 1000);
+      const overdue = !isNaN(scanMs) && ((utcMs - scanMs) > 40 * 60 * 1000);
       const cdText = overdue ? `in ${remM}m ${remS}s (overdue)` : `in ${remM}m ${remS}s`;
       ['hdr-countdown', 'p1-countdown'].forEach(id => {
         const el = document.getElementById(id);
@@ -3657,13 +3663,13 @@ Decisive Call:
     setInterval(updateClocks, 1000);
     updateClocks();
 
-    // Dynamic Stale Telemetry (>35m grace around 30m target) & Live Scan Auto-Refresh
+    // Dynamic Stale Telemetry (>40m grace allowing staggered CI backup slots) & Live Scan Auto-Refresh
     function renderTextStaleState() {
       const staticBanner = document.getElementById('static-stale-banner');
       const dynBanner = document.getElementById('dyn-stale-banner');
       const confFresh = document.getElementById('p3-conf-fresh');
       const ageMs = !isNaN(scanMs) ? (Date.now() - scanMs) : NaN;
-      const isStale = !isNaN(ageMs) && ageMs > 35 * 60 * 1000;
+      const isStale = !isNaN(ageMs) && ageMs > 40 * 60 * 1000;
       if (staticBanner) {
         staticBanner.style.display = isStale ? 'block' : 'none';
       }
@@ -3674,10 +3680,10 @@ Decisive Call:
         if (isStale) {
           const ageM = Math.max(0, Math.floor(ageMs / 60000));
           confFresh.className = 'c-amber';
-          confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>30m target)`;
+          confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>40m)`;
         } else {
           confFresh.className = 'c-muted';
-          confFresh.innerText = 'Freshness: Verified ≤35m Cadence';
+          confFresh.innerText = 'Freshness: Verified ≤40m Window';
         }
       }
     }
@@ -3693,7 +3699,8 @@ Decisive Call:
         "switchView('prompt')",
         "copyJsonFeed()",
         "copyTelemetryPrompt()",
-        "copyBlindPrompt()"
+        "copyBlindPrompt()",
+        "refreshLiveScan(true)"
       ]);
       root.querySelectorAll('*').forEach(function (n) {
         Array.from(n.attributes).forEach(function (a) {
@@ -3709,48 +3716,56 @@ Decisive Call:
       });
     }
 
-    async function refreshLiveScan() {
-      if (document.hidden) return;
+    async function refreshLiveScan(manual) {
+      if (document.hidden && !manual) return;
+      let updated = false;
       try {
         const res = await fetch('./regime.json?t=' + Date.now(), { cache: 'no-store' });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         const liveTs = Date.parse(data && data.timestamp);
         if (!isNaN(liveTs) && liveTs > scanMs) {
           const hres = await fetch('./text.html?t=' + Date.now(), { cache: 'no-store' });
-          if (!hres.ok) return;
-          const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
-          const payloadNode = doc.getElementById('text-live-payload');
-          const newWrapper = doc.querySelector('.terminal-wrapper');
-          const curWrapper = document.querySelector('.terminal-wrapper');
-          if (payloadNode && newWrapper && curWrapper) {
-            const payload = JSON.parse(payloadNode.textContent || '{}');
-            const parsedNewTs = Date.parse(payload.scan_ts || '');
-            if (!isNaN(parsedNewTs) && parsedNewTs > scanMs) {
-              sanitizeTextNode(newWrapper);
-              curWrapper.innerHTML = newWrapper.innerHTML;
-              SCAN_TS = payload.scan_ts;
-              scanMs = parsedNewTs;
-              const livePx = Number(payload.scan_price);
-              if (livePx > 0) SCAN_PRICE = livePx;
-              if (typeof payload.prompt_text === 'string') PROMPT_TEXT = payload.prompt_text;
-              if (typeof payload.blind_prompt_text === 'string') BLIND_PROMPT_TEXT = payload.blind_prompt_text;
-              if (typeof payload.raw_json_text === 'string') RAW_JSON_PAYLOAD = payload.raw_json_text;
-              switchView(currentViewMode, true);
-              updateClocks();
-              updateLivePrice();
-              showToast('✓ Live Scan Telemetry Updated');
+          if (hres.ok) {
+            const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
+            const payloadNode = doc.getElementById('text-live-payload');
+            const newWrapper = doc.querySelector('.terminal-wrapper');
+            const curWrapper = document.querySelector('.terminal-wrapper');
+            if (payloadNode && newWrapper && curWrapper) {
+              const payload = JSON.parse(payloadNode.textContent || '{}');
+              const parsedNewTs = Date.parse(payload.scan_ts || '');
+              if (!isNaN(parsedNewTs) && parsedNewTs > scanMs) {
+                sanitizeTextNode(newWrapper);
+                curWrapper.innerHTML = newWrapper.innerHTML;
+                SCAN_TS = payload.scan_ts;
+                scanMs = parsedNewTs;
+                const livePx = Number(payload.scan_price);
+                if (livePx > 0) SCAN_PRICE = livePx;
+                if (typeof payload.prompt_text === 'string') PROMPT_TEXT = payload.prompt_text;
+                if (typeof payload.blind_prompt_text === 'string') BLIND_PROMPT_TEXT = payload.blind_prompt_text;
+                if (typeof payload.raw_json_text === 'string') RAW_JSON_PAYLOAD = payload.raw_json_text;
+                switchView(currentViewMode, true);
+                updateClocks();
+                updateLivePrice();
+                updated = true;
+                showToast('✓ Live Scan Telemetry Updated');
+              }
             }
           }
         }
-      } catch (e) {}
+        if (manual && !updated) {
+          showToast('Checked — awaiting next CI scan');
+        }
+      } catch (e) {
+        if (manual) showToast('⚠ Check failed — offline or rate limited');
+      }
       renderTextStaleState();
     }
-    setInterval(refreshLiveScan, 60000);
+    setInterval(function () { refreshLiveScan(false); }, 60000);
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) { refreshLiveScan(); updateLivePrice(); }
+      if (!document.hidden) { refreshLiveScan(false); updateLivePrice(); }
     });
-    refreshLiveScan();
+    refreshLiveScan(false);
 
     const PRICE_APIS = [
       'https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT',

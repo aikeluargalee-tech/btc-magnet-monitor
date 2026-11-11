@@ -232,14 +232,14 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
             WebGenerator(output_dir=tmp).generate(payload)
             with open(os.path.join(tmp, "text.html"), encoding="utf-8") as f:
                 text_html = f.read()
-        for token in ("refreshLiveScan", "renderTextStaleState", "sanitizeTextNode", 'id="text-live-payload"'):
+        for token in ("refreshLiveScan(true)", "renderTextStaleState", "sanitizeTextNode", 'id="text-live-payload"'):
             self.assertIn(token, text_html)
 
         radar_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".github", "workflows", "radar.yml")
         with open(radar_path, encoding="utf-8") as f:
             radar_yml = f.read()
-        self.assertIn("2,32 * * * *", radar_yml)
-        self.assertIn("11,41 * * * *", radar_yml)
+        for cron_expr in ("2,32 * * * *", "8,38 * * * *", "15,45 * * * *", "23,53 * * * *"):
+            self.assertIn(cron_expr, radar_yml)
         self.assertIn("needs.build.outputs.skip != 'true'", radar_yml)
 
 
