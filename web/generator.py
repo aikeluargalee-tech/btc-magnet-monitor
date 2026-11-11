@@ -261,6 +261,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
         name = regime.get("name", regime.get("regime", "Range / Liquidation Magnet"))
         diagnosis = regime.get("diagnosis", "")
+        playbook = regime.get("playbook", "")
         majority_score = regime.get("majority_score", "4/4 observations confirmed")
         rotation = regime.get("rotation", "Remain USDT")
         sizing = regime.get("sizing_factor", 0.0)
@@ -268,16 +269,21 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         stop_rule = regime.get("stop_rule", "")
         stop_price = regime.get("stop_price", 0.0)
         stop_dist = regime.get("stop_distance_pct", 0.0)
+        entry_inst = regime.get("entry_instruction", "")
         dom_magnet = regime.get("dominant_magnet", "Neutral")
         dom_reason = regime.get("dominant_magnet_reason", dom_magnet)
+        notes = regime.get("notes", "")
         data_quality = regime.get("data_quality", "LIVE")
 
         plain_verdict = regime.get("plain_english_verdict", "Analyzing current market conditions...")
         why_points = regime.get("why_points", [])
+        why_sizing = regime.get("why_sizing_reason", f"Deploying {sizing*100:.0f}% of available cash based on regime risk parameters.")
+        why_stop = regime.get("why_stop_reason", f"Safety stop anchored at ${stop_price:,.2f} ({stop_dist:.2f}% distance).")
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
 
+        # Institutional Upgrades: Dual Imbalance & LSCE & Dual Stops
         imm_ratio = regime.get("immediate_imbalance_ratio", 1.0)
         tot_l_vol = regime.get("total_ladder_lower_vol", 0.0)
         tot_u_vol = regime.get("total_ladder_upper_vol", 0.0)
@@ -287,6 +293,97 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         disaster_stop = regime.get("disaster_stop_price", stop_price)
         disaster_stop_dist = regime.get("disaster_stop_distance_pct", stop_dist)
         structural_inval = regime.get("structural_invalidation_level", metrics.get("swing_low_4h", 0.0))
+
+        if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
+            if sizing > 0 and "USDT -> BTC" in rotation:
+                lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                lsce_badge_icon = "✅"
+                lsce_badge_title = f"SWEEP &amp; RECLAIM CONFIRMED (BUY AUTHORIZED {sizing:.2f}x)"
+            else:
+                lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                lsce_badge_icon = "🛡️"
+                lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
+        elif lsce_status == "SWEEP_IN_PROGRESS":
+            lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300 animate-pulse"
+            lsce_badge_icon = "⚠️"
+            lsce_badge_title = "SWEEP IN PROGRESS (DO NOT BUY)"
+        elif lsce_status == "SWEEP_FAILED_BREAKDOWN":
+            lsce_badge_class = "border-rose-500/40 bg-rose-500/15 text-rose-300"
+            lsce_badge_icon = "🚨"
+            lsce_badge_title = "SWEEP FAILED / CASCADE RISK (100% CASH)"
+        else:
+            lsce_badge_class = "border-zinc-700 bg-zinc-800/80 text-zinc-300"
+            lsce_badge_icon = "⏸️"
+            lsce_badge_title = "UNTESTED (MONITORING / CASH)"
+
+        magnet_factors = regime.get("magnet_factors", {})
+        f1 = magnet_factors.get("factor_1_size", "Evaluating cluster size disparity...")
+        f2 = magnet_factors.get("factor_2_spot_leadership", "Evaluating spot vs derivatives CVD...")
+        f3 = magnet_factors.get("factor_3_crowding_fuel", "Evaluating funding and positioning crowding...")
+        f4 = magnet_factors.get("factor_4_regime_structure", "Evaluating regime structure...")
+        f5 = magnet_factors.get("factor_5_asymmetry", "Evaluating cluster distance asymmetry...")
+        f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
+
+        # Specific styling tokens for the Standout Regime Panel
+        if regime_id == "SPOT_LED_EXPANSION":
+            regime_border_color = "border-emerald-500/50 shadow-emerald-500/10"
+            regime_badge_bg = "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+            regime_icon = "🚀"
+            regime_tagline = "Genuine spot buyers in control. Favorable environment for trend-following spot longs."
+        elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
+            regime_border_color = "border-orange-500/50 shadow-orange-500/10"
+            regime_badge_bg = "bg-orange-500/15 text-orange-300 border-orange-500/30"
+            regime_icon = "⚠️"
+            regime_tagline = "Advance built on dangerous borrowed futures leverage. High probability of long squeeze."
+        elif regime_id == "CASCADE_FORCED_DELEVERAGING":
+            regime_border_color = "border-rose-500/60 shadow-rose-500/15"
+            regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
+            regime_icon = "⚡"
+            regime_tagline = "Forced margin liquidation cascade in progress. Strictly avoid buying until selling ceases."
+        elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
+            regime_border_color = "border-rose-500/50 shadow-rose-500/10"
+            regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
+            regime_icon = "📉"
+            regime_tagline = "Structural seller control. Whales distributing into retail bounces. Cash preservation priority."
+        elif regime_id == "RANGE_LIQUIDATION_MAGNET":
+            regime_border_color = "border-cyan-500/50 shadow-cyan-500/10"
+            regime_badge_bg = "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+            regime_icon = "🧲"
+            regime_tagline = "Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate."
+        else:
+            regime_border_color = "border-zinc-700 shadow-zinc-800/10"
+            regime_badge_bg = "bg-zinc-800 text-zinc-300 border-zinc-700"
+            regime_icon = "⚖️"
+            regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
+
+        # Action banner color styling
+        if "USDT -> BTC" in rotation:
+            action_bg = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+            action_pill = "Buy Spot (Accumulate)"
+        elif "BTC -> USDT" in rotation:
+            action_bg = "bg-rose-500/10 border-rose-500/30 text-rose-400"
+            action_pill = "Trim Spot / Harvest to Cash"
+        else:
+            action_bg = "bg-amber-500/10 border-amber-500/30 text-amber-400"
+            action_pill = "Hold 100% Cash Reserve"
+
+        # Evidence Cards for the Standout Regime Panel
+        evidence_cards_html = "".join([
+            f"""<div class='flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80'>
+                 <span class='text-emerald-400 font-bold mt-0.5 text-xs'>✓</span>
+                 <span class='text-xs text-zinc-200 leading-relaxed'>{item}</span>
+               </div>"""
+            for item in regime.get("matched_criteria", [])
+        ])
+
+        # Why Points HTML
+        why_points_html = "".join([
+            f"""<div class='flex items-start gap-3 p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/70'>
+                 <span class='w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0 mt-0.5'>{idx+1}</span>
+                 <p class='text-xs sm:text-sm text-zinc-300 leading-relaxed font-normal'>{pt}</p>
+               </div>"""
+            for idx, pt in enumerate(why_points)
+        ])
 
         price = metrics.get("price", 0.0)
         price_change_24h = metrics.get("price_change_24h_pct", 0.0)
@@ -304,519 +401,916 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         basis = metrics.get("futures_basis_annualized", 0.0)
         ls_ratio = metrics.get("long_short_account_ratio", 1.0)
         current_oi = metrics.get("open_interest", 0.0)
-        spot_vol = metrics.get("spot_vol_24h", 0.0)
-        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.0)
         spot_source = metrics.get("spot_data_source", "Binance Vision API")
         futures_source = metrics.get("futures_data_source", "Deribit & Kraken Futures")
 
+        # Build raw prompt for clipboard
         llm_prompt = self._build_llm_prompt(data)
         llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-        # Format why points
-        why_points_html = "".join([
-            f"""<div class="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
-                  <span class="w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-400 flex-shrink-0 mt-0.5">{idx+1}</span>
-                  <p class="text-xs text-zinc-300 leading-relaxed font-normal">{pt}</p>
-                </div>"""
-            for idx, pt in enumerate(why_points[:3])
-        ])
+        # Unified PWA meta and styling tags (applies to both index.html and app.html)
+        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit"
+        body_padding = "pb-16"
 
-        # Rotation Pill Colors
-        if "USDT -> BTC" in rotation:
-            rot_color = "emerald"
-            rot_badge = "BUY AUTHORIZED"
-        elif "BTC -> USDT" in rotation:
-            rot_color = "rose"
-            rot_badge = "DEFENSIVE EXIT"
-        else:
-            rot_color = "amber"
-            rot_badge = "CASH PRESERVATION"
+        pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BTC Magnet">
+  <meta name="theme-color" content="#09090b">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">"""
+
+        top_switch_button = """<a href="regimes.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
+          <span>5 Regimes Guide &rarr;</span>
+        </a>
+        <a href="regime.json" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition-colors">
+          <span>REST API</span>
+        </a>"""
+
+        mobile_nav_bar = ""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="BTC Magnet">
-  <meta name="theme-color" content="#09090b">
-  <title>BTC Magnet Monitor — 5-Regime Radar &amp; Telemetry Cockpit</title>
+{pwa_meta_tags}
+  <title>{page_title}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     body {{
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #09090b;
       color: #f4f4f5;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
     }}
     .mono {{
       font-family: 'JetBrains Mono', monospace;
     }}
+    html {{
+      scroll-behavior: smooth;
+    }}
   </style>
 </head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased flex flex-col justify-between">
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased {body_padding}">
 
-  <!-- TOP STICKY HEADER -->
-  <header class="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2.5">
-      <div class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700/80 flex items-center justify-center text-base shadow-inner">
-        🧲
-      </div>
-      <div>
-        <div class="flex items-center gap-1.5">
-          <span class="font-black text-sm tracking-tight text-white">BTC MAGNET</span>
-          <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-zinc-800 text-cyan-400 border border-zinc-700">MOBILE</span>
+  <!-- Data-Age / Staleness Banner (filled in by script; always tells the user how old the verdict is) -->
+  <div id="data-age-banner" role="status" aria-live="polite" class="px-4 py-2 text-center text-xs font-semibold border-b border-zinc-800 bg-zinc-900 text-zinc-300">
+    Checking scan freshness...
+  </div>
+
+  <!-- Swappable content root: the script replaces this with the latest live scan when a newer one exists -->
+  <div id="app-root" data-scan-ts="{data.get("timestamp", "")}">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shadow-inner">
+          🧲
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
+          </div>
+          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
         </div>
       </div>
-    </div>
 
-    <div class="flex items-center gap-2">
-      <!-- Staleness / Data Freshness Badge -->
-      <div id="data-age-banner" role="status" aria-live="polite" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Live</span>
+      <div class="flex items-center gap-3 sm:gap-6">
+        {top_switch_button}
+        <div class="text-right">
+          <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
+          <div class="text-base font-bold mono text-white">${price:,.2f}</div>
+        </div>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if data_quality == 'LIVE' else 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+          <span class="w-2 h-2 rounded-full {'bg-emerald-400' if data_quality == 'LIVE' else 'bg-amber-400'} animate-pulse"></span>
+          <span>{data_quality}</span>
+        </div>
       </div>
-      <button onclick="refreshLiveScan()" class="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-700/70 flex items-center justify-center text-zinc-400 text-xs transition-all" title="Refresh Live Data">
-        🔄
-      </button>
     </div>
   </header>
 
-  <!-- SWAPPABLE ROOT -->
-  <div id="app-root" data-scan-ts="{data.get("timestamp", "")}" class="flex-1 w-full max-w-md mx-auto px-4 pt-3 pb-32">
+  <!-- Sub-Header Info Bar -->
+  <div class="border-b border-zinc-800/50 bg-zinc-900/30 px-4 sm:px-6 py-2 text-xs text-zinc-400">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div>Data Feeds: <span class="text-zinc-300">{spot_source}</span> &bull; <span class="text-zinc-300">{futures_source}</span></div>
+      <div>Last Scan: <span class="text-zinc-300 font-medium">{data.get("timestamp", "")[:19]} UTC</span> &bull; Automated Every 30 Minutes</div>
+    </div>
+  </div>
 
-    <!-- ======================================================= -->
-    <!-- TAB 1: RADAR (OVERVIEW / THE SINGLE JOB)                -->
-    <!-- ======================================================= -->
-    <div id="tab-content-radar" class="tab-pane space-y-3.5 block">
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
 
-      <!-- HERO PRICE CARD -->
-      <div id="panel-1" class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl">
-        <div class="flex items-center justify-between text-xs text-zinc-400 mb-1">
-          <span class="font-bold uppercase tracking-wider text-[11px]">Bitcoin Spot (Binance)</span>
-          <span id="session-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border border-emerald-500/40 bg-emerald-500/15 text-emerald-300">
-            US CASH PEAK
-          </span>
-        </div>
-        
-        <div class="flex items-baseline justify-between gap-2">
-          <div id="live-btc-price" class="text-3xl font-extrabold mono text-white tracking-tight">
-            ${price:,.2f}
+    <!-- ============================================================ -->
+    <!-- PANEL 1: REAL-TIME BTC SPOT PRICE & MARKET SESSION COCKPIT    -->
+    <!-- ============================================================ -->
+    <div id="panel-1" class="rounded-2xl border-2 border-emerald-500/60 bg-gradient-to-b from-zinc-950 via-zinc-900/90 to-zinc-950 p-5 sm:p-6 backdrop-blur-md shadow-[0_0_25px_rgba(16,185,129,0.12)] space-y-5">
+      
+      <!-- Top Section: Live Ticker & Drift -->
+      <div class="p-4 sm:p-5 rounded-xl bg-zinc-950/90 border border-emerald-500/40 shadow-inner">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span class="text-xs font-bold tracking-wider uppercase text-emerald-400 mono">Panel 1 &bull; Real-Time BTC Spot Price (Live)</span>
+            </div>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <div id="live-btc-price" class="text-3xl sm:text-5xl font-extrabold mono text-white tracking-tight">
+                ${price:,.2f}
+              </div>
+              <div class="px-2.5 py-1 rounded-md text-xs font-mono font-bold {'bg-rose-500/20 text-rose-300 border border-rose-500/30' if price_change_24h < 0 else 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+                {price_change_24h:+.2f}% (24h)
+              </div>
+            </div>
+            <div class="text-xs text-zinc-400 mono pt-0.5">
+              Drift vs Scan: <span id="live-price-drift" class="text-zinc-200 font-medium">$0.00 (0.00%)</span>
+            </div>
           </div>
-          <div id="hero-price-chg" class="px-2 py-0.5 rounded-md text-xs font-bold mono {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' if price_change_24h >= 0 else 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
-            {'+' if price_change_24h >= 0 else ''}{price_change_24h:.2f}%
-          </div>
-        </div>
 
-        <div class="mt-2 pt-2 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-          <span class="text-zinc-400 text-[11px]">Microstructure Drift:</span>
-          <span id="live-price-drift" class="font-mono text-zinc-300 text-xs">$0.00 (0.00%)</span>
+          <div class="text-left sm:text-right space-y-1 border-t sm:border-t-0 border-zinc-800 pt-2 sm:pt-0">
+            <div class="text-xs font-bold uppercase tracking-wider text-zinc-300 mono">Binance Live Ticker</div>
+            <div class="text-[11px] text-zinc-400 mono">Tick-by-Tick Exchange Feed</div>
+            <div class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 mono">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live WebSocket Feed
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- ACTION DIRECTIVE & ROTATION CARD -->
-      <div id="panel-3" class="rounded-2xl border-2 border-{rot_color}-500/50 bg-{rot_color}-500/5 p-4 shadow-xl space-y-2.5">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Action Protocol</span>
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-{rot_color}-500/20 text-{rot_color}-300 border border-{rot_color}-500/40">
-            {rot_badge}
-          </span>
+      <!-- Middle Section: Dual Clocks (UTC & SGT) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <!-- UTC Clock -->
+        <div class="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/90 space-y-1">
+          <div class="flex items-center gap-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            <span>🌐</span>
+            <span>UTC Time (Exchange Standard)</span>
+          </div>
+          <div id="clock-utc-time" class="text-2xl sm:text-3xl font-extrabold mono text-white tracking-tight">
+            --:--:-- UTC
+          </div>
+          <div id="clock-utc-date" class="text-xs text-zinc-400 mono">
+            {data.get("timestamp", "")[:10]}
+          </div>
         </div>
 
+        <!-- SGT Clock (UTC+8) -->
+        <div class="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/90 space-y-1">
+          <div class="flex items-center gap-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            <span>🇸🇬</span>
+            <span>SGT Time (UTC+8 Asia Anchor)</span>
+          </div>
+          <div id="clock-sgt-time" class="text-2xl sm:text-3xl font-extrabold mono text-emerald-300 tracking-tight">
+            --:--:-- SGT
+          </div>
+          <div id="clock-sgt-date" class="text-xs text-zinc-400 mono">
+            {data.get("timestamp", "")[:10]}
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Section: Active Market Session Zone -->
+      <div class="p-4 sm:p-5 rounded-xl bg-zinc-950/90 border border-zinc-800/90 space-y-2">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 mono">Active Market Session Zone</span>
+          </div>
+          <span id="session-badge" class="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase border border-purple-500/40 bg-purple-500/15 text-purple-300">
+            OFF-HOURS
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="session-name" class="text-lg sm:text-xl font-bold text-white">
+            🌙 Pacific / Off-Hours Transition
+          </span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-1 pt-1 border-t border-zinc-800/60">
+          <div id="session-hours" class="mono text-zinc-300">
+            21:00 - 00:00 UTC (05:00 - 08:00 SGT)
+          </div>
+          <div id="session-desc" class="text-zinc-400">
+            Off-Hours Liquidity &bull; Mean Reversion &amp; Overnight Reset
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
+    <!-- ============================================================ -->
+    <div id="panel-2" class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
         <div>
-          <div class="text-xl font-black text-white tracking-tight">
-            {rotation}
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry (4 Microstructure Feeds)</span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 mono">25+ Verified Metrics</span>
           </div>
-          <p class="text-xs text-zinc-300 mt-0.5 font-medium leading-relaxed">
-            {action}
+          <h3 class="text-lg sm:text-xl font-bold text-white mt-0.5">Real-Time Market Microstructure Feeds</h3>
+        </div>
+        <div class="text-xs text-zinc-400">
+          Verified Feeds: <span class="text-zinc-200 mono">Binance Vision (Spot) &bull; Binance/Deribit (Futures)</span>
+        </div>
+      </div>
+
+      <!-- 4 Categories Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+        
+        <!-- Category 1: Price & Structure -->
+        <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 border-b border-zinc-800 pb-1.5 flex items-center justify-between">
+            <span>1. Price &amp; Structure</span>
+            <span class="text-[10px] text-zinc-500 font-mono">Macro</span>
+          </div>
+          <div class="space-y-1.5 text-zinc-300">
+            <div class="flex justify-between"><span>Spot Price:</span> <span class="font-mono font-bold text-white">${price:,.2f}</span></div>
+            <div class="flex justify-between"><span>Daily VWAP:</span> <span class="font-mono text-zinc-300">${daily_vwap:,.2f}</span></div>
+            <div class="flex justify-between"><span>Weekly VWAP:</span> <span class="font-mono text-zinc-300">${weekly_vwap:,.2f}</span></div>
+            <div class="flex justify-between"><span>20D EMA:</span> <span class="font-mono text-zinc-300">${ema_20d:,.2f}</span></div>
+            <div class="flex justify-between"><span>50D EMA:</span> <span class="font-mono text-zinc-300">${ema_50d:,.2f}</span></div>
+            <div class="flex justify-between"><span>200D SMA:</span> <span class="font-mono text-zinc-300">${ma_200d:,.2f}</span></div>
+            <div class="flex justify-between"><span>4H Swing Range:</span> <span class="font-mono text-zinc-300">${swing_low:,.0f} - ${swing_high:,.0f}</span></div>
+            <div class="flex justify-between"><span>3D Base Floor:</span> <span class="font-mono text-zinc-300">${base_floor:,.2f}</span></div>
+          </div>
+        </div>
+
+        <!-- Category 2: Order Flow & CVD -->
+        <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 border-b border-zinc-800 pb-1.5 flex items-center justify-between">
+            <span>2. Order Flow &amp; CVD</span>
+            <span class="text-[10px] text-zinc-500 font-mono">Volume</span>
+          </div>
+          <div class="space-y-1.5 text-zinc-300">
+            <div class="flex justify-between"><span>Spot CVD Ratio:</span> <span class="font-mono font-bold text-emerald-400">{spot_cvd_ratio:.2f}</span></div>
+            <div class="flex justify-between"><span>24h Spot Volume:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_24h", 0.0):,.0f} BTC</span></div>
+            <div class="flex justify-between"><span>Volume / 20D MA:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_ratio", 1.0):.2f}x</span></div>
+            <div class="flex justify-between"><span>7D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_7d", 0.0):+.0f}</span></div>
+            <div class="flex justify-between"><span>14D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_14d", 0.0):+.0f}</span></div>
+            <div class="flex justify-between"><span>Perp CVD Trend:</span> <span class="font-mono text-zinc-300 capitalize">{metrics.get("perp_cvd_trend", "Flat")}</span></div>
+            <div class="flex justify-between"><span>Order Depth Ratio:</span> <span class="font-mono text-zinc-300">{metrics.get("bids_asks_depth_ratio", 1.0):.2f}</span></div>
+          </div>
+        </div>
+
+        <!-- Category 3: Derivatives Crowding -->
+        <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 border-b border-zinc-800 pb-1.5 flex items-center justify-between">
+            <span>3. Derivatives Crowding</span>
+            <span class="text-[10px] text-zinc-500 font-mono">Leverage</span>
+          </div>
+          <div class="space-y-1.5 text-zinc-300">
+            <div class="flex justify-between"><span>Open Interest:</span> <span class="font-mono font-bold text-white">{current_oi:,.0f} BTC</span></div>
+            <div class="flex justify-between"><span>OI 24h Change:</span> <span class="font-mono text-zinc-300">{oi_change_24h:+.2f}%</span></div>
+            <div class="flex justify-between"><span>OI 1h Change:</span> <span class="font-mono text-zinc-300">{metrics.get("oi_change_1h_pct", 0.0):+.2f}%</span></div>
+            <div class="flex justify-between"><span>OI 4h Change:</span> <span class="font-mono text-zinc-300">{metrics.get("oi_change_4h_pct", 0.0):+.2f}%</span></div>
+            <div class="flex justify-between"><span>Funding Rate (8h):</span> <span class="font-mono text-zinc-300">{funding_rate:+.4f}%</span></div>
+            <div class="flex justify-between"><span>Futures Basis Ann.:</span> <span class="font-mono text-zinc-300">{basis:+.2f}%</span></div>
+            <div class="flex justify-between"><span>Retail Long/Short:</span> <span class="font-mono text-zinc-300">{ls_ratio:.2f}</span></div>
+          </div>
+        </div>
+
+        <!-- Category 4: Volatility & Magnets -->
+        <div class="p-4 rounded-xl bg-zinc-950/90 border border-zinc-800/80 space-y-2">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-rose-400 border-b border-zinc-800 pb-1.5 flex items-center justify-between">
+            <span>4. Volatility &amp; Magnets</span>
+            <span class="text-[10px] text-zinc-500 font-mono">Liquidity</span>
+          </div>
+          <div class="space-y-1.5 text-zinc-300">
+            <div class="flex justify-between"><span>1H ATR:</span> <span class="font-mono text-zinc-300">${metrics.get("atr", 0.0):,.2f}</span></div>
+            <div class="flex justify-between"><span>ATR Compression:</span> <span class="font-mono font-bold text-white">{metrics.get("atr_compression_pct", 0.0):.1f}%</span></div>
+            <div class="flex justify-between"><span>4H Channel Width:</span> <span class="font-mono text-zinc-300">{(((swing_high - swing_low) / max(price, 1.0)) * 100):.2f}%</span></div>
+            <div class="flex justify-between"><span>Upper Short Pool:</span> <span class="font-mono text-rose-400">${upper_c.get('price_level', 0.0):,.0f} (+{upper_c.get('distance_pct', 0.0):.2f}%)</span></div>
+            <div class="flex justify-between"><span>Upper Pool Volume:</span> <span class="font-mono text-zinc-300">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
+            <div class="flex justify-between"><span>Lower Long Pool:</span> <span class="font-mono text-emerald-400">${lower_c.get('price_level', 0.0):,.0f} (-{lower_c.get('distance_pct', 0.0):.2f}%)</span></div>
+            <div class="flex justify-between"><span>Lower Pool Volume:</span> <span class="font-mono text-zinc-300">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
+    <!-- ============================================================ -->
+    <div id="panel-3" class="rounded-2xl border-2 {regime_border_color} bg-gradient-to-b from-zinc-900/95 via-zinc-900/80 to-zinc-950 p-6 sm:p-8 backdrop-blur-md shadow-2xl relative overflow-hidden space-y-6">
+      
+      <!-- Top Bar: Category, Confidence Score & Subpage Link -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-zinc-800/80">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Panel 3 &bull; Macro Market Regime Diagnosis</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700/60 mono">{majority_score}</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            What market environment is Bitcoin currently in?
+          </h2>
+          <p class="text-xs text-zinc-400 mt-0.5">
+            Bitcoin is classified strictly into 1 of 5 deterministic regimes based on majority on-exchange evidence.
           </p>
         </div>
 
-        <div class="pt-2 border-t border-zinc-800/80 grid grid-cols-2 gap-2 text-xs">
-          <div class="p-2 rounded-xl bg-zinc-950/60 border border-zinc-800/70">
-            <span class="text-[10px] uppercase font-bold text-zinc-400 block">Inviolable Stop</span>
-            <span class="font-mono font-bold text-rose-400 text-xs">${disaster_stop:,.2f}</span>
-            <span class="text-[10px] text-zinc-400 block font-mono">({disaster_stop_dist:.2f}% gap)</span>
+        <a href="regimes.html" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-xs font-medium text-cyan-300 border border-zinc-700/80 transition-all self-start sm:self-auto">
+          <span>Learn About the 5 Regimes &amp; Math</span>
+          <span>&rarr;</span>
+        </a>
+      </div>
+
+      <!-- Main Regime Hero Banner -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-5 p-5 sm:p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/80">
+        <div class="flex items-start gap-4">
+          <div class="text-4xl sm:text-5xl mt-1 select-none">
+            {regime_icon}
           </div>
-          <div class="p-2 rounded-xl bg-zinc-950/60 border border-zinc-800/70">
-            <span class="text-[10px] uppercase font-bold text-zinc-400 block">Risk Budget</span>
-            <span class="font-bold text-emerald-400 text-xs">APPROVED</span>
-            <span class="text-[10px] text-zinc-400 block">100% Cash Defense</span>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full {regime_badge_bg}">
+                Active Market Regime
+              </span>
+              <span class="text-xs text-zinc-400 mono">Diagnostic Engine Call</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {name}
+            </h1>
+            <p class="text-sm font-semibold text-zinc-300">
+              {diagnosis}
+            </p>
+            <p class="text-xs text-zinc-400 leading-relaxed pt-0.5">
+              {regime_tagline}
+            </p>
           </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-l border-zinc-800/80 pt-3 md:pt-0 md:pl-6">
+          <div class="text-xs text-zinc-400">Diagnosis Confidence:</div>
+          <div class="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+            <span>✓</span> {majority_score}
+          </div>
+          <div class="text-[11px] text-zinc-400">Deterministic Rule Score</div>
         </div>
       </div>
 
-      <!-- LIQUIDITY MAGNETS & GRAVITY CARD -->
-      <div id="panel-4" class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Liquidity Magnets</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-            72.0x Pull Imbalance
-          </span>
+      <!-- Verified On-Exchange Evidence Checklist -->
+      <div class="space-y-2.5">
+        <div class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center justify-between">
+          <span>Verified On-Exchange Evidence ({majority_score})</span>
+          <span class="text-[11px] text-zinc-400 font-normal">Majority (≥3 of 4) Confirmed</span>
         </div>
-
-        <!-- 3-TIER MAGNET STACK -->
-        <div class="space-y-1.5 font-mono text-xs">
-          <!-- Upper Shorts -->
-          <div class="flex items-center justify-between p-2 rounded-xl bg-zinc-950/60 border border-zinc-800/60 text-zinc-300">
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-sans font-bold">SHORTS</span>
-              <span class="font-bold">${upper_c.get('price_level', 0.0):,.0f}</span>
-            </div>
-            <div class="text-right text-rose-400 text-[11px]">
-              +{upper_c.get('distance_pct', 0.0):.2f}% &bull; ${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
-            </div>
-          </div>
-
-          <!-- Spot Zero Axis -->
-          <div class="flex items-center justify-between p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/40 text-cyan-300">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-              <span class="font-bold font-sans text-xs uppercase">SPOT PRICE</span>
-            </div>
-            <div class="font-bold text-white text-xs">
-              ${price:,.2f}
-            </div>
-          </div>
-
-          <!-- Lower Longs (Dominant) -->
-          <div class="flex items-center justify-between p-2 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/50 text-emerald-300 shadow-md">
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-400/50 font-sans font-bold">🔥 LONGS</span>
-              <span class="font-bold">${lower_c.get('price_level', 0.0):,.0f}</span>
-            </div>
-            <div class="text-right text-emerald-300 font-bold text-[11px]">
-              -{lower_c.get('distance_pct', 0.0):.2f}% &bull; ${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
-            </div>
-          </div>
-        </div>
-
-        <!-- Crowd Meter -->
-        <div class="pt-1">
-          <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1">
-            <span>Retail Crowd Imbalance:</span>
-            <span class="font-bold text-emerald-400 mono">74.6% Longs Crowded</span>
-          </div>
-          <div class="w-full bg-zinc-950 h-2 rounded-full overflow-hidden flex border border-zinc-800">
-            <div class="bg-rose-500 h-full" style="width: 25.4%;"></div>
-            <div class="bg-emerald-500 h-full" style="width: 74.6%;"></div>
-          </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {evidence_cards_html}
         </div>
       </div>
 
-      <!-- WHY POINTS SUMMARY -->
-      <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl space-y-2">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">Core Positioning Evidence</span>
-        <div class="space-y-1.5">
-          {why_points_html}
+      <!-- 5-Regime Radar Framework Matrix -->
+      <div class="pt-4 border-t border-zinc-800/80">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">5-Regime Radar Framework Matrix</div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-center text-xs">
+          <a href="regimes.html#regime-1" class="p-2.5 rounded-xl border {'border-emerald-500/50 bg-emerald-500/10 text-emerald-300 font-bold' if regime_id == 'SPOT_LED_EXPANSION' else 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'} transition-all">
+            1. Spot Expansion
+          </a>
+          <a href="regimes.html#regime-2" class="p-2.5 rounded-xl border {'border-orange-500/50 bg-orange-500/10 text-orange-300 font-bold' if regime_id == 'LEVERAGED_FRAGILE_UPSIDE' else 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'} transition-all">
+            2. Leveraged Trap
+          </a>
+          <a href="regimes.html#regime-3" class="p-2.5 rounded-xl border {'border-cyan-500/50 bg-cyan-500/10 text-cyan-300 font-bold' if regime_id == 'RANGE_LIQUIDATION_MAGNET' else 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'} transition-all">
+            3. Range / Magnet
+          </a>
+          <a href="regimes.html#regime-4" class="p-2.5 rounded-xl border {'border-rose-500/50 bg-rose-500/10 text-rose-300 font-bold' if regime_id == 'CASCADE_FORCED_DELEVERAGING' else 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'} transition-all">
+            4. Cascade
+          </a>
+          <a href="regimes.html#regime-5" class="p-2.5 rounded-xl border {'border-rose-500/50 bg-rose-500/10 text-rose-300 font-bold' if regime_id == 'DISTRIBUTION_BEAR_CONTINUATION' else 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'} transition-all">
+            5. Distribution
+          </a>
         </div>
       </div>
 
     </div>
 
-    <!-- ======================================================= -->
-    <!-- TAB 2: TELEMETRY (MICROSTRUCTURE DATA GRID)             -->
-    <!-- ======================================================= -->
-    <div id="tab-content-telemetry" class="tab-pane space-y-3.5 hidden">
-
-      <!-- KEY LEVELS -->
-      <div id="panel-2" class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl space-y-3">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">Benchmark Price Anchors</span>
-        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">DAILY VWAP</span>
-            <span class="font-bold text-white text-sm">${daily_vwap:,.2f}</span>
+    <!-- ============================================================ -->
+    <!-- PANEL 4: ACTION & ROTATION DIRECTIVE • MANDATE               -->
+    <!-- ============================================================ -->
+    <div id="panel-4" class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Panel 4 &bull; Action &amp; Capital Rotation Directive</span>
           </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">WEEKLY VWAP</span>
-            <span class="font-bold text-white text-sm">${weekly_vwap:,.2f}</span>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">20D EMA</span>
-            <span class="font-bold text-zinc-200 text-sm">${ema_20d:,.2f}</span>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">50D EMA</span>
-            <span class="font-bold text-zinc-200 text-sm">${ema_50d:,.2f}</span>
-          </div>
-          <div class="col-span-2 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70 flex items-center justify-between">
-            <div>
-              <span class="text-[10px] font-sans font-semibold text-zinc-400 block">200-DAY MOVING AVERAGE</span>
-              <span class="font-bold text-cyan-400 text-sm">${ma_200d:,.2f}</span>
-            </div>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">Macro Baseline</span>
-          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-0.5">
+            What should you do with your portfolio right now?
+          </h2>
+          <p class="text-xs text-zinc-400 mt-1">
+            Spot-only capital rotation. Strictly zero borrowed leverage, zero futures gambling, zero shorting.
+          </p>
+        </div>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 self-start sm:self-auto">
+          <span>🛡️ Mandate:</span>
+          <span class="text-emerald-400 font-mono">SPOT ONLY</span>
         </div>
       </div>
 
-      <!-- FLOW & POSITIONING -->
-      <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl space-y-3">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">Derivatives &amp; Volume Flow</span>
-        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">SPOT CVD RATIO</span>
-            <span class="font-bold text-emerald-400 text-sm">{spot_cvd_ratio:.2f}</span>
-            <span class="text-[9px] text-zinc-400 block font-sans">Spot Absorption Lead</span>
+      <!-- Action Protocol, Stop Loss, and Risk Rules -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Recommended Rotation -->
+        <div class="p-5 rounded-xl border {action_bg} bg-zinc-950/80 space-y-1.5">
+          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Recommended Rotation</div>
+          <div class="text-2xl font-extrabold mono text-white flex items-center gap-2">
+            <span>{rotation}</span>
           </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">OPEN INTEREST</span>
-            <span class="font-bold text-white text-sm">{current_oi:,.0f} BTC</span>
-            <span class="text-[9px] text-emerald-400 block font-sans">+{oi_change_24h:.2f}% (24h)</span>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">8H FUNDING RATE</span>
-            <span class="font-bold text-cyan-400 text-sm">{'+' if funding_rate >= 0 else ''}{funding_rate:.4f}%</span>
-            <span class="text-[9px] text-zinc-400 block font-sans">Calm Carry</span>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">ANNUALIZED BASIS</span>
-            <span class="font-bold text-amber-400 text-sm">{basis:.2f}%</span>
-            <span class="text-[9px] text-zinc-400 block font-sans">Slight Backwardation</span>
+          <div class="text-xs font-medium text-zinc-300">
+            {action_pill} &bull; Sizing: <span class="font-mono font-bold text-white">{sizing}x</span>
           </div>
         </div>
+
+        <!-- Playbook Protocol -->
+        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
+          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Playbook Protocol</div>
+          <div class="text-base font-bold text-white">{playbook}</div>
+          <p class="text-xs text-zinc-300 leading-relaxed pt-1">{entry_inst}</p>
+        </div>
+
+        <!-- Dual Inviolable Stop-Loss -->
+        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Dual Inviolable Stop-Loss</div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">Hard Risk Bound</span>
+          </div>
+          <div class="text-base font-bold mono text-rose-400">
+            ${disaster_stop:,.2f} <span class="text-xs font-normal text-zinc-400">({disaster_stop_dist:.2f}% Disaster Hard Stop)</span>
+          </div>
+          <div class="text-[11px] text-zinc-300 font-mono">
+            Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
+          </div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed pt-0.5">{stop_rule}</p>
+        </div>
+
       </div>
 
-      <!-- SESSIONS & CLOCKS -->
-      <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-4 shadow-xl space-y-3">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">Global Market Clocks</span>
-        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">UTC TIME</span>
-            <span id="clock-utc-time" class="font-bold text-white text-sm">--:--:-- UTC</span>
-            <span id="clock-utc-date" class="text-[10px] text-zinc-400 block font-mono">-- --- ----</span>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70">
-            <span class="text-[10px] font-sans font-semibold text-zinc-400 block">SGT TIME (UTC+8)</span>
-            <span id="clock-sgt-time" class="font-bold text-emerald-300 text-sm">--:--:-- SGT</span>
-            <span id="clock-sgt-date" class="text-[10px] text-zinc-400 block font-mono">-- --- ----</span>
+      <!-- Risk Management Status Box -->
+      <div class="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2.5">
+          <span class="text-lg">{'✅' if risk.get('risk_budget_ok') else '⚠️'}</span>
+          <div>
+            <span class="font-bold uppercase tracking-wider text-zinc-400 text-[10px] block">Risk Budget Enforcement</span>
+            <span class="font-extrabold text-white text-sm">
+              {'✓ Approved (Within 1% Risk Budget)' if risk.get('risk_budget_ok') else '⚠️ Cash Preservation / Risk Reduced'}
+            </span>
           </div>
         </div>
-        <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/70 space-y-1">
-          <div class="flex items-center justify-between text-xs">
-            <span id="session-name" class="font-bold text-white">US Cash Session</span>
-            <span id="session-hours" class="mono text-zinc-400 text-[11px]">14:00 - 21:00 UTC</span>
-          </div>
-          <p id="session-desc" class="text-[11px] text-zinc-400 leading-relaxed">Peak Wall Street ETF Inflows &amp; Derivatives Liquidity Squeeze</p>
+        <div class="text-zinc-300 font-medium max-w-xl text-left sm:text-right">
+          {risk.get("actionable_trade_instruction", "")}
         </div>
       </div>
 
     </div>
 
-    <!-- ======================================================= -->
-    <!-- TAB 3: VERDICT (THE 2 DECISION METHODS)                  -->
-    <!-- ======================================================= -->
-    <div id="tab-content-verdict" class="tab-pane space-y-3.5 hidden">
-
-      <!-- TOP METHOD TOGGLE SWITCH -->
-      <div class="p-1 rounded-xl bg-zinc-900 border border-zinc-800 flex text-xs font-bold">
-        <button id="toggle-method-1" onclick="switchVerdictMethod(1)" class="flex-1 py-2 rounded-lg bg-zinc-800 text-cyan-300 shadow transition-all">
-          Method 1: AI Prompt
-        </button>
-        <button id="toggle-method-2" onclick="switchVerdictMethod(2)" class="flex-1 py-2 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all">
-          Method 2: System Verdict
-        </button>
+    <!-- ============================================================ -->
+    <!-- BRIDGE: TWO INDEPENDENT VERDICT METHODS                      -->
+    <!-- ============================================================ -->
+    <div class="rounded-2xl border border-zinc-800 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-xl text-center space-y-3">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-extrabold uppercase tracking-wider">
+        <span>⚖️ High-Conviction Decision Architecture</span>
       </div>
+      <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">
+        How to Get Your Trading Verdict: Two Independent Methods
+      </h3>
+      <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
+        Don't rely blindly on our verdict or any single algorithm. Our platform offers you two distinct, transparent paths to reach high-conviction decisions: verify live telemetry independently with your own AI of choice, or inspect our system's complete quantitative breakdown below.
+      </p>
 
-      <!-- METHOD 1: AI PROMPT -->
-      <div id="view-method-1" class="space-y-3 block">
-        <div id="method-1" class="rounded-2xl bg-zinc-900/80 border border-cyan-500/40 p-4 shadow-xl space-y-3">
-          <div class="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase tracking-wider">
-            <span>📋</span>
-            <span>Independent AI Audit Format</span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
+        <a href="#method-1" class="p-4 rounded-xl bg-zinc-950/80 border border-cyan-500/30 hover:border-cyan-400 transition-all flex items-start gap-3">
+          <span class="text-2xl">📋</span>
+          <div>
+            <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider">Method 1</div>
+            <div class="text-sm font-extrabold text-white">Copy Data &amp; Prompt to AI</div>
+            <p class="text-[11px] text-zinc-400 mt-0.5">Paste verified live order flow into ChatGPT, Claude, Grok, or Gemini for an instant second opinion.</p>
           </div>
-          <p class="text-xs text-zinc-300 leading-relaxed">
-            Copy the full quantitative market telemetry prompt to clipboard, then paste it directly into ChatGPT, Claude, Grok, or Gemini for an instant second opinion.
-          </p>
+        </a>
 
-          <button id="copy-prompt-btn" onclick="copyTelemetryPrompt()" class="w-full py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all">
-            <span id="copy-btn-icon">📋</span>
+        <a href="#method-2" class="p-4 rounded-xl bg-zinc-950/80 border border-emerald-500/30 hover:border-emerald-400 transition-all flex items-start gap-3">
+          <span class="text-2xl">🧠</span>
+          <div>
+            <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Method 2</div>
+            <div class="text-sm font-extrabold text-white">Our System Verdict (Full-On View)</div>
+            <p class="text-[11px] text-zinc-400 mt-0.5">Explore our plain-English verdict, 3 key drivers, LSCE sweep status, 10x-100x heatmap, and 6-factor logic.</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
+    <!-- ============================================================ -->
+    <div id="method-1" class="rounded-2xl border border-cyan-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-5">
+      
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+              <span>📋</span>
+              <span>Method 1: Verdict by Copy Data &amp; Prompt to AI</span>
+            </span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            Analyze Live Telemetry with Your Own AI
+          </h2>
+          <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+            Click below to copy the verified live market positioning snapshot and paste directly into <strong>ChatGPT, Claude, Grok, or Gemini</strong> for an instant, unbiased risk audit and independent second opinion.
+          </p>
+        </div>
+
+        <!-- Prominent One-Click Copy Button -->
+        <div class="flex-shrink-0 flex items-center gap-3">
+          <button id="copy-prompt-btn" onclick="copyTelemetryPrompt()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all cursor-pointer">
+            <span id="copy-btn-icon" class="text-base">📋</span>
             <span id="copy-btn-text">Copy Live Data &amp; Prompt for AI</span>
           </button>
         </div>
       </div>
 
-      <!-- METHOD 2: SYSTEM VERDICT -->
-      <div id="view-method-2" class="space-y-3 hidden">
-        <div id="method-2" class="rounded-2xl bg-zinc-900/80 border border-emerald-500/40 p-4 shadow-xl space-y-3">
-          <div class="flex items-center gap-2 text-emerald-300 font-bold text-xs uppercase tracking-wider">
-            <span>🛡️</span>
-            <span>Our System Verdict</span>
-          </div>
+      <!-- 3-Step Simple Instructions -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+          <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 1</span>
+          <div class="font-bold text-white">Click "Copy Live Data"</div>
+          <p class="text-[11px] text-zinc-400">Copies all verified 25+ on-exchange metrics, dual heatmap tiers, and strict audit questions.</p>
+        </div>
 
-          <div class="space-y-2 text-xs text-zinc-300 leading-relaxed">
-            <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
-              <strong class="text-white block mb-0.5 font-bold">1. Macro Structural State:</strong>
-              <span>Price is holding above the 200D MA (${ma_200d:,.0f}), preserving the long-term trend, but trading below Daily VWAP in short-term compression.</span>
-            </div>
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+          <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 2</span>
+          <div class="font-bold text-white">Paste into Any Major LLM</div>
+          <p class="text-[11px] text-zinc-400">Works seamlessly with Claude 3.5 Sonnet, ChatGPT-4o, Grok 2, or Google Gemini.</p>
+        </div>
 
-            <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
-              <strong class="text-white block mb-0.5 font-bold">2. Liquidity Asymmetry:</strong>
-              <span>Massive retail long cluster at ${lower_c.get('price_level', 0.0):,.0f} (${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M). Downside magnet pull is 72x heavier than upside short shelf.</span>
-            </div>
-
-            <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
-              <strong class="text-white block mb-0.5 font-bold">3. Inviolable Stop Defense:</strong>
-              <span>Hard invalidation set at ${disaster_stop:,.2f} ({disaster_stop_dist:.2f}% buffer), positioned strictly beneath major retail liquidation stop shelves.</span>
-            </div>
-
-            <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
-              <strong class="text-white block mb-0.5 font-bold">4. Capital Protocol:</strong>
-              <span>Maintain 100% USDT cash reserve. Strictly zero new spot accumulation until lower sweep is confirmed or invalidated.</span>
-            </div>
-          </div>
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-1">
+          <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 3</span>
+          <div class="font-bold text-white">Receive Instant Risk Audit</div>
+          <p class="text-[11px] text-zinc-400">Get an independent 5-part risk critique: regime vote, liquidity path, and stop-loss check.</p>
         </div>
       </div>
 
+      <!-- Collapsible Prompt Preview -->
+      <details class="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-xs text-zinc-400">
+        <summary class="font-semibold text-zinc-300 cursor-pointer hover:text-white flex items-center justify-between">
+          <span>🔍 Preview Complete Telemetry &amp; Audit Prompt ({len(llm_prompt)} characters)</span>
+          <span class="text-[11px] text-cyan-400">Click to expand</span>
+        </summary>
+        <div class="mt-3 pt-3 border-t border-zinc-800 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto bg-zinc-950 p-4 rounded-lg border border-zinc-800/80">
+{llm_prompt_escaped}
+        </div>
+      </details>
+
+      <!-- Hidden Pre-Formatted Prompt for Copying -->
+      <textarea id="llm-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
     </div>
 
-    <!-- ======================================================= -->
-    <!-- TAB 4: REGIMES (THE 5-REGIME POCKET GUIDE)               -->
-    <!-- ======================================================= -->
-    <div id="tab-content-regimes" class="tab-pane space-y-3 hidden">
+    <!-- ============================================================ -->
+    <!-- METHOD 2: OUR SYSTEM VERDICT • FULL-ON VIEW                  -->
+    <!-- ============================================================ -->
+    <div id="method-2" class="rounded-2xl border border-emerald-500/40 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
       
-      <div class="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-400">
-        The quantitative 5-regime framework evaluates positioning mechanics so you never buy leveraged tops or sell spot washouts.
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+              <span>🧠</span>
+              <span>Method 2: Our System Verdict (Full-On View)</span>
+            </span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            Our System Verdict
+          </h2>
+          <p class="text-xs text-zinc-400 mt-0.5">
+            Full-on view of our quantitative regime diagnosis, 3 key factors, LSCE sweep status, 10x-100x heatmap, and 6-factor decision hierarchy.
+          </p>
+        </div>
+        <div class="px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium self-start sm:self-auto">
+          <span class="text-zinc-400">Dominant Magnet:</span> <strong class="text-white ml-1">{dom_reason}</strong>
+        </div>
       </div>
 
-      <!-- Regime 1 -->
-      <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-emerald-500/30 space-y-1">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-emerald-400">1. Spot-Led Expansion</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 font-bold">0.75x - 1.0x</span>
+      <!-- Plain English Bottom Line Breakdown (For 95% Beginners) -->
+      <div class="p-5 sm:p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/80 space-y-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Plain English</span>
+            <span class="text-xs text-zinc-500 font-medium">(No Jargon Required)</span>
+          </div>
+          <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+            Why This Recommendation?
+          </h3>
+          <div class="mt-3 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-start gap-3">
+            <span class="text-2xl">💡</span>
+            <p class="text-sm sm:text-base text-zinc-200 font-medium leading-relaxed">
+              {plain_verdict}
+            </p>
+          </div>
         </div>
-        <p class="text-xs text-zinc-300 leading-relaxed">Genuine institutional spot demand pushing price higher. Spot CVD leads; perps follow.</p>
+
+        <!-- 3 Driving Market Factors & Sizing Breakdown -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
+          <div class="lg:col-span-2 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">The 3 Key Market Factors Driving This Call</div>
+            <div class="space-y-2.5">
+              {why_points_html}
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 space-y-1">
+              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Why This Exact Sizing?</div>
+              <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
+            </div>
+            <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 space-y-1">
+              <div class="text-xs font-bold uppercase tracking-wider text-rose-400">Where Is Your Safety Net?</div>
+              <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_stop}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Regime 2 -->
-      <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-amber-500/30 space-y-1">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-amber-400">2. Leveraged / Fragile Upside</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-bold">0.0x - 0.25x</span>
+      <!-- LSCE Execution State Banner -->
+      <div class="p-4 rounded-xl border {lsce_badge_class} flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">{lsce_badge_icon}</span>
+          <div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Liquidation Sweep Confirmation Engine (LSCE)</div>
+            <div class="text-sm font-extrabold">{lsce_badge_title}</div>
+          </div>
         </div>
-        <p class="text-xs text-zinc-300 leading-relaxed">Perp leverage pushing price up with negative/flat spot CVD. Extreme liquidation vulnerability.</p>
+        <div class="text-xs text-zinc-200 font-medium max-w-xl text-left sm:text-right bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800/50">
+          {lsce_detail}
+        </div>
       </div>
 
-      <!-- Regime 3 -->
-      <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-cyan-500/30 space-y-1">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-cyan-400">3. Range / Liquidation Magnet</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-bold">0.5x - 0.75x on Reclaim</span>
+      <!-- Nearest Liquidity Pools Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Upper Short Pool -->
+        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wide">Upper Short Liquidity Pool</span>
+            <span class="text-xs mono font-medium bg-zinc-800 text-zinc-200 px-2.5 py-0.5 rounded-full">
+              +{upper_c.get('distance_pct', 0.0):.2f}% (+{upper_c.get('distance_atr', 0.0):.2f} ATR)
+            </span>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold mono text-white">
+            ${upper_c.get('price_level', 0.0):,.2f}
+          </div>
+          <div class="text-xs text-zinc-400">
+            Estimated Pool Size: <span class="font-bold text-zinc-200 mono">${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span> <span class="text-[11px] text-zinc-500">(Modeled Estimate)</span>
+          </div>
+          <div class="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+            <div class="bg-rose-500 h-full rounded-full transition-all" style="width: min(100%, {max(15, upper_c.get('distance_pct', 1.0) * 15)}%);"></div>
+          </div>
         </div>
-        <p class="text-xs text-zinc-300 leading-relaxed">Price oscillates between dense liquidation pools. Trade the magnet only upon verified sweep &amp; reclaim.</p>
+
+        <!-- Lower Long Pool -->
+        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Lower Long Liquidity Pool</span>
+            <span class="text-xs mono font-medium bg-zinc-800 text-zinc-200 px-2.5 py-0.5 rounded-full">
+              -{lower_c.get('distance_pct', 0.0):.2f}% (-{lower_c.get('distance_atr', 0.0):.2f} ATR)
+            </span>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold mono text-white">
+            ${lower_c.get('price_level', 0.0):,.2f}
+          </div>
+          <div class="text-xs text-zinc-400">
+            Estimated Pool Size: <span class="font-bold text-zinc-200 mono">${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M</span> <span class="text-[11px] text-zinc-500">(Modeled Estimate)</span>
+          </div>
+          <div class="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+            <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: min(100%, {max(15, lower_c.get('distance_pct', 1.0) * 15)}%);"></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Regime 4 -->
-      <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-rose-500/30 space-y-1">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-rose-400">4. Cascade / Deleveraging</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">0.0x CASH</span>
+      <!-- Visual Liquidation Heatmap & Leverage Depth Ladder (10x - 100x Bands) -->
+      <div class="p-5 rounded-xl border border-zinc-800 bg-zinc-950/90 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span>🔥</span>
+              <span>Liquidation Heatmap &amp; Leverage Depth Map</span>
+            </span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">10x - 100x Bands</span>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-3">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500"></span> Short Liq Pool</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-cyan-400"></span> Spot Price</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span> Long Liq Pool</span>
+          </div>
         </div>
-        <p class="text-xs text-zinc-300 leading-relaxed">Waterfall liquidation cascade. Open interest implosion. Never catch a falling knife.</p>
+
+        <!-- Heatmap Depth Ladder Rows -->
+        <div class="space-y-2 text-xs">
+          <!-- Upper Tier: 10x Shorts -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">10x Shorts</span>
+              <span class="font-mono text-zinc-300">${swing_high * 1.025:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-900 to-rose-600 h-full rounded-full" style="width: 35%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              +{(((swing_high * 1.025 - price)/price)*100):.2f}% &bull; ~$85M
+            </div>
+          </div>
+
+          <!-- Upper Tier: 25x Shorts -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">25x Shorts</span>
+              <span class="font-mono text-zinc-300">${swing_high * 1.012:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-800 to-rose-500 h-full rounded-full" style="width: 48%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              +{(((swing_high * 1.012 - price)/price)*100):.2f}% &bull; ~$110M
+            </div>
+          </div>
+
+          <!-- Upper Tier: 50x/100x Shorts Nearest Active Pool -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/20">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">50-100x Shorts</span>
+              <span class="font-mono font-bold text-rose-300">${upper_c.get('price_level', 0.0):,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-rose-700 to-rose-400 h-full rounded-full" style="width: {min(100, max(15, (upper_c.get('estimated_vol_usd', 0.0)/1e6)/20 * 100)):.0f}%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-rose-400 text-xs w-36">
+              +{upper_c.get('distance_pct', 0.0):.2f}% &bull; ${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
+            </div>
+          </div>
+
+          <!-- ZERO LINE: SPOT PRICE EQUILIBRIUM -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-cyan-500/10 border-2 border-cyan-500/40 my-1">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+              <span class="font-extrabold text-cyan-300 text-xs uppercase tracking-wider">Spot Price Zero-Axis</span>
+            </div>
+            <div class="font-mono font-extrabold text-white text-sm">
+              ${price:,.2f}
+            </div>
+            <div class="text-xs text-cyan-400 font-mono hidden sm:block">
+              Current Microstructure Anchor
+            </div>
+          </div>
+
+          <!-- Lower Tier: 50x/100x Longs DOMINANT MAGNET CORE -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border-2 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1">
+                <span>🔥</span> 100x Longs
+              </span>
+              <span class="font-mono font-extrabold text-emerald-300">${lower_c.get('price_level', 0.0):,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-3 rounded-full overflow-hidden p-0.5">
+                <div class="bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-300 h-full rounded-full animate-pulse" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-emerald-300 font-bold text-xs w-36">
+              -{lower_c.get('distance_pct', 0.0):.2f}% &bull; ${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M
+            </div>
+          </div>
+
+          <!-- Lower Tier: 25x Longs -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">25x Longs</span>
+              <span class="font-mono text-zinc-300">${swing_low * 0.988:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-900 to-emerald-600 h-full rounded-full" style="width: 55%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              -{(((price - swing_low * 0.988)/price)*100):.2f}% &bull; ~$140M
+            </div>
+          </div>
+
+          <!-- Lower Tier: 10x Longs -->
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+            <div class="flex items-center gap-2.5 w-44">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">10x Longs</span>
+              <span class="font-mono text-zinc-300">${swing_low * 0.975:,.0f}</span>
+            </div>
+            <div class="flex-1 mx-4 hidden sm:block">
+              <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-950 to-emerald-700 h-full rounded-full" style="width: 40%;"></div>
+              </div>
+            </div>
+            <div class="text-right font-mono text-zinc-400 text-xs w-36">
+              -{(((price - swing_low * 0.975)/price)*100):.2f}% &bull; ~$95M
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Dual Imbalance Display: Immediate Tier vs Total Ladder -->
+        <div class="pt-3 border-t border-zinc-800/80 space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+              <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Immediate Nearest Tier Imbalance (100x vs 50-100x)</span>
+              <div class="text-base font-extrabold text-amber-300 font-mono mt-0.5">{imm_ratio:.1f}x Skew</div>
+              <p class="text-[11px] text-zinc-400 mt-1">Comparing single nearest bands: Lower Longs (${lower_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M) vs Upper Shorts (${upper_c.get('estimated_vol_usd', 0.0)/1e6:.1f}M).</p>
+            </div>
+            <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+              <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">Total Leverage Ladder Imbalance (10x - 100x Spectrum)</span>
+              <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">{tot_ratio:.2f}x Downside Skew</div>
+              <p class="text-[11px] text-zinc-400 mt-1">Total modeled lower pools (~${tot_l_vol:.1f}M) vs total upper pools (~${tot_u_vol:.1f}M). Macro positioning reality across all tiers.</p>
+            </div>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2 pt-1">
+            <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Market makers exploit dense leverage bands for liquidity. Inside a <em>Range</em>, price gravitates toward the heaviest cluster.</div>
+            <div class="text-emerald-400 font-bold shrink-0">Dominant Gravitational Pull: {dom_magnet}</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Regime 5 -->
-      <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-rose-500/30 space-y-1">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-rose-400">5. Distribution / Bear Trend</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">0.0x CASH</span>
+      <!-- Six-Factor Decision Logic Section -->
+      <div class="border border-zinc-800 rounded-xl p-5 bg-zinc-950/90 space-y-3.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-3 gap-1">
+          <span class="text-xs font-bold text-zinc-200 uppercase tracking-wider">Magnet Decision Analysis (Six-Factor Evaluation)</span>
+          <span class="text-xs text-zinc-400">Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; ATR</span>
         </div>
-        <p class="text-xs text-zinc-300 leading-relaxed">Persistent spot selling below key moving averages. Complete capital defense in 100% USDT.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-zinc-300">
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">1. Cluster Size / Magnitude:</strong>
+            <span class="text-zinc-200 leading-relaxed">{f1}</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">2. Spot vs. Derivatives Leadership:</strong>
+            <span class="text-zinc-200 leading-relaxed">{f2}</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">3. Crowding &amp; Market Fuel:</strong>
+            <span class="text-zinc-200 leading-relaxed">{f3}</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">4. Higher-Timeframe Market Structure:</strong>
+            <span class="text-zinc-200 leading-relaxed">{f4}</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">5. Distance Asymmetry:</strong>
+            <span class="text-zinc-200 leading-relaxed">{f5}</span>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/70">
+            <strong class="text-zinc-400 block mb-1">6. Volatility Regime (ATR):</strong>
+            <span class="text-zinc-200 leading-relaxed">{f6}</span>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-3 border-t border-zinc-800/80 flex items-start gap-2 text-xs">
+          <span class="text-amber-400 font-bold uppercase tracking-wider">Decisive Conclusion:</span>
+          <span class="text-white font-medium leading-relaxed">{dom_reason}</span>
+        </div>
       </div>
 
     </div>
 
-    <!-- Standard Footer with Privacy Link -->
-    <footer class="pt-6 text-center text-xs text-zinc-500 space-y-2">
-      <div class="flex items-center justify-center gap-3">
-        <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
-        <span>&bull;</span>
-        <a href="regime.json" target="_blank" class="text-cyan-400 hover:underline">REST API</a>
-      </div>
-      <p class="text-[10px] text-zinc-600">Strictly for analytical research. Not financial advice.</p>
-    </footer>
+  </main>
 
-  </div>
+  </div><!-- /#app-root -->
 
-  <!-- FIXED BOTTOM NAVIGATION TABS -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/80 pb-3 pt-2">
-    <div class="max-w-md mx-auto grid grid-cols-4 px-2">
-      <button id="nav-btn-radar" onclick="switchTab('radar')" class="nav-tab flex flex-col items-center justify-center py-1.5 text-cyan-400">
-        <span class="text-lg">🧲</span>
-        <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Radar</span>
-      </button>
-      <button id="nav-btn-telemetry" onclick="switchTab('telemetry')" class="nav-tab flex flex-col items-center justify-center py-1.5 text-zinc-400 hover:text-zinc-200">
-        <span class="text-lg">📊</span>
-        <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Telemetry</span>
-      </button>
-      <button id="nav-btn-verdict" onclick="switchTab('verdict')" class="nav-tab flex flex-col items-center justify-center py-1.5 text-zinc-400 hover:text-zinc-200">
-        <span class="text-lg">🧠</span>
-        <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Verdict</span>
-      </button>
-      <button id="nav-btn-regimes" onclick="switchTab('regimes')" class="nav-tab flex flex-col items-center justify-center py-1.5 text-zinc-400 hover:text-zinc-200">
-        <span class="text-lg">📘</span>
-        <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Regimes</span>
-      </button>
-    </div>
-  </nav>
+{mobile_nav_bar}
 
-  <!-- COPY TOAST NOTIFICATION -->
-  <div id="copy-toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 opacity-0 pointer-events-none transition-all duration-300 bg-emerald-500 text-black font-extrabold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs">
+  <!-- Sticky Toast Notification for Copying -->
+  <div id="copy-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-4 opacity-0 pointer-events-none transition-all duration-300 bg-emerald-500 text-black font-extrabold px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs">
     <span>✓</span>
-    <span>Copied Prompt for AI!</span>
+    <span>Copied Live Telemetry &amp; AI Prompt to Clipboard!</span>
   </div>
 
-  <!-- Hidden telemetry prompt data -->
-  <textarea id="llm-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
+  <!-- Standard Institutional Footer -->
+  <footer class="border-t border-zinc-800/80 pt-8 mt-12 text-center text-xs text-zinc-400 space-y-2">
+    <div class="flex items-center justify-center gap-3">
+      <span class="text-white font-bold">BTC Magnet Monitor</span>
+      <span>&bull;</span>
+      <a href="regimes.html" class="text-cyan-400 hover:underline">5 Regimes Guide</a>
+      <span>&bull;</span>
+      <a href="regime.json" target="_blank" class="text-cyan-400 hover:underline">Public JSON API</a>
+      <span>&bull;</span>
+      <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
+      <span>&bull;</span>
+      <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank" class="text-cyan-400 hover:underline">GitHub</a>
+    </div>
+    <p>Automated Quantitative Telemetry Pipeline &bull; Binance Vision &amp; Binance/Deribit Feeds &bull; Zero Leverage Mandate</p>
+    <p class="text-[11px] text-zinc-400">Strictly for informational and risk research purposes. Not financial advice.</p>
+  </footer>
 
   <script>
-    // Tab Switching
-    function switchTab(tabId) {{
-      const tabs = ['radar', 'telemetry', 'verdict', 'regimes'];
-      tabs.forEach(t => {{
-        const content = document.getElementById('tab-content-' + t);
-        const navBtn = document.getElementById('nav-btn-' + t);
-        if (content) content.classList.add('hidden');
-        if (navBtn) {{
-          navBtn.classList.remove('text-cyan-400');
-          navBtn.classList.add('text-zinc-400');
-        }}
-      }});
-      const targetContent = document.getElementById('tab-content-' + tabId);
-      const targetBtn = document.getElementById('nav-btn-' + tabId);
-      if (targetContent) targetContent.classList.remove('hidden');
-      if (targetBtn) {{
-        targetBtn.classList.add('text-cyan-400');
-        targetBtn.classList.remove('text-zinc-400');
-      }}
-    }}
-
-    // Verdict Sub-method toggle
-    function switchVerdictMethod(methodNum) {{
-      const v1 = document.getElementById('view-method-1');
-      const v2 = document.getElementById('view-method-2');
-      const b1 = document.getElementById('toggle-method-1');
-      const b2 = document.getElementById('toggle-method-2');
-      if (methodNum === 1) {{
-        if (v1) v1.classList.remove('hidden');
-        if (v2) v2.classList.add('hidden');
-        if (b1) {{ b1.className = 'flex-1 py-2 rounded-lg bg-zinc-800 text-cyan-300 shadow transition-all'; }}
-        if (b2) {{ b2.className = 'flex-1 py-2 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all'; }}
-      }} else {{
-        if (v1) v1.classList.add('hidden');
-        if (v2) v2.classList.remove('hidden');
-        if (b2) {{ b2.className = 'flex-1 py-2 rounded-lg bg-zinc-800 text-emerald-300 shadow transition-all'; }}
-        if (b1) {{ b1.className = 'flex-1 py-2 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all'; }}
-      }}
-    }}
-
-    // Copy Prompt
+    // Copy Telemetry Prompt to Clipboard
     function copyTelemetryPrompt() {{
       const promptEl = document.getElementById('llm-prompt-data');
       if (!promptEl) return;
@@ -860,25 +1354,28 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         }}
 
         if (toast) {{
-          toast.classList.remove('opacity-0', 'pointer-events-none');
-          toast.classList.remove('translate-y-4');
+          toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+          toast.classList.add('opacity-100', 'translate-y-0');
+
           setTimeout(() => {{
-            toast.classList.add('opacity-0', 'pointer-events-none');
-            toast.classList.add('translate-y-4');
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
             if (btnText) btnText.innerText = 'Copy Live Data & Prompt for AI';
             if (btnIcon) btnIcon.innerText = '📋';
             if (btn) {{
               btn.classList.remove('bg-emerald-500');
               btn.classList.add('bg-cyan-500');
             }}
-          }}, 3000);
+          }}, 3500);
         }}
       }}
     }}
 
-    // Real-Time Clocks & Sessions
+    // Live Clocks and Market Session Tracker
     function updateClocksAndSession() {{
       const now = new Date();
+
+      // UTC Clock
       const utcHours = String(now.getUTCHours()).padStart(2, '0');
       const utcMinutes = String(now.getUTCMinutes()).padStart(2, '0');
       const utcSeconds = String(now.getUTCSeconds()).padStart(2, '0');
@@ -907,26 +1404,26 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       const uH = now.getUTCHours();
       let sessionName = '🌙 Pacific / Off-Hours Transition';
       let sessionHours = '21:00 - 00:00 UTC (05:00 - 08:00 SGT)';
-      let sessionDesc = 'Off-Hours Liquidity • Mean Reversion &amp; Overnight Reset';
+      let sessionDesc = 'Off-Hours Liquidity • Mean Reversion & Overnight Reset';
       let sessionBadge = 'OFF-HOURS';
       let sessionBadgeClass = 'border-purple-500/40 bg-purple-500/15 text-purple-300';
 
       if (uH >= 0 && uH < 8) {{
         sessionName = '🌏 Asian / Pacific Session';
         sessionHours = '00:00 - 08:00 UTC (08:00 - 16:00 SGT)';
-        sessionDesc = 'Tokyo, Singapore &amp; HK Open • Range Definition &amp; Baseline Flow';
+        sessionDesc = 'Tokyo, Singapore & HK Open • Range Definition & Baseline Flow';
         sessionBadge = 'ASIAN ACTIVE';
         sessionBadgeClass = 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300';
       }} else if (uH >= 8 && uH < 14) {{
         sessionName = '🏛️ European / London Session';
         sessionHours = '08:00 - 14:00 UTC (16:00 - 22:00 SGT)';
-        sessionDesc = 'London Open &amp; Frankfurt • Volatility Expansion &amp; Sweep Fuel';
+        sessionDesc = 'London Open & Frankfurt • Volatility Expansion & Sweep Fuel';
         sessionBadge = 'LONDON ACTIVE';
         sessionBadgeClass = 'border-amber-500/40 bg-amber-500/15 text-amber-300';
       }} else if (uH >= 14 && uH < 21) {{
         sessionName = '⚡ US / New York Cash Session';
         sessionHours = '14:00 - 21:00 UTC (22:00 - 05:00 SGT)';
-        sessionDesc = 'Peak Wall Street ETF Inflows &amp; Derivatives Liquidity Squeeze';
+        sessionDesc = 'Peak Wall Street ETF Inflows & Derivatives Liquidity Squeeze';
         sessionBadge = 'US CASH PEAK';
         sessionBadgeClass = 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300';
       }}
@@ -944,6 +1441,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         sBadgeEl.className = `px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase border ${{sessionBadgeClass}}`;
       }}
     }}
+
     setInterval(updateClocksAndSession, 1000);
     updateClocksAndSession();
 
@@ -956,8 +1454,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     let priceFailCount = 0;
     let priceTick = 0;
     async function updateLivePriceTicker() {{
-      if (document.hidden) return;
-      if (priceFailCount >= 3 && (priceTick++ % 10) !== 0) return;
+      if (document.hidden) return;  // save battery and data while the app is in the background
+      if (priceFailCount >= 3 && (priceTick++ % 10) !== 0) return;  // back off while the feed is unreachable
       let livePrice = NaN;
       for (const url of PRICE_ENDPOINTS) {{
         try {{
@@ -992,6 +1490,9 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     updateLivePriceTicker();
 
     // Live scan refresh + data-age banner
+    // The Android app ships with a snapshot of the page taken at build time. To make sure users never act on an
+    // outdated verdict, the app fetches the latest published scan from the live site, swaps it in when newer,
+    // and always shows how old the data on screen is.
     const IS_NATIVE_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || location.protocol === 'file:';
     const LIVE_BASE = IS_NATIVE_APP ? 'https://aikeluargalee-tech.github.io/btc-magnet-monitor/' : './';
     const rootAtLoad = document.getElementById('app-root');
@@ -1006,36 +1507,37 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     function renderAgeBanner() {{
       const el = document.getElementById('data-age-banner');
       if (!el) return;
-      const base = 'px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 ';
+      const base = 'px-4 py-2 text-center text-xs font-semibold border-b ';
       if (currentScanTs <= 0) {{
         el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.innerHTML = '<span>⚠ Scan time unknown</span>';
+        el.textContent = '⚠ Scan time unknown - verify the data before acting on it.';
         return;
       }}
       const ageMin = Math.max(0, Math.floor((Date.now() - currentScanTs) / 60000));
       const age = formatAge(ageMin);
       if (ageMin > 180) {{
         el.className = base + 'border-rose-500/50 bg-rose-500/15 text-rose-300';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span><span>STALE DATA (' + age + ')</span>';
+        el.textContent = '⛔ STALE DATA - this scan is ' + age + ' old' + (lastFetchOk === false ? ' and the live feed is unreachable' : '') + '. Do NOT act on this verdict until it refreshes.';
       }} else if (lastFetchOk === false) {{
         el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>Offline (' + age + ')</span>';
+        el.textContent = '⚠ Cannot reach the live feed - showing the last known scan (' + age + ' old).';
       }} else if (ageMin > 90) {{
         el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span><span>' + age + ' ago</span>';
+        el.textContent = '⚠ Scan is ' + age + ' old - waiting for the next automated scan.';
       }} else {{
         el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>' + age + ' ago</span>';
+        el.textContent = '● Scan data is ' + age + ' old - checking for updates every minute.';
       }}
     }}
 
+    // Defence in depth: only our own markup is allowed in. Strip scripts, frames, unknown event handlers and javascript: links.
     function sanitizeLiveNode(root) {{
       root.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(function (n) {{ n.remove(); }});
       root.querySelectorAll('*').forEach(function (n) {{
         Array.from(n.attributes).forEach(function (a) {{
           const name = a.name.toLowerCase();
           const val = (a.value || '').trim().toLowerCase();
-          if (name.indexOf('on') === 0 && !(name === 'onclick' && (a.value.includes('copyTelemetryPrompt') || a.value.includes('switchTab') || a.value.includes('switchVerdictMethod')))) {{
+          if (name.indexOf('on') === 0 && !(name === 'onclick' && a.value.trim() === 'copyTelemetryPrompt()')) {{
             n.removeAttribute(a.name);
           }} else if ((name === 'href' || name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0) {{
             n.removeAttribute(a.name);
@@ -1060,6 +1562,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           const newRoot = doc.getElementById('app-root');
           const root = document.getElementById('app-root');
           const newTs = newRoot ? Date.parse(newRoot.getAttribute('data-scan-ts')) : NaN;
+          // Only swap when the live page really carries the newer scan (guards against half-deployed or cached pages).
           if (root && newRoot && !isNaN(newTs) && newTs > currentScanTs) {{
             sanitizeLiveNode(newRoot);
             root.innerHTML = newRoot.innerHTML;
@@ -1094,6 +1597,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           .catch(() => {{}});
       }});
     }}
+    // Actively purge legacy caches from previous versions
     if ('caches' in window) {{
       caches.keys().then((keys) => {{
         keys.forEach((key) => {{
@@ -1103,7 +1607,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         }});
       }});
     }}
-
     // Native Capacitor Bridge & Google AdMob Initialization
     if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
       try {{
@@ -1127,6 +1630,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 </body>
 </html>"""
         return html
+
     def _render_privacy_page(self) -> str:
         """Renders the comprehensive Privacy Policy subpage required by Google Play & Google AdMob."""
         return """<!DOCTYPE html>
