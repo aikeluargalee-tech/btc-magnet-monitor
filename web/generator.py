@@ -2176,8 +2176,15 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     def _render_text_page(self, data: Dict[str, Any]) -> str:
         """Renders an ultra-fast, zero-bloat Mobile Text/Data Terminal (text.html).
-        Strict 34-column text formatting, collapsible native <details> accordions,
-        sticky live price & 1-tap Copy AI Prompt button. Zero horizontal overflow.
+        Strictly follows the EXACT order of index.html:
+          1. Panel 1: Real-Time BTC Spot Price (Live) & Market Session Cockpit
+          2. Panel 2: On-Exchange Telemetry (4 Microstructure Feeds / 25+ Metrics)
+          3. Panel 3: Macro Market Regime Diagnosis
+          4. Panel 4: Action & Capital Rotation Directive
+          5. Method 1: Verdict by Copy Data & Prompt to AI
+          6. Method 2: Our System Verdict (Full-On View & Liquidation Heatmap)
+          7. Platform Documentation & Institutional Footer
+        Strict 34-column monospace formatting with zero horizontal overflow.
         """
         import json as _json
         import textwrap as _tw
@@ -2188,7 +2195,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         raw_prompt = self._build_llm_prompt(data)
 
         def wrap32(s: str) -> str:
-            return "\n".join(_tw.wrap(s, width=32))
+            return "\n".join(_tw.wrap(str(s), width=32))
 
         price = float(metrics.get("price", 0.0))
         d_vwap = float(metrics.get("daily_vwap", 0.0))
@@ -2232,11 +2239,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         chg_24h = float(metrics.get("price_change_24h_pct", 0.0))
 
         regime_name = str(regime.get("name", "Range / Liquidation Magnet"))
+        diagnosis = wrap32(str(regime.get("diagnosis", "Positioning imbalance and forced liquidations dominate")))
+        tagline = wrap32("Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate.")
         action = wrap32(str(regime.get("action", "Wait / Active Sweep (0.0x)")))
         rotation = str(regime.get("rotation", "Remain USDT"))
         stop_p = float(regime.get("stop_price", 71351.56))
         stop_dist = float(regime.get("stop_distance_pct", 3.15))
         struct_low = float(regime.get("structural_invalidation_level", sw_l or 72727.27))
+        stop_rule = wrap32(str(regime.get("stop_rule", "Structural: 1H close < 4H swing low | Inviolable: Below 200D SMA & 25x shelf -0.7%")))
         entry_inst = wrap32(str(regime.get("entry_instruction", "Active sweep underway. Do NOT front-run. Wait for 1H close reclaim.")))
         rule_score = str(regime.get("majority_score", "4/4 confirmed"))
         dom_magnet = str(regime.get("dominant_magnet", "Lower Long Sweep Magnet"))
@@ -2246,6 +2256,23 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         tot_upper = float(regime.get("total_ladder_upper_vol", 197.0))
         lsce_status = str(regime.get("lsce_status", "SWEEP_IN_PROGRESS"))
         lsce_detail = wrap32(str(regime.get("lsce_detail", "Price actively piercing $73,600 shelf. Do NOT buy active drops. Wait for absorption.")))
+
+        # Panel 3 matched criteria
+        matched_crit = regime.get("matched_criteria", [
+            "Defined range & ATR compressed",
+            "Spot CVD neutral/balanced",
+            "Positioning crowded",
+            "Clear liquidation clusters active"
+        ])
+        criteria_lines = []
+        for c in matched_crit:
+            criteria_lines.append("✓ " + wrap32(c))
+        matched_crit_ascii = "\n".join(criteria_lines)
+
+        # Panel 4 risk budget status
+        risk_ok = risk.get("risk_budget_ok", True)
+        risk_status = "✓ Approved (Within 1% Risk)" if risk_ok else "⚠️ Cash Preservation / Risk Reduced"
+        risk_instruction = wrap32(str(risk.get("actionable_trade_instruction", "Maintain spot position or hold 100% USDT cash reserve.")))
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
@@ -2566,7 +2593,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   <div class="app-wrapper">
 
-    <!-- Sticky Mobile Command Header (Inside Wrapper) -->
+    <!-- Sticky Mobile Command Header -->
     <header id="sticky-header">
       <div class="hdr-row1">
         <div style="display: flex; align-items: center; gap: 4px;">
@@ -2601,48 +2628,223 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       </div>
     </div>
 
-    <!-- 1. ACTION & INVIOLABLE STOPS (Default Open) -->
-    <details open id="sec-action">
+    <!-- ============================================================ -->
+    <!-- PANEL 1: REAL-TIME BTC SPOT PRICE & SESSION COCKPIT          -->
+    <!-- ============================================================ -->
+    <details open id="panel-1">
       <summary>
-        <span>1. ACTION &amp; STOPS</span>
-        <span class="badge b-green">ACTIVE</span>
+        <span>PANEL 1 • SPOT &amp; SESSIONS</span>
+        <span class="badge b-green">LIVE</span>
       </summary>
       <pre class="ascii">==================================
- CAPITAL ROTATION &amp; STOP DEFENSE
+ REAL-TIME BTC SPOT &amp; SESSION
 ==================================
-Mandate:   SPOT ONLY (Zero Borrow)
-Action:    <span class="c-amber">__ROTATION__</span>
-Sizing:    0.0x (100% USDT Cash)
-Playbook:
-__PLAYBOOK__
-Regime:    <span class="c-cyan">__REGIME_NAME__</span>
-Score:     __RULE_SCORE__
+Spot Price:    <span class="c-gold">$__PRICE__</span>
+24h Change:    <span class="c-drift">__CHANGE_24H__%</span>
+Drift vs Scan: <span id="panel1-drift">$0.00 (0.00%)</span>
+Spot Feed:     Binance Vision API
+Futures Feed:  Binance/Deribit
 
-[INVIOLABLE STOP ARCHITECTURE]
-Disaster:  <span class="c-rose">$__STOP_PRICE__</span> (-__STOP_DIST__%)
-4H Floor:  $__STRUCT_LOW__
-Trigger:   2x 4H closes below
-           = HARD FLATTEN.
-Safe Zone: Below 200D SMA &amp; 25x
+[DUAL EXCHANGE CLOCKS]
+🌐 UTC Time:   <span class="c-cyan" id="live-utc-clock">__TIME_UTC__</span>
+🇸🇬 SGT Time:   <span class="c-gold" id="live-sgt-clock">__TIME_SGT__</span> (UTC+8)
 
-[EXECUTION DIRECTIVE]
-__ENTRY_INST__</pre>
+[ACTIVE MARKET SESSION ZONE]
+Active: <span class="c-green" id="live-session-name">LONDON ACTIVE</span>
+Hours:  <span id="live-session-hours">08:00 - 14:00 UTC</span>
+Zone:   <span id="live-session-desc">London Open &amp; Frankfurt • Sweep
+Fuel &amp; Volatility Expansion</span></pre>
     </details>
 
-    <!-- 2. LIQUIDITY MAGNETS & 10x-100x HEATMAP (Default Open) -->
-    <details open id="sec-magnets">
+    <!-- ============================================================ -->
+    <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
+    <!-- ============================================================ -->
+    <details open id="panel-2">
       <summary>
-        <span>2. LIQUIDITY MAGNETS</span>
-        <span class="badge b-amber">MAGNET</span>
+        <span>PANEL 2 • TELEMETRY (4 FEEDS)</span>
+        <span class="badge b-cyan">25+ METRICS</span>
       </summary>
       <pre class="ascii">==================================
- 10x - 100x LIQUIDATION LADDER
+ 4 MICROSTRUCTURE FEEDS (25+)
+==================================
+[1. PRICE &amp; STRUCTURE (MACRO)]
+Spot Price:    $__PRICE__
+Daily VWAP:    $__DAILY_VWAP__ (__DAILY_VWAP_DIFF__%)
+Weekly VWAP:   $__WEEKLY_VWAP__ (__WEEKLY_VWAP_DIFF__%)
+20D EMA:       $__EMA_20D__ (__EMA_20D_DIFF__%)
+50D EMA:       $__EMA_50D__ (__EMA_50D_DIFF__%)
+200D SMA:      <span class="c-gold">$__MA_200D__</span> (+__MA_200D_DIFF__%)
+4H Swing Range: $__SWING_LOW__ - $__SWING_HIGH__
+3D Base Floor:  $__BASE_FLOOR__
+
+[2. ORDER FLOW &amp; CVD (VOLUME)]
+Spot CVD:      <span class="c-cyan">__SPOT_CVD_RATIO__</span> (Bids Leading)
+24h Spot Vol:  __SPOT_VOL__ BTC (__SPOT_VOL_RATIO__x)
+7D CVD Slope:  +__SPOT_CVD_7D__ BTC
+14D CVD Slope: +__SPOT_CVD_14D__ BTC
+Perp CVD Trend: __PERP_TREND__ (__PERP_SLOPE__ BTC)
+Depth Ratio:   __DEPTH_RATIO__ (Bids/Asks)
+
+[3. DERIVATIVES CROWDING (LEVERAGE)]
+Open Interest: __OI__ BTC
+OI 24h Change: __OI_24H__%
+OI 1h / 4h:    __OI_1H__% / __OI_4H__%
+Funding Rate:  __FUNDING__% / 8h (__FUNDING_ANN__% Ann)
+Futures Basis: __BASIS__% (Annualized)
+Retail L/S:    __LS_RATIO__ (__LONG_PCT__% Long)
+
+[4. VOLATILITY &amp; MAGNETS (LIQUIDITY)]
+1H ATR (14):   $__ATR__
+Compression:   __ATR_COMP__% (Squeeze)
+Channel Width: __RANGE_WIDTH__%
+Upper Short:   $__UPPER_P__ (+__UPPER_D__%)
+Upper Pool:    $__UPPER_V__M
+Lower Long:    $__LOWER_P__ (-__LOWER_D__%)
+Lower Pool:    <span class="c-rose">$__LOWER_V__M</span></pre>
+    </details>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
+    <!-- ============================================================ -->
+    <details open id="panel-3">
+      <summary>
+        <span>PANEL 3 • REGIME DIAGNOSIS</span>
+        <span class="badge b-amber">__RULE_SCORE__</span>
+      </summary>
+      <pre class="ascii">==================================
+ MACRO MARKET REGIME DIAGNOSIS
+==================================
+Question:
+What market environment is
+Bitcoin currently in?
+
+[ACTIVE MARKET REGIME CALL]
+Regime:     <span class="c-cyan">__REGIME_NAME__</span>
+Diagnosis:
+__DIAGNOSIS__
+Tagline:
+__TAGLINE__
+Confidence: <span class="c-green">✓ __RULE_SCORE__</span>
+
+[VERIFIED EVIDENCE (MAJORITY &gt;=3/4)]
+__MATCHED_CRITERIA_ASCII__
+
+[5-REGIME RADAR FRAMEWORK]
+1. Spot Expansion:       [ ]
+2. Leveraged Fragile:    [ ]
+3. Range/Magnet (Active):[<span class="c-cyan">■</span>]
+4. Forced Deleverage:    [ ]
+5. Distribution Bear:    [ ]
+
+Guide: <a href="regimes.html">Learn 5 Regimes Math &rarr;</a></pre>
+    </details>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 4: ACTION & CAPITAL ROTATION DIRECTIVE                 -->
+    <!-- ============================================================ -->
+    <details open id="panel-4">
+      <summary>
+        <span>PANEL 4 • ACTION DIRECTIVE</span>
+        <span class="badge b-green">SPOT ONLY</span>
+      </summary>
+      <pre class="ascii">==================================
+ ACTION &amp; ROTATION DIRECTIVE
+==================================
+Mandate:   SPOT ONLY (Zero Borrow,
+           Zero Futures, Zero Shorts)
+
+[RECOMMENDED ROTATION]
+Hold Asset: <span class="c-amber">__ROTATION__</span>
+Sizing:     0.0x (100% USDT Cash)
+
+[PLAYBOOK PROTOCOL]
+Directive:
+__PLAYBOOK__
+
+Execution Rule:
+__ENTRY_INST__
+
+[DUAL INVIOLABLE STOP DEFENSE]
+Disaster:   <span class="c-rose">$__STOP_PRICE__</span> (-__STOP_DIST__%)
+4H Floor:   $__STRUCT_LOW__
+Stop Rule:
+__STOP_RULE__
+
+[RISK BUDGET ENFORCEMENT]
+Status:     __RISK_STATUS__
+Instruction:
+__RISK_INSTRUCTION__</pre>
+    </details>
+
+    <!-- ============================================================ -->
+    <!-- BRIDGE: TWO INDEPENDENT VERDICT METHODS                      -->
+    <!-- ============================================================ -->
+    <div style="padding: 6px 4px; text-align: center; color: #71717a; font-size: 10px; border-top: 1px dashed #27272a; margin-top: 8px;">
+      ⚖️ TWO INDEPENDENT VERDICT METHODS
+      <div style="color: #a1a1aa; margin-top: 2px;">
+        Method 1 (Analyze with AI) • Method 2 (System Verdict)
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
+    <!-- ============================================================ -->
+    <details open id="method-1">
+      <summary>
+        <span>METHOD 1 • PROMPT TO AI</span>
+        <span class="badge b-cyan">INDEPENDENT</span>
+      </summary>
+      <div style="padding-top: 4px;">
+        <button class="prompt-copy-btn" onclick="copyPrompt()">📋 Copy Live Data &amp; Prompt for AI</button>
+        <pre class="ascii" style="padding-bottom: 0;">
+[3-STEP INSTRUCTIONS]
+1. Tap "Copy Live Data" above
+2. Paste into ChatGPT/Claude/Gemini
+3. Receive instant 5-part audit</pre>
+        <pre class="prompt-box" id="raw-prompt-pre">__RAW_PROMPT__</pre>
+      </div>
+    </details>
+
+    <!-- ============================================================ -->
+    <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW)                  -->
+    <!-- ============================================================ -->
+    <details open id="method-2">
+      <summary>
+        <span>METHOD 2 • SYSTEM VERDICT</span>
+        <span class="badge b-green">FULL VIEW</span>
+      </summary>
+      <pre class="ascii">==================================
+ OUR SYSTEM VERDICT (FULL-ON)
 ==================================
 Dominant:   <span class="c-rose">__DOMINANT_MAGNET__</span>
-Nearest:    <span class="c-rose">__IMM_RATIO__x</span> Lower Skew
-Ladder:     Total <span class="c-rose">__TOT_RATIO__x</span> Downside
-Retail L/S: <span class="c-amber">__LONG_PCT__% Long</span> (L/S __LS_RATIO__)
 
+[BOTTOM LINE VERDICT]
+"__PLAIN_VERDICT__"
+
+[3 KEY MARKET FACTORS]
+__WHY_1__
+__WHY_2__
+__WHY_3__
+
+[SIZING &amp; SAFETY NET]
+Why Sizing?
+__WHY_SIZING__
+
+Safety Net:
+__WHY_STOP__
+
+[LSCE EXECUTION STATE]
+Status: <span class="c-rose">__LSCE_STATUS__</span>
+Detail:
+__LSCE_DETAIL__
+
+[NEAREST LIQUIDITY POOLS]
+Upper Short: $__UPPER_P__ (+__UPPER_D__%)
+Size:        $__UPPER_V__M
+Lower Long:  $__LOWER_P__ (-__LOWER_D__%)
+Size:        <span class="c-rose">$__LOWER_V__M</span>
+
+[10x - 100x LIQUIDATION LADDER]
 TIER      PRICE     DIST    EST.POOL
 ----------------------------------
 10x Short $__S10_P__  +4.13%   ~$85M
@@ -2657,87 +2859,11 @@ SPOT      $__PRICE__  (Zero-Axis)
 ----------------------------------
 Total: $__TOT_LOWER__M Low vs $__TOT_UPPER__M Up
 
-[SWEEP ENGINE (LSCE)]
-Status: <span class="c-rose">__LSCE_STATUS__</span>
-Detail:
-__LSCE_DETAIL__</pre>
-    </details>
+[DUAL IMBALANCE DISPLAY]
+Nearest Tier: <span class="c-amber">__IMM_RATIO__x Lower Skew</span>
+Total Ladder: <span class="c-rose">__TOT_RATIO__x Downside</span>
 
-    <!-- 3. BENCHMARKS & 25+ TELEMETRY METRICS (Collapsed) -->
-    <details id="sec-telemetry">
-      <summary>
-        <span>3. BENCHMARKS &amp; 25+ METRICS</span>
-        <span class="badge b-cyan">TELEMETRY</span>
-      </summary>
-      <pre class="ascii">==================================
- ON-EXCHANGE MICROSTRUCTURE
-==================================
-[PRICE &amp; STRUCTURE]
-Daily VWAP:   $__DAILY_VWAP__ (__DAILY_VWAP_DIFF__%)
-Weekly VWAP:  $__WEEKLY_VWAP__ (__WEEKLY_VWAP_DIFF__%)
-20D EMA:      $__EMA_20D__ (__EMA_20D_DIFF__%)
-50D EMA:      $__EMA_50D__ (__EMA_50D_DIFF__%)
-200D SMA:     <span class="c-gold">$__MA_200D__</span> (+__MA_200D_DIFF__%)
-4H Channel:   $__SWING_LOW__ - $__SWING_HIGH__
-Channel Width: __RANGE_WIDTH__%
-3D Base Floor: $__BASE_FLOOR__
-
-[ORDER FLOW &amp; SPOT CVD]
-24h Spot Vol: __SPOT_VOL__ BTC (__SPOT_VOL_RATIO__x)
-Spot CVD:     <span class="c-cyan">__SPOT_CVD_RATIO__</span> (Bids Leading)
-7D Slope:     +__SPOT_CVD_7D__ BTC
-14D Slope:    +__SPOT_CVD_14D__ BTC
-Perp Trend:   __PERP_TREND__ (__PERP_SLOPE__ BTC)
-Depth Ratio:  __DEPTH_RATIO__ (Bids/Asks)
-
-[DERIVATIVES CROWDING]
-Open Interest: __OI__ BTC (24h: __OI_24H__%)
-OI Velocity:  1H: __OI_1H__% | 4H: __OI_4H__%
-Funding Rate: __FUNDING__% / 8h (__FUNDING_ANN__% Ann)
-Futures Basis: __BASIS__% (Annualized)
-Retail L/S:   __LS_RATIO__ (__LONG_PCT__% Long)
-
-[VOLATILITY SQUEEZE]
-1H ATR (14):  $__ATR__
-Compression:  __ATR_COMP__% (Squeeze)</pre>
-    </details>
-
-    <!-- 4. METHOD 1: FULL AI PROMPT (Collapsed) -->
-    <details id="sec-prompt">
-      <summary>
-        <span>4. METHOD 1: AI PROMPT</span>
-        <span class="badge b-cyan">7.7k CHARS</span>
-      </summary>
-      <div style="padding-top: 4px;">
-        <button class="prompt-copy-btn" onclick="copyPrompt()">📋 Copy Full Audit Prompt (ChatGPT/Claude)</button>
-        <pre class="prompt-box" id="raw-prompt-pre">__RAW_PROMPT__</pre>
-      </div>
-    </details>
-
-    <!-- 5. METHOD 2: SYSTEM VERDICT BREAKDOWN (Collapsed) -->
-    <details id="sec-verdict">
-      <summary>
-        <span>5. METHOD 2: SYSTEM VERDICT</span>
-        <span class="badge b-green">FULL VIEW</span>
-      </summary>
-      <pre class="ascii">==================================
- SYSTEM VERDICT BREAKDOWN
-==================================
-[BOTTOM LINE VERDICT]
-"__PLAIN_VERDICT__"
-
-[3 KEY MARKET FACTORS]
-__WHY_1__
-__WHY_2__
-__WHY_3__
-
-[SIZING RATIONALE]
-__WHY_SIZING__
-
-[SAFETY NET DEFENSE]
-__WHY_STOP__
-
-[SIX-FACTOR MAGNET HIERARCHY]
+[SIX-FACTOR DECISION LOGIC]
 1. Cluster Size:
 __F1_SIZE__
 2. Leadership:
@@ -2755,21 +2881,17 @@ Conclusion:
 <span class="c-rose">__DOM_REASON__</span></pre>
     </details>
 
-    <!-- 6. GLOBAL SESSION CLOCKS & GUIDES (Collapsed) -->
-    <details id="sec-clocks">
+    <!-- ============================================================ -->
+    <!-- PLATFORM & DOCUMENTATION LINKS                               -->
+    <!-- ============================================================ -->
+    <details id="panel-links">
       <summary>
-        <span>6. CLOCKS &amp; GUIDES</span>
-        <span class="badge">REFERENCE</span>
+        <span>PLATFORM &amp; DOCUMENTATION</span>
+        <span class="badge">LINKS</span>
       </summary>
       <pre class="ascii">==================================
- GLOBAL SESSIONS &amp; PLATFORM LINKS
+ PLATFORM &amp; DOCUMENTATION
 ==================================
-UTC Clock:   <span class="c-cyan" id="live-utc-clock">__TIME_UTC__</span>
-SGT Clock:   <span class="c-gold" id="live-sgt-clock">__TIME_SGT__</span> (UTC+8)
-Active Zone: <span class="c-green" id="live-session-name">LONDON ACTIVE</span>
-Scan Time:   __TIME_UTC__
-
-[PLATFORM NAVIGATION LINKS]
 • <a href="index.html">Web Dashboard (Full 6-Panel)</a>
 • <a href="regimes.html">5 Regimes Reference Guide</a>
 • <a href="regime.json" target="_blank">Public JSON REST API Feed</a>
@@ -2785,7 +2907,7 @@ Scan Time:   __TIME_UTC__
 
   </div>
 
-  <div id="toast">✓ Copied 7,700 chars to clipboard!</div>
+  <div id="toast">✓ Copied to clipboard!</div>
 
   <script>
     const SCAN_PRICE = __PRICE_RAW__;
@@ -2850,12 +2972,26 @@ Scan Time:   __TIME_UTC__
       if (sgtEl) sgtEl.innerText = `${sH}:${sM}:${sS} SGT`;
 
       const h = now.getUTCHours();
-      let sess = 'ASIA ACCUMULATION (00:00 - 08:00 UTC)';
-      if (h >= 8 && h < 14) sess = 'LONDON ACTIVE (08:00 - 14:00 UTC)';
-      else if (h >= 14 && h < 21) sess = 'NEW YORK CORE (14:00 - 21:00 UTC)';
-      else if (h >= 21) sess = 'US CLOSE / ASIA PRE-OPEN (21:00 - 24:00 UTC)';
-      const sessEl = document.getElementById('live-session-name');
-      if (sessEl) sessEl.innerText = sess;
+      let sess = 'ASIA ACCUMULATION', hours = '00:00 - 08:00 UTC (08:00 - 16:00 SGT)', desc = 'Asia Session • Range Building & Spot Positioning';
+      if (h >= 8 && h < 14) {
+        sess = 'LONDON ACTIVE';
+        hours = '08:00 - 14:00 UTC (16:00 - 22:00 SGT)';
+        desc = 'London & Frankfurt • Sweep Fuel & Volatility';
+      } else if (h >= 14 && h < 21) {
+        sess = 'NEW YORK CORE';
+        hours = '14:00 - 21:00 UTC (22:00 - 05:00 SGT)';
+        desc = 'US Market Core • Institutional Flows & Volume Peak';
+      } else if (h >= 21) {
+        sess = 'US CLOSE / ASIA PRE-OPEN';
+        hours = '21:00 - 24:00 UTC (05:00 - 08:00 SGT)';
+        desc = 'Off-Hours Transition • Mean Reversion & Overnight Reset';
+      }
+      const sName = document.getElementById('live-session-name');
+      if (sName) sName.innerText = sess;
+      const sHours = document.getElementById('live-session-hours');
+      if (sHours) sHours.innerText = hours;
+      const sDesc = document.getElementById('live-session-desc');
+      if (sDesc) sDesc.innerText = desc;
     }
     setInterval(updateClocks, 1000);
     updateClocks();
@@ -2881,12 +3017,15 @@ Scan Time:   __TIME_UTC__
       if (pEl) pEl.innerText = '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
       const dEl = document.getElementById('top-price-drift');
-      if (dEl && SCAN_PRICE > 0) {
+      const dEl1 = document.getElementById('panel1-drift');
+      if (SCAN_PRICE > 0) {
         const diff = p - SCAN_PRICE;
         const pct = (diff / SCAN_PRICE) * 100;
         const sign = diff >= 0 ? '+' : '';
-        dEl.innerText = `${sign}$${Math.abs(diff).toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
-        dEl.style.color = diff >= 0 ? '#4ade80' : '#fb7185';
+        const driftText = `${sign}$${Math.abs(diff).toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+        const color = diff >= 0 ? '#4ade80' : '#fb7185';
+        if (dEl) { dEl.innerText = driftText; dEl.style.color = color; }
+        if (dEl1) { dEl1.innerText = driftText; dEl1.style.color = color; }
       }
     }
     setInterval(updateLivePrice, 5000);
@@ -2913,7 +3052,7 @@ Scan Time:   __TIME_UTC__
           toast.classList.add('show');
           setTimeout(() => {
             toast.classList.remove('show');
-            toast.innerText = '✓ Copied 7,700 chars to clipboard!';
+            toast.innerText = '✓ Copied to clipboard!';
           }, 1800);
         }
       }, 500);
@@ -2929,11 +3068,17 @@ Scan Time:   __TIME_UTC__
         html = html.replace("__ROTATION__", rotation)
         html = html.replace("__PLAYBOOK__", action)
         html = html.replace("__REGIME_NAME__", regime_name)
+        html = html.replace("__DIAGNOSIS__", diagnosis)
+        html = html.replace("__TAGLINE__", tagline)
         html = html.replace("__RULE_SCORE__", rule_score)
+        html = html.replace("__MATCHED_CRITERIA_ASCII__", matched_crit_ascii)
         html = html.replace("__STOP_PRICE__", f"{stop_p:,.2f}")
         html = html.replace("__STOP_DIST__", f"{stop_dist:.2f}")
         html = html.replace("__STRUCT_LOW__", f"{struct_low:,.2f}")
+        html = html.replace("__STOP_RULE__", stop_rule)
         html = html.replace("__ENTRY_INST__", entry_inst)
+        html = html.replace("__RISK_STATUS__", risk_status)
+        html = html.replace("__RISK_INSTRUCTION__", risk_instruction)
 
         html = html.replace("__DOMINANT_MAGNET__", dom_magnet)
         html = html.replace("__IMM_RATIO__", f"{imm_ratio:.1f}")
