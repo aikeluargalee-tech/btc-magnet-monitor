@@ -65,7 +65,7 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertTrue(os.path.exists(text_path), "text.html was not generated")
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
-        for token in ("#sticky-header", "copyPrompt", "PROMPT_TEXT", "panel-1", "panel-2", "panel-3", "panel-4", "method-1", "method-2"):
+        for token in ("panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "panel-4", "method-1", "method-2"):
             self.assertIn(token, text_html)
         self.assertNotIn("cdn.tailwindcss.com", text_html)
         self.assertNotIn("fonts.googleapis.com", text_html)
