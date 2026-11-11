@@ -45,7 +45,7 @@ class RiskManager:
         if not stop_valid:
             trade_action = f"REJECTED / WITHHELD: Structural stop distance ({stop_dist:.2f}%) exceeds maximum risk limit ({self.config.max_stop_distance_pct:.2f}%). Stand aside in 100% USDT cash."
             advisory = f"WARNING: Risk threshold exceeded. Stop distance {stop_dist:.2f}% > {self.config.max_stop_distance_pct:.2f}%."
-        elif result.rotation == "USDT -> BTC":
+        elif result.rotation == "USDT -> BTC" and sizing > 0.0:
             trade_action = f"Deploy {cash_deploy_pct:.0f}% of your available USDT cash to buy spot BTC (Strictly capped at {effective_risk_pct:.2f}% total portfolio risk)."
             advisory = f"Approved: Risk capped at {effective_risk_pct:.2f}% (<= {self.config.max_risk_per_trade_pct:.2f}% risk budget). Stop distance: {stop_dist:.2f}%."
         elif result.rotation == "BTC -> USDT":
@@ -54,7 +54,7 @@ class RiskManager:
             advisory = "Defensive rotation: Move to stablecoin cash."
         else:
             trade_action = "Maintain 100% USDT cash reserve. Strictly zero new buying."
-            advisory = "Defensive stance: Cash preservation."
+            advisory = "Standby / Cash Preservation (0.00% Active Risk — no spot position open)."
 
         return {
             "risk_budget_ok": stop_valid and sizing > 0 if result.rotation == "USDT -> BTC" else stop_valid,

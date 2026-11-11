@@ -87,9 +87,7 @@ class MarketDataFetcher:
         bids_asks_depth_ratio = (bids_sum / asks_sum) if asks_sum > 0 else 1.0
 
         # 6. Futures Metrics (Funding, OI, Basis, Perp CVD) - Real exchanges only, zero fabricated defaults
-        funding_rate, funding_rate_annualized, futures_basis_annualized, current_oi, \
-        oi_change_1h_pct, oi_change_4h_pct, oi_change_24h_pct, oi_change_3d_pct, \
-        perp_cvd_slope, perp_cvd_trend, ls_ratio, futures_source = self._fetch_futures_data(current_price)
+        fut = self._fetch_futures_data(current_price)
 
         # Technical Indicators calculation
         daily_closes = [float(k[4]) for k in daily_klines]
@@ -110,7 +108,7 @@ class MarketDataFetcher:
 
         daily_vwap = self._calc_vwap_from_midnight(one_h_klines)
         weekly_vwap = self._calc_vwap_from_monday(four_h_klines)
-        atr, atr_compression_pct = self._calc_atr(one_h_klines, period=14)
+        atr, atr_compression_pct, atr_pct_72h = self._calc_atr(one_h_klines, period=14)
 
         price_1h_ago = float(one_h_klines[-2][4]) if len(one_h_klines) >= 2 else current_price
         price_change_1h_pct = ((current_price - price_1h_ago) / price_1h_ago) * 100
@@ -121,6 +119,7 @@ class MarketDataFetcher:
         swing_high_4h = max(float(k[2]) for k in four_h_klines[-6:])
         base_floor = min(float(k[3]) for k in four_h_klines[-18:])
         capitulation_wick_low = min(float(k[3]) for k in one_h_klines[-24:])
+        current_oi = fut["current_oi"]
 
         metrics = MarketMetrics(
             price=current_price,
@@ -135,22 +134,22 @@ class MarketDataFetcher:
             spot_cvd_ratio=spot_cvd_ratio,
             spot_cvd_slope_7d=spot_cvd_7d,
             spot_cvd_slope_14d=spot_cvd_14d,
-            perp_cvd_slope_24h=perp_cvd_slope,
-            perp_cvd_trend=perp_cvd_trend,
+            perp_cvd_slope_24h=fut["perp_slope"],
+            perp_cvd_trend=fut["perp_trend"],
             open_interest=current_oi,
-            oi_change_1h_pct=oi_change_1h_pct,
-            oi_change_4h_pct=oi_change_4h_pct,
-            oi_change_24h_pct=oi_change_24h_pct,
-            oi_change_3d_pct=oi_change_3d_pct,
-            funding_rate=funding_rate,
-            funding_rate_annualized=funding_rate_annualized,
-            futures_basis_annualized=futures_basis_annualized,
+            oi_change_1h_pct=fut["oi_change_1h_pct"],
+            oi_change_4h_pct=fut["oi_change_4h_pct"],
+            oi_change_24h_pct=fut["oi_change_24h_pct"],
+            oi_change_3d_pct=fut["oi_change_3d_pct"],
+            funding_rate=fut["funding_rate"],
+            funding_rate_annualized=fut["funding_ann"],
+            futures_basis_annualized=fut["basis_ann"],
             atr=atr,
             atr_compression_pct=atr_compression_pct,
             price_change_1h_pct=price_change_1h_pct,
             price_change_24h_pct=price_change_24h_pct,
-            long_short_account_ratio=ls_ratio,
-            top_trader_long_short_ratio=ls_ratio,
+            long_short_account_ratio=fut["ls_ratio"],
+            top_trader_long_short_ratio=fut["ls_ratio"],
             taker_buy_sell_ratio=spot_cvd_ratio,
             bids_asks_depth_ratio=bids_asks_depth_ratio,
             swing_low_4h=swing_low_4h,
@@ -158,20 +157,33 @@ class MarketDataFetcher:
             base_floor=base_floor,
             capitulation_wick_low=capitulation_wick_low,
             data_quality="LIVE",
-            spot_data_source="Binance Vision API (Aggregated Taker Volume)",
-            futures_data_source=futures_source,
+            spot_data_source="Binance Public Market-Data REST (data-api.binance.vision/api/v3 Live Klines & Depth)",
+            futures_data_source=fut["futures_source"],
             etf_net_inflow_m=None,      # Not fabricated: set to None unless verified source wired
-            whale_inflow_proxy=None      # Not fabricated: set to None unless verified source wired
+            whale_inflow_proxy=None,    # Not fabricated: set to None unless verified source wired
+            oi_scope=fut["oi_scope"],
+            ls_ratio_available=fut["ls_ratio_available"],
+            oi_history_available=fut["oi_history_available"],
+            ls_ratio_percentile_72h=fut.get("ls_ratio_percentile_72h"),
+            atr_percentile_72h=atr_pct_72h,
         )
 
         clusters = self._calc_liquidation_clusters(current_price, atr, four_h_klines, current_oi)
         return metrics, clusters
 
-    def _fetch_futures_data(self, current_price: float):
+    @staticmethod
+    def _calc_percentile(series: List[float], current_val: float) -> Optional[float]:
+        if not series or len(series) < 5:
+            return None
+        below_or_eq = sum(1 for v in series if v <= current_val)
+        return round((below_or_eq / len(series)) * 100.0, 1)
+
+    def _fetch_futures_data(self, current_price: float) -> Dict[str, Any]:
         """
         Fetches perpetual futures data strictly from real exchange responses.
         Tier 1: Binance Futures (fapi.binance.com)
-        Tier 2: Deribit & Kraken Futures (Institutional public REST API)
+        Tier 2: OKX + Deribit + Kraken Futures Live Public APIs (real 72h OI & L/S history)
+        Tier 3: Deribit & Kraken Perpetual Live APIs (never fabricates L/S crowding or copies price deltas into OI)
         If all fail: Raises RuntimeError (never invents dummy numbers).
         """
         errors = []
@@ -200,21 +212,132 @@ class MarketDataFetcher:
             perp_slope, perp_trend = self._calc_perp_cvd(fapi_klines)
 
             ls_data = self._get_json(["https://fapi.binance.com/futures/data/globalLongShortAccountRatio"], {
-                "symbol": "BTCUSDT", "period": "1h", "limit": 1
+                "symbol": "BTCUSDT", "period": "1h", "limit": 72
             })
+            ls_hist_vals = [float(x["longShortRatio"]) for x in ls_data if x.get("longShortRatio")]
             ls_ratio = float(ls_data[-1]["longShortRatio"])
+            ls_pct = self._calc_percentile(ls_hist_vals, ls_ratio)
 
             oi_change_1h_pct = ((current_oi - oi_1h) / oi_1h * 100) if oi_1h > 0 else 0.0
             oi_change_4h_pct = ((current_oi - oi_4h) / oi_4h * 100) if oi_4h > 0 else 0.0
             oi_change_24h_pct = ((current_oi - oi_24h) / oi_24h * 100) if oi_24h > 0 else 0.0
             oi_change_3d_pct = ((current_oi - oi_72h) / oi_72h * 100) if oi_72h > 0 else 0.0
 
-            return funding_rate, funding_ann, basis_ann, current_oi, oi_change_1h_pct, oi_change_4h_pct, oi_change_24h_pct, oi_change_3d_pct, perp_slope, perp_trend, ls_ratio, "Binance Futures Live API"
+            return {
+                "funding_rate": funding_rate,
+                "funding_ann": funding_ann,
+                "basis_ann": basis_ann,
+                "current_oi": current_oi,
+                "oi_change_1h_pct": oi_change_1h_pct,
+                "oi_change_4h_pct": oi_change_4h_pct,
+                "oi_change_24h_pct": oi_change_24h_pct,
+                "oi_change_3d_pct": oi_change_3d_pct,
+                "perp_slope": perp_slope,
+                "perp_trend": perp_trend,
+                "ls_ratio": ls_ratio,
+                "ls_ratio_percentile_72h": ls_pct,
+                "ls_ratio_available": True,
+                "oi_history_available": True,
+                "futures_source": "Binance Futures Live REST (fapi BTCUSDT Perp)",
+                "oi_scope": "Binance BTCUSDT Perp Only (single-venue perpetual, not global market OI)",
+            }
 
         except Exception as e:
             errors.append(f"Binance Futures: {e}")
 
-        # Tier 2: Deribit & Kraken Futures Live API
+        # Tier 2: OKX + Deribit + Kraken Multi-Venue Public APIs (empirical OI history & L/S ratio)
+        try:
+            okx_mark = self._get_json(["https://www.okx.com/api/v5/public/mark-price"], {
+                "instType": "SWAP", "instId": "BTC-USDT-SWAP"
+            })
+            okx_fund = self._get_json(["https://www.okx.com/api/v5/public/funding-rate"], {
+                "instId": "BTC-USDT-SWAP"
+            })
+            okx_oi = self._get_json(["https://www.okx.com/api/v5/public/open-interest"], {
+                "instType": "SWAP", "instId": "BTC-USDT-SWAP"
+            })
+            okx_oiv = self._get_json(["https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume"], {
+                "ccy": "BTC", "period": "1H"
+            })
+            okx_ls = self._get_json(["https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio"], {
+                "ccy": "BTC", "period": "1H"
+            })
+
+            mark_price = float(okx_mark["data"][0]["markPx"])
+            funding_rate = float(okx_fund["data"][0]["fundingRate"])
+            funding_ann = funding_rate * 3 * 365 * 100
+            basis_ann = ((mark_price - current_price) / max(current_price, 1.0)) * 100 * (365 / 30)
+
+            combined_oi = float(okx_oi["data"][0]["oiCcy"])
+            sources = ["OKX BTC-USDT-SWAP"]
+
+            # Add Deribit & Kraken perpetual OI where reachable for broader multi-venue coverage
+            try:
+                deribit_resp = self._get_json(
+                    ["https://www.deribit.com/api/v2/public/get_book_summary_by_currency"],
+                    {"currency": "BTC", "kind": "future"}
+                )
+                perp = next((item for item in deribit_resp.get("result", []) if "PERPETUAL" in item.get("instrument_name", "")), None)
+                if perp:
+                    combined_oi += float(perp["open_interest"]) / max(float(perp["mark_price"]), 1.0)
+                    sources.append("Deribit BTC-PERPETUAL")
+            except Exception:
+                pass
+
+            try:
+                kraken_resp = self._get_json(["https://futures.kraken.com/derivatives/api/v3/tickers"])
+                k_btc = next((t for t in kraken_resp.get("tickers", []) if t.get("symbol") == "PF_XBTUSD"), None)
+                if k_btc and k_btc.get("openInterest"):
+                    combined_oi += float(k_btc["openInterest"])
+                    sources.append("Kraken PF_XBTUSD")
+            except Exception:
+                pass
+
+            oiv_rows = sorted(okx_oiv.get("data", []), key=lambda r: int(r[0]))
+            if len(oiv_rows) < 25:
+                raise RuntimeError("Insufficient OKX hourly OI history")
+            oi_now = float(oiv_rows[-1][1])
+            oi_1h = float(oiv_rows[-2][1])
+            oi_4h = float(oiv_rows[-5][1]) if len(oiv_rows) >= 5 else oi_now
+            oi_24h = float(oiv_rows[-25][1])
+            oi_72h = float(oiv_rows[0][1]) if len(oiv_rows) >= 72 else float(oiv_rows[0][1])
+
+            oi_change_1h_pct = ((oi_now - oi_1h) / oi_1h * 100) if oi_1h > 0 else 0.0
+            oi_change_4h_pct = ((oi_now - oi_4h) / oi_4h * 100) if oi_4h > 0 else 0.0
+            oi_change_24h_pct = ((oi_now - oi_24h) / oi_24h * 100) if oi_24h > 0 else 0.0
+            oi_change_3d_pct = ((oi_now - oi_72h) / oi_72h * 100) if oi_72h > 0 else 0.0
+
+            ls_rows = sorted(okx_ls.get("data", []), key=lambda r: int(r[0]))
+            ls_hist_vals = [float(r[1]) for r in ls_rows[-72:]]
+            ls_ratio = float(ls_rows[-1][1]) if ls_rows else 1.0
+            ls_pct = self._calc_percentile(ls_hist_vals, ls_ratio)
+
+            perp_slope = mark_price - current_price
+            perp_trend = "positive" if perp_slope > 0 else "declining"
+
+            return {
+                "funding_rate": funding_rate,
+                "funding_ann": funding_ann,
+                "basis_ann": basis_ann,
+                "current_oi": combined_oi,
+                "oi_change_1h_pct": oi_change_1h_pct,
+                "oi_change_4h_pct": oi_change_4h_pct,
+                "oi_change_24h_pct": oi_change_24h_pct,
+                "oi_change_3d_pct": oi_change_3d_pct,
+                "perp_slope": perp_slope,
+                "perp_trend": perp_trend,
+                "ls_ratio": ls_ratio,
+                "ls_ratio_percentile_72h": ls_pct,
+                "ls_ratio_available": bool(ls_rows),
+                "oi_history_available": True,
+                "futures_source": f"{' + '.join(sources)} Live API",
+                "oi_scope": f"{' + '.join(sources)} (tracked venue subset, not total ~$50B+ global market OI)",
+            }
+
+        except Exception as e:
+            errors.append(f"OKX/Multi-Venue Futures: {e}")
+
+        # Tier 3: Deribit & Kraken Futures Live API (never fabricates L/S crowding or copies price delta into OI)
         try:
             deribit_resp = self.session.get(
                 "https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=future",
@@ -226,35 +349,47 @@ class MarketDataFetcher:
                 raise RuntimeError("Deribit BTC-PERPETUAL instrument not found")
 
             mark_price = float(perp["mark_price"])
-            funding_8h = float(perp.get("funding_8h", 0.0))
-            funding_rate = funding_8h
+            funding_rate = float(perp.get("funding_8h", 0.0))
             funding_ann = funding_rate * 3 * 365 * 100
-            index_price = current_price
-            basis_ann = ((mark_price - index_price) / max(index_price, 1.0)) * 100 * (365 / 30)
+            basis_ann = ((mark_price - current_price) / max(current_price, 1.0)) * 100 * (365 / 30)
             current_oi = float(perp["open_interest"]) / max(mark_price, 1.0)
+            sources = ["Deribit BTC-PERPETUAL"]
 
-            # Kraken Futures ticker for multi-exchange validation
-            kraken_resp = self.session.get("https://futures.kraken.com/derivatives/api/v3/tickers", timeout=self.timeout).json()
-            k_btc = next((t for t in kraken_resp.get("tickers", []) if t.get("symbol") in ["PI_XBTUSD", "PF_XBTUSD"]), None)
-            
-            if k_btc and "change24h" in k_btc:
-                oi_change_24h_pct = float(k_btc.get("change24h", 0.0))
-            else:
-                oi_change_24h_pct = 0.0
+            try:
+                kraken_resp = self.session.get("https://futures.kraken.com/derivatives/api/v3/tickers", timeout=self.timeout).json()
+                k_btc = next((t for t in kraken_resp.get("tickers", []) if t.get("symbol") == "PF_XBTUSD"), None)
+                if k_btc and k_btc.get("openInterest"):
+                    current_oi += float(k_btc["openInterest"])
+                    sources.append("Kraken PF_XBTUSD")
+            except Exception:
+                pass
 
-            oi_change_1h_pct = oi_change_24h_pct * 0.1
-            oi_change_4h_pct = oi_change_24h_pct * 0.3
-            oi_change_3d_pct = oi_change_24h_pct * 2.0
-            perp_slope = (mark_price - current_price)
+            perp_slope = mark_price - current_price
             perp_trend = "positive" if perp_slope > 0 else "declining"
-            ls_ratio = 1.85  # Live exchange sentiment unavailable, flag neutral baseline
 
-            return funding_rate, funding_ann, basis_ann, current_oi, oi_change_1h_pct, oi_change_4h_pct, oi_change_24h_pct, oi_change_3d_pct, perp_slope, perp_trend, ls_ratio, "Deribit & Kraken Futures Live API"
+            return {
+                "funding_rate": funding_rate,
+                "funding_ann": funding_ann,
+                "basis_ann": basis_ann,
+                "current_oi": current_oi,
+                "oi_change_1h_pct": 0.0,
+                "oi_change_4h_pct": 0.0,
+                "oi_change_24h_pct": 0.0,
+                "oi_change_3d_pct": 0.0,
+                "perp_slope": perp_slope,
+                "perp_trend": perp_trend,
+                "ls_ratio": 1.0,
+                "ls_ratio_percentile_72h": None,
+                "ls_ratio_available": False,
+                "oi_history_available": False,
+                "futures_source": f"{' & '.join(sources)} Live API",
+                "oi_scope": f"{' + '.join(sources)} Only (single/two-venue subset; 24h OI delta & retail L/S unavailable)",
+            }
 
         except Exception as e:
             errors.append(f"Deribit/Kraken: {e}")
 
-        # If both fail: strictly fail without fabricating fake data
+        # If all fail: strictly fail without fabricating fake data
         raise RuntimeError(f"Data Integrity Failure: All futures endpoints failed ({'; '.join(errors)})")
 
     def _calc_ema(self, series: List[float], period: int) -> float:
@@ -311,7 +446,7 @@ class MarketDataFetcher:
             return cum_pv / cum_vol
         return float(klines_4h[-1][4])
 
-    def _calc_atr(self, klines_1h: List[List[Any]], period: int = 14) -> Tuple[float, float]:
+    def _calc_atr(self, klines_1h: List[List[Any]], period: int = 14) -> Tuple[float, float, Optional[float]]:
         trs = []
         for i in range(1, len(klines_1h)):
             high = float(klines_1h[i][2])
@@ -321,14 +456,20 @@ class MarketDataFetcher:
             trs.append(tr)
 
         if len(trs) < period:
-            return 500.0, 0.0
+            return 500.0, 0.0, None
 
         recent_atr = sum(trs[-period:]) / period
         peak_tr = max(trs[-72:]) if len(trs) >= 72 else max(trs)
         peak_atr = max(peak_tr * 0.8, recent_atr)
         compression_pct = max(0.0, ((peak_atr - recent_atr) / peak_atr) * 100) if peak_atr > 0 else 0.0
 
-        return recent_atr, compression_pct
+        rolling_atrs = [
+            sum(trs[j - period:j]) / period
+            for j in range(period, len(trs) + 1)
+        ]
+        atr_pct_72h = self._calc_percentile(rolling_atrs[-72:], recent_atr)
+
+        return recent_atr, compression_pct, atr_pct_72h
 
     def _calc_spot_cvd(self, daily_klines: List[List[Any]], one_h_klines: List[List[Any]]) -> Tuple[float, float, float]:
         taker_buy_24h = sum(float(k[9]) for k in one_h_klines[-24:])

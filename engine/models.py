@@ -76,10 +76,15 @@ class MarketMetrics:
 
     # Data Quality & Provenance
     data_quality: str = "LIVE"
-    spot_data_source: str = "Binance Vision API (Kline Taker Volume Delta)"
-    futures_data_source: str = "Binance / Deribit / Kraken Futures"
+    spot_data_source: str = "Binance Public Market-Data REST (data-api.binance.vision/api/v3)"
+    futures_data_source: str = "Binance / OKX / Deribit / Kraken Public REST"
     etf_net_inflow_m: Optional[float] = None
     whale_inflow_proxy: Optional[float] = None
+    oi_scope: str = "Single-Venue Perpetual Contract (venue-level, not total market OI)"
+    ls_ratio_available: bool = True
+    oi_history_available: bool = True
+    ls_ratio_percentile_72h: Optional[float] = None
+    atr_percentile_72h: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -140,6 +145,8 @@ class RegimeResult:
     disaster_stop_price: float = 0.0
     disaster_stop_distance_pct: float = 0.0
     structural_invalidation_level: float = 0.0
+    liquidation_ladder: List[Dict[str, Any]] = field(default_factory=list)
+    stop_placement_note: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
