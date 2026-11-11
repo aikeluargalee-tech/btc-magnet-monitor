@@ -38,6 +38,7 @@ const STATIC_ASSETS = [
   './index.html',
   './app.html',
   './regimes.html',
+  './privacy.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

@@ -1,0 +1,19 @@
+{
+  "name": "btc-magnet-monitor",
+  "version": "1.0.0",
+  "description": "BTC Magnet Monitor — 5-Regime Radar & Liquidation Telemetry Mobile Cockpit",
+  "private": true,
+  "scripts": {
+    "build": "python main.py",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor-community/admob": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

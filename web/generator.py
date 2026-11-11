@@ -33,6 +33,12 @@ class WebGenerator:
         with open(regimes_path, "w", encoding="utf-8") as f:
             f.write(regimes_content)
 
+        # 3b. Render Privacy Policy subpage HTML (Google Play & AdMob Requirement)
+        privacy_content = self._render_privacy_page()
+        privacy_path = os.path.join(self.output_dir, "privacy.html")
+        with open(privacy_path, "w", encoding="utf-8") as f:
+            f.write(privacy_content)
+
         # 4. Render Mobile Cockpit App (app.html) with 100% exact format parity with index.html
         app_path = os.path.join(self.output_dir, "app.html")
         with open(app_path, "w", encoding="utf-8") as f:
@@ -1285,6 +1291,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <span>&bull;</span>
       <a href="regime.json" target="_blank" class="text-cyan-400 hover:underline">Public JSON API</a>
       <span>&bull;</span>
+      <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
+      <span>&bull;</span>
       <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank" class="text-cyan-400 hover:underline">GitHub</a>
     </div>
     <p>Automated Quantitative Telemetry Pipeline &bull; Binance Vision &amp; Binance/Deribit Feeds &bull; Zero Leverage Mandate</p>
@@ -1472,11 +1480,209 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         }});
       }});
     }}
+    // Native Capacitor Bridge & Google AdMob Initialization
+    if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
+      try {{
+        const {{ AdMob }} = window.Capacitor.Plugins;
+        AdMob.initialize({{
+          requestTrackingAuthorization: true,
+          initializeForTesting: true,
+        }}).then(() => {{
+          AdMob.showBanner({{
+            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adSize: 'BANNER',
+            position: 'BOTTOM_CENTER',
+            margin: 0,
+            isTesting: true
+          }}).catch(() => {{}});
+        }}).catch(() => {{}});
+      }} catch (e) {{}}
+    }}
   </script>
 
 </body>
 </html>"""
         return html
+
+    def _render_privacy_page(self) -> str:
+        """Renders the comprehensive Privacy Policy subpage required by Google Play & Google AdMob."""
+        return """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — BTC Magnet Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased pb-20">
+
+  <!-- Top Header -->
+  <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl hover:border-emerald-500/50 transition-colors">
+          🧲
+        </a>
+        <div>
+          <h1 class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</h1>
+          <p class="text-xs text-zinc-400">Privacy Policy &amp; Data Transparency</p>
+        </div>
+      </div>
+      <a href="index.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-emerald-400 border border-zinc-700/80 transition-colors">
+        <span>&larr; Return to Dashboard</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 pt-10 space-y-8">
+
+    <div class="space-y-3 border-b border-zinc-800 pb-6">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+        <span>🛡️ User Privacy &amp; Data Protection</span>
+      </div>
+      <h2 class="text-3xl font-black text-white tracking-tight">Privacy Policy</h2>
+      <p class="text-sm text-zinc-400">
+        Last Updated: November 11, 2026 &bull; Effective Date: November 11, 2026
+      </p>
+    </div>
+
+    <!-- Section 1: Overview -->
+    <section class="space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">1.</span> Overview
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        BTC Magnet Monitor ("we", "our", or "the Application") is an open quantitative Bitcoin spot market analysis platform. We are committed to complete transparency, user privacy, and zero unnecessary data collection. This Privacy Policy explains our policies regarding the collection, use, and disclosure of information when you use our web application, PWA, or native mobile applications.
+      </p>
+    </section>
+
+    <!-- Section 2: Zero Personal Data Collection -->
+    <section class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">2.</span> Zero Personal Data Collection
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        We firmly believe in privacy-by-design. You can use BTC Magnet Monitor completely anonymously:
+      </p>
+      <ul class="list-disc pl-5 text-sm text-zinc-300 space-y-1.5">
+        <li><strong>No Account Required:</strong> We do not require you to create an account, register, or log in.</li>
+        <li><strong>No Personal Identifiers:</strong> We do not collect, store, or transmit your name, email address, phone number, physical address, or IP addresses.</li>
+        <li><strong>No Financial Account Linking:</strong> The Application never asks for, connects to, or accesses your bank accounts, crypto wallets, seed phrases, or private exchange API keys. The system cannot execute trades on your behalf.</li>
+      </ul>
+    </section>
+
+    <!-- Section 3: Third-Party Advertising (Google AdMob) -->
+    <section class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">3.</span> Advertising &amp; Third-Party Services (Google AdMob)
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        To support the ongoing operation, free access, and serverless scanning infrastructure of the Application, we may display mobile advertisements served by <strong>Google AdMob</strong> (Google LLC).
+      </p>
+      <div class="space-y-2 text-sm text-zinc-300 leading-relaxed">
+        <p>Google AdMob may automatically collect and process certain non-personal device information in accordance with its privacy policies, including:</p>
+        <ul class="list-disc pl-5 space-y-1 text-zinc-400">
+          <li>Device advertising identifiers (e.g. Google Advertising ID / IDFA).</li>
+          <li>General device characteristics (device model, operating system version, carrier).</li>
+          <li>Coarse location data derived from general network IP addresses.</li>
+        </ul>
+        <p class="pt-2">
+          <strong>Opt-Out &amp; Ad Personalization Controls:</strong> You can manage, reset, or opt out of personalized interest-based advertising at any time through your mobile device settings:
+        </p>
+        <ul class="list-disc pl-5 space-y-1 text-zinc-400">
+          <li><strong>Android:</strong> Settings &rarr; Google &rarr; Ads &rarr; Reset Advertising ID or Delete Advertising ID.</li>
+          <li><strong>iOS:</strong> Settings &rarr; Privacy &amp; Security &rarr; Tracking &rarr; Disable tracking permissions.</li>
+        </ul>
+        <p class="pt-2">
+          For more information on how Google processes advertising data, please review Google's official privacy documentation: <a href="https://policies.google.com/privacy" target="_blank" class="text-cyan-400 hover:underline">Google Privacy Policy</a> and <a href="https://policies.google.com/technologies/ads" target="_blank" class="text-cyan-400 hover:underline">How Google Uses Information from Sites or Apps</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 4: Public Market Telemetry -->
+    <section class="space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">4.</span> Public Market Telemetry &amp; Exchange Feeds
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        The market metrics displayed by BTC Magnet Monitor (spot prices, taker volume deltas, open interest, funding rates, and basis spreads) are retrieved from public, anonymized market data APIs provided by major digital asset exchanges (Binance Vision, Deribit). These feeds contain strictly aggregated market statistics and do not expose or process any personal trader information.
+      </p>
+    </section>
+
+    <!-- Section 5: AI Audit Copy Functionality -->
+    <section class="space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">5.</span> "Copy Data for AI" Client Functionality
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        The Application includes a client-side button allowing users to copy the current market telemetry prompt to their device clipboard. This action is executed entirely locally on your device. The Application does not transmit your clipboard data to any external server. Any subsequent interaction with third-party LLMs (such as OpenAI ChatGPT, Anthropic Claude, xAI Grok, or Google Gemini) is initiated solely by the user within their own browser or account.
+      </p>
+    </section>
+
+    <!-- Section 6: Children's Privacy -->
+    <section class="space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">6.</span> Children's Privacy
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        Our Application is not directed to individuals under the age of 13 (or under 16 in certain jurisdictions). We do not knowingly collect personal information from children.
+      </p>
+    </section>
+
+    <!-- Section 7: Financial & Analytical Disclaimer -->
+    <section class="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-3">
+      <h3 class="text-xl font-bold text-rose-300 flex items-center gap-2">
+        <span>⚠️</span> Financial &amp; Investment Disclaimer
+      </h3>
+      <p class="text-xs sm:text-sm text-rose-200/90 leading-relaxed">
+        BTC Magnet Monitor is an analytical research and educational tool designed to visualize observable positioning mechanics and liquidity imbalances. <strong>None of the information, regime classifications, sizing factors, or stop-loss calculations provided in this Application constitutes financial, investment, trading, tax, or legal advice.</strong> Cryptocurrency trading carries significant financial risk. Users are exclusively responsible for their own capital decisions.
+      </p>
+    </section>
+
+    <!-- Section 8: Changes & Contact -->
+    <section class="space-y-3">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="text-emerald-400">7.</span> Policy Updates &amp; Contact
+      </h3>
+      <p class="text-sm text-zinc-300 leading-relaxed">
+        We may update this Privacy Policy from time to time. Any revisions will be reflected on this page with an updated "Last Updated" date. If you have any questions or feedback regarding this Privacy Policy, please open an issue on our public repository at:
+      </p>
+      <div class="pt-2">
+        <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-bold text-cyan-400 border border-zinc-700/80 transition-all">
+          <span>GitHub: aikeluargalee-tech/btc-magnet-monitor</span>
+          <span>&rarr;</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Bottom Return Button -->
+    <div class="text-center pt-8 border-t border-zinc-800">
+      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-bold text-white border border-zinc-700 shadow-xl transition-all">
+        <span>&larr; Return to Live BTC Magnet Monitor</span>
+      </a>
+    </div>
+
+  </main>
+
+</body>
+</html>"""
+
+
+
+
 
     def _render_regimes_subpage(self, data: Dict[str, Any]) -> str:
         """Renders the comprehensive educational reference subpage explaining all 5 regimes."""
@@ -1790,8 +1996,31 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         }}
       }});
     }}
+    // Native Capacitor Bridge & Google AdMob Initialization
+    if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
+      try {{
+        const {{ AdMob }} = window.Capacitor.Plugins;
+        AdMob.initialize({{
+          requestTrackingAuthorization: true,
+          initializeForTesting: true,
+        }}).then(() => {{
+          AdMob.showBanner({{
+            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adSize: 'BANNER',
+            position: 'BOTTOM_CENTER',
+            margin: 0,
+            isTesting: true
+          }}).catch(() => {{}});
+        }}).catch(() => {{}});
+      }} catch (e) {{}}
+    }}
   </script>
 
 </body>
 </html>"""
         return html
+
+
+
+
+
