@@ -21,8 +21,8 @@ class WebGenerator:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
-        # 2. Render main dashboard HTML
-        html_content = self._render_html(payload)
+        # 2. Render main dashboard HTML (Desktop Web format)
+        html_content = self._render_html(payload, is_mobile=False)
         html_path = os.path.join(self.output_dir, "index.html")
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
@@ -33,22 +33,16 @@ class WebGenerator:
         with open(regimes_path, "w", encoding="utf-8") as f:
             f.write(regimes_content)
 
-        # 4. Render dedicated Mobile Cockpit PWA (app.html), manifest.json, sw.js
+        # 4. Render dedicated Mobile Cockpit PWA (app.html) with matching 6-panel layout + PWA support
         try:
             from web.mobile_generator import MobileWebGenerator
             mob_gen = MobileWebGenerator()
-            raw_prompt = self._build_llm_prompt(payload)
-            mob_html = mob_gen.render_mobile_app(payload, raw_llm_prompt=raw_prompt)
+            app_html = self._render_html(payload, is_mobile=True)
             app_path = os.path.join(self.output_dir, "app.html")
             with open(app_path, "w", encoding="utf-8") as f:
-                f.write(mob_html)
+                f.write(app_html)
 
-            # 5. Render dedicated Full Analytical Details & Verdict Subpage (verdict.html)
-            verdict_html = mob_gen.render_verdict_subpage(payload, raw_llm_prompt=raw_prompt)
-            verdict_path = os.path.join(self.output_dir, "verdict.html")
-            with open(verdict_path, "w", encoding="utf-8") as f:
-                f.write(verdict_html)
-
+            # 5. Render manifest.json and sw.js for PWA installation
             manifest_path = os.path.join(self.output_dir, "manifest.json")
             with open(manifest_path, "w", encoding="utf-8") as f:
                 f.write(mob_gen.render_manifest())
@@ -249,7 +243,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 ================================================================================"""
         return prompt.strip()
 
-    def _render_html(self, data: Dict[str, Any]) -> str:
+    def _render_html(self, data: Dict[str, Any], is_mobile: bool = False) -> str:
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
         risk = data.get("risk", {})
@@ -258,7 +252,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         name = regime.get("name", regime.get("regime", "Range / Liquidation Magnet"))
         diagnosis = regime.get("diagnosis", "")
         playbook = regime.get("playbook", "")
-        majority_score = regime.get("majority_score", "3/4 observations confirmed")
+        majority_score = regime.get("majority_score", "4/4 observations confirmed")
         rotation = regime.get("rotation", "Remain USDT")
         sizing = regime.get("sizing_factor", 0.0)
         action = regime.get("action", "")
@@ -400,22 +394,61 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         spot_source = metrics.get("spot_data_source", "Binance Vision API")
         futures_source = metrics.get("futures_data_source", "Deribit & Kraken Futures")
 
-        # Active Playbook Tag for Magnet Section
-        if regime_id == "RANGE_LIQUIDATION_MAGNET":
-            magnet_active_badge = "<span class='px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-semibold animate-pulse'>🎯 Primary Active Playbook</span>"
-        else:
-            magnet_active_badge = "<span class='px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 text-xs font-medium'>Secondary / Informational Only</span>"
-
         # Build raw prompt for clipboard
         llm_prompt = self._build_llm_prompt(data)
         llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+        # Mobile specific PWA meta and styling tags
+        page_title = "BTC Magnet Cockpit (Mobile App)" if is_mobile else "BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit"
+        body_padding = "pb-28" if is_mobile else "pb-16"
+
+        pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#09090b">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">""" if is_mobile else """  <meta name="viewport" content="width=device-width, initial-scale=1.0">"""
+
+        top_switch_button = """<a href="index.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-bold text-cyan-400 border border-zinc-700/80 transition-all">
+          <span>🖥️ Desktop View</span>
+        </a>""" if is_mobile else """<a href="app.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs font-bold text-emerald-400 border border-emerald-500/40 transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+          <span>📱 Mobile Cockpit</span>
+        </a>"""
+
+        mobile_nav_bar = """  <!-- Mobile Bottom Floating Quick-Jump Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-800/80 px-2 py-2 flex items-center justify-around shadow-2xl safe-area-pb">
+    <a href="#panel-1" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
+      <span class="text-xs">⏱️</span>
+      <span>Live</span>
+    </a>
+    <a href="#panel-2" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
+      <span class="text-xs">📊</span>
+      <span>Data</span>
+    </a>
+    <a href="#panel-3" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
+      <span class="text-xs">🧲</span>
+      <span>Regime</span>
+    </a>
+    <a href="#panel-4" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
+      <span class="text-xs">🎯</span>
+      <span>Action</span>
+    </a>
+    <a href="#panel-5" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-cyan-400 transition-colors py-1">
+      <span class="text-xs">🤖</span>
+      <span>AI</span>
+    </a>
+    <a href="#panel-6" class="flex flex-col items-center gap-0.5 text-[10px] mono text-zinc-400 hover:text-emerald-400 transition-colors py-1">
+      <span class="text-xs">🧠</span>
+      <span>Verdict</span>
+    </a>
+  </nav>""" if is_mobile else ""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit</title>
+{pwa_meta_tags}
+  <title>{page_title}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -429,9 +462,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     .mono {{
       font-family: 'JetBrains Mono', monospace;
     }}
+    html {{
+      scroll-behavior: smooth;
+    }}
   </style>
 </head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased pb-16">
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased {body_padding}">
 
   <!-- Top Navigation Bar -->
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
@@ -443,16 +479,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">{'PWA Mobile App' if is_mobile else '5-Regime Radar'}</span>
           </div>
           <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-4 sm:gap-6">
-        <a href="app.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs font-bold text-emerald-400 border border-emerald-500/40 transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]">
-          <span>📱 Mobile Cockpit</span>
-        </a>
+      <div class="flex items-center gap-3 sm:gap-6">
+        {top_switch_button}
         <a href="regimes.html" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-cyan-400 border border-zinc-700/80 transition-colors">
           <span>5 Regimes Guide</span>
           <span>&rarr;</span>
@@ -481,9 +515,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     <!-- ============================================================ -->
     <!-- PANEL 1: REAL-TIME BTC SPOT PRICE & MARKET SESSION COCKPIT    -->
-    <!-- (COMBINED FROM ATTACHMENT)                                    -->
     <!-- ============================================================ -->
-    <div class="rounded-2xl border-2 border-emerald-500/60 bg-gradient-to-b from-zinc-950 via-zinc-900/90 to-zinc-950 p-5 sm:p-6 backdrop-blur-md shadow-[0_0_25px_rgba(16,185,129,0.12)] space-y-5">
+    <div id="panel-1" class="rounded-2xl border-2 border-emerald-500/60 bg-gradient-to-b from-zinc-950 via-zinc-900/90 to-zinc-950 p-5 sm:p-6 backdrop-blur-md shadow-[0_0_25px_rgba(16,185,129,0.12)] space-y-5">
       
       <!-- Top Section: Live Ticker & Drift -->
       <div class="p-4 sm:p-5 rounded-xl bg-zinc-950/90 border border-emerald-500/40 shadow-inner">
@@ -491,7 +524,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <div class="space-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span class="text-xs font-bold tracking-wider uppercase text-emerald-400 mono">Real-Time BTC Spot Price (Live)</span>
+              <span class="text-xs font-bold tracking-wider uppercase text-emerald-400 mono">Panel 1 &bull; Real-Time BTC Spot Price (Live)</span>
             </div>
             <div class="flex items-baseline gap-3 flex-wrap">
               <div id="live-btc-price" class="text-3xl sm:text-5xl font-extrabold mono text-white tracking-tight">
@@ -578,11 +611,11 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- ============================================================ -->
     <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
     <!-- ============================================================ -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
+    <div id="panel-2" class="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry</span>
+            <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry (4 Microstructure Feeds)</span>
             <span class="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 mono">25+ Verified Metrics</span>
           </div>
           <h3 class="text-lg sm:text-xl font-bold text-white mt-0.5">Real-Time Market Microstructure Feeds</h3>
@@ -668,15 +701,15 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     </div>
 
     <!-- ============================================================ -->
-    <!-- PANEL 3: CARD 2 • MACRO MARKET REGIME DIAGNOSIS              -->
+    <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS                       -->
     <!-- ============================================================ -->
-    <div class="rounded-2xl border-2 {regime_border_color} bg-gradient-to-b from-zinc-900/95 via-zinc-900/80 to-zinc-950 p-6 sm:p-8 backdrop-blur-md shadow-2xl relative overflow-hidden space-y-6">
+    <div id="panel-3" class="rounded-2xl border-2 {regime_border_color} bg-gradient-to-b from-zinc-900/95 via-zinc-900/80 to-zinc-950 p-6 sm:p-8 backdrop-blur-md shadow-2xl relative overflow-hidden space-y-6">
       
       <!-- Top Bar: Category, Confidence Score & Subpage Link -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-zinc-800/80">
         <div>
           <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Card 2 &bull; Macro Market Regime Diagnosis</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Panel 3 &bull; Macro Market Regime Diagnosis</span>
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700/60 mono">{majority_score}</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
@@ -765,12 +798,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- ============================================================ -->
     <!-- PANEL 4: ACTION & ROTATION DIRECTIVE • MANDATE               -->
     <!-- ============================================================ -->
-    <div class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
+    <div id="panel-4" class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
       
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Action &amp; Rotation Directive &bull; Mandate</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Panel 4 &bull; Action &amp; Capital Rotation Directive</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-0.5">
             What should you do with your portfolio right now?
@@ -886,7 +919,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
               <span>📋</span>
-              <span>Method 1 &bull; Verdict by Copy Data &amp; Prompt to AI</span>
+              <span>Panel 5 &bull; Method 1: Verdict by Copy Data &amp; Prompt to AI</span>
             </span>
             <span class="text-[11px] text-zinc-400 font-mono hidden sm:inline">(Institutional Audit Format)</span>
           </div>
@@ -953,7 +986,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Method 2 &bull; Our System Verdict &bull; Full-On Quantitative Breakdown</span>
+              <span>Panel 6 &bull; Method 2: Our System Verdict (Full-On View)</span>
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
@@ -1260,6 +1293,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   </main>
 
+{mobile_nav_bar}
+
   <!-- Sticky Toast Notification for Copying -->
   <div id="copy-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-4 opacity-0 pointer-events-none transition-all duration-300 bg-emerald-500 text-black font-extrabold px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs">
     <span>✓</span>
@@ -1441,6 +1476,13 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     }}
     setInterval(updateLivePriceTicker, 3000);
     updateLivePriceTicker();
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator && {'true' if is_mobile else 'false'}) {{
+      window.addEventListener('load', () => {{
+        navigator.serviceWorker.register('./sw.js').catch(() => {{}});
+      }});
+    }}
   </script>
 
 </body>
