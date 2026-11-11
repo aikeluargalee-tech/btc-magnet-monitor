@@ -244,7 +244,7 @@ class WebGenerator:
 
         return f"""================================================================================
 BLIND BITCOIN (BTC) MICROSTRUCTURE TELEMETRY AUDIT (UNANCHORED MODE)
-Scan ID: {scan_id} | Timestamp: {ts[:19]} UTC | Cadence: Every 30m (:00 & :30 UTC)
+Scan ID: {scan_id} | Timestamp: {ts[:19]} UTC | Cadence: Every 30m (:02 & :32 UTC)
 Raw Spot Feed: {spot_src}
 Raw Futures Feed: {fut_src}
 Mandate: SPOT-ONLY ROTATION (BTC / USDT). Zero borrowed leverage. Zero shorting.
@@ -395,7 +395,7 @@ Without seeing our internal call, form your own independent judgment:
 
         prompt = f"""================================================================================
 INSTITUTIONAL BITCOIN (BTC) ORDER FLOW & LIQUIDATION TELEMETRY AUDIT
-System: BTC Magnet Monitor | Scan ID: {scan_id} | Cadence: Every 30m (:00 & :30 UTC)
+System: BTC Magnet Monitor | Scan ID: {scan_id} | Cadence: Every 30m (:02 & :32 UTC)
 Raw Spot Feed: {spot_src}
 Raw Futures Feed: {fut_src}
 Mandate: SPOT-ONLY ROTATION (BTC / USDT). Zero borrowed leverage. Zero shorting.
@@ -851,7 +851,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <div class="border-b border-indigo-500/30 bg-zinc-900/40 px-4 sm:px-6 py-2 text-xs text-zinc-400">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
       <div>Raw Feeds: <span class="text-zinc-300">{spot_source}</span> &bull; <span class="text-zinc-300">{futures_source}</span></div>
-      <div>Last Scan: <span class="text-zinc-200 font-medium mono">{utc_time_str}</span> (<span class="text-emerald-300 mono">{sgt_time_str}</span>) &bull; Cadence: <span class="text-indigo-300 font-semibold">Every 30m (:00/:30 UTC)</span> &bull; Next: <span id="subhdr-next-update" class="text-amber-300 mono font-semibold">--:-- UTC</span></div>
+      <div>Last Scan: <span class="text-zinc-200 font-medium mono">{utc_time_str}</span> (<span class="text-emerald-300 mono">{sgt_time_str}</span>) &bull; Cadence: <span class="text-indigo-300 font-semibold">Every 30m (:02/:32 UTC)</span> &bull; Next: <span id="subhdr-next-update" class="text-amber-300 mono font-semibold">--:-- UTC</span></div>
     </div>
   </div>
 
@@ -929,7 +929,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <div class="space-y-0.5">
           <div class="text-xs font-bold uppercase tracking-wider text-indigo-400 mono">Automated Telemetry Schedule</div>
           <div class="text-xs text-zinc-300">
-            Updates <strong class="text-white">Every 30 Minutes</strong> (:00 &amp; :30 UTC) &bull; Last Scan: <span class="mono text-zinc-200">{utc_time_str} ({sgt_time_str})</span>
+            Updates <strong class="text-white">Every 30 Minutes</strong> (:02 &amp; :32 UTC target; CI best-effort) &bull; Last Scan: <span class="mono text-zinc-200">{utc_time_str} ({sgt_time_str})</span>
           </div>
         </div>
         <div class="text-left sm:text-right border-t sm:border-t-0 border-indigo-500/30 pt-2 sm:pt-0">
@@ -1521,7 +1521,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <span>&bull;</span>
       <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
     </div>
-    <p>Scan ID: <span class="mono text-zinc-300">{scan_id}</span> &bull; Updates Every 30m (:00/:30 UTC) &bull; {spot_source} &bull; {futures_source}</p>
+    <p>Scan ID: <span class="mono text-zinc-300">{scan_id}</span> &bull; Updates Every 30m (:02/:32 UTC) &bull; {spot_source} &bull; {futures_source}</p>
     <p class="text-[11px] text-zinc-400">Strictly for informational and risk research purposes. Not financial advice.</p>
   </footer>
 
@@ -1652,13 +1652,15 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       if (sgtEl) sgtEl.innerText = `${{sgtHours}}:${{sgtMinutes}}:${{sgtSeconds}} SGT`;
       if (sgtDateEl) sgtDateEl.innerText = sgtDateStr;
 
-      // Next scheduled :00 or :30 UTC update boundary + countdown
+      // Next scheduled :02 or :32 UTC update boundary + countdown
       const nextTarget = new Date(utcMs);
       nextTarget.setUTCSeconds(0, 0);
-      if (now.getUTCMinutes() < 30) {{
-        nextTarget.setUTCMinutes(30);
+      if (now.getUTCMinutes() < 2) {{
+        nextTarget.setUTCMinutes(2);
+      }} else if (now.getUTCMinutes() < 32) {{
+        nextTarget.setUTCMinutes(32);
       }} else {{
-        nextTarget.setUTCMinutes(0);
+        nextTarget.setUTCMinutes(2);
         nextTarget.setUTCHours(now.getUTCHours() + 1);
       }}
       const nUtcH = String(nextTarget.getUTCHours()).padStart(2, '0');
@@ -1831,7 +1833,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         }}
       }} else {{
         el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-        el.textContent = '● Scan data is ' + age + ' old - updates every 30m (:00/:30 UTC); checking feed every minute.';
+        el.textContent = '● Scan data is ' + age + ' old - updates every 30m (:02/:32 UTC); checking feed every minute.';
         if (confTag) {{
           confTag.className = 'text-[11px] text-zinc-400';
           confTag.textContent = 'Deterministic Rule Gate Status (Fresh)';
@@ -2200,7 +2202,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div>
         <div class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
         <div class="text-xl font-bold text-white mt-0.5">{current_name}</div>
-        <div class="text-xs text-zinc-400 mt-1">Diagnosed by empirical on-exchange order flow &bull; Updates every 30m (:00/:30 UTC).</div>
+        <div class="text-xs text-zinc-400 mt-1">Diagnosed by empirical on-exchange order flow &bull; Updates every 30m (:02/:32 UTC).</div>
       </div>
       <div class="flex items-center gap-2.5">
         <button onclick="copySubpagePrompt()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer">
@@ -2597,12 +2599,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         # Linter check before rendering
         self._verify_text_telemetry(data)
 
-        # Telemetry age verification (>30 minutes check)
+        # Telemetry age verification (>35m grace buffer around 30m CI cadence)
         is_stale_telemetry = False
         try:
             dt_scan = _dt.datetime.fromisoformat(ts_iso.replace("Z", "+00:00"))
             now_utc = _dt.datetime.now(_dt.timezone.utc)
-            if (now_utc - dt_scan).total_seconds() > 1800:
+            if (now_utc - dt_scan).total_seconds() > 2100:
                 is_stale_telemetry = True
         except Exception:
             pass
@@ -3206,7 +3208,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       </div>
       <div class="header-meta-sep">
         MANDATE: SPOT ONLY (0.0x) &bull; SESSION: <span class="c-green" id="hdr-session">ACTIVE</span><br>
-        SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; EVERY 30M (:00/:30)<br>
+        SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; EVERY 30M (:02/:32)<br>
         NEXT UPDATE: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
@@ -3220,12 +3222,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <button class="view-btn" id="btn-view-prompt" onclick="switchView('prompt')" role="tab" aria-selected="false">[PROMPT]</button>
     </nav>
 
-    <!-- STALE TELEMETRY BANNER (>30M) -->
+    <!-- STALE TELEMETRY BANNER (>30M TARGET) -->
     <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m scheduled scan cadence. Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target cadence (awaiting next GitHub Actions run). Live spot REST feed active below.
     </div>
     <div class="stale-banner" id="dyn-stale-banner" style="display: none;">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m scheduled scan cadence. Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target cadence (awaiting next GitHub Actions run). Live spot REST feed active below.
     </div>
 
     <!-- RAW JSON VIEW CONTAINER -->
@@ -3262,7 +3264,7 @@ Live REST 5s Price Feed
 
         <div class="sub-card sub-card-indigo">
           <pre class="ascii"><span class="c-indigo">Automated Telemetry Cadence:</span>
-Updates: <span class="c-cyan">Every 30 Minutes</span> (:00 &amp; :30 UTC)
+Updates: <span class="c-cyan">Every 30 Minutes</span> (:02 &amp; :32 UTC target; CI best-effort)
 Last Scan: __TIME_UTC__ (__TIME_SGT__)
 Next Update: <span class="c-amber" id="p1-next-upd">--:-- UTC (--:-- SGT)</span>
 Countdown:   <span class="c-green" id="p1-countdown">in --m --s</span></pre>
@@ -3464,7 +3466,7 @@ Decisive Call:
         <a href="privacy.html">Privacy Policy</a>
       </div>
       <div style="margin-top: 8px; color: #71717a; font-size: 9px;">
-        Scan ID: <span class="c-cyan">__SCAN_ID__</span> &bull; Updates Every 30m (:00/:30 UTC)<br>
+        Scan ID: <span class="c-cyan">__SCAN_ID__</span> &bull; Updates Every 30m (:02/:32 UTC)<br>
         __SPOT_SOURCE__ &bull; __FUTURES_SOURCE__<br>
         Strictly for informational and risk research purposes. Not financial advice.
       </div>
@@ -3475,14 +3477,18 @@ Decisive Call:
   <!-- Toast Notification -->
   <div id="toast">✓ Copied to Clipboard!</div>
 
-  <script>
-    const SCAN_PRICE = __PRICE_RAW__;
-    const SCAN_TS = '__SCAN_TS__';
-    const PROMPT_TEXT = _RAW_PROMPT_JSON_;
-    const BLIND_PROMPT_TEXT = _BLIND_PROMPT_JSON_;
-    const RAW_JSON_PAYLOAD = _RAW_JSON_TEXT_;
+  <script id="text-live-payload" type="application/json">_TEXT_LIVE_PAYLOAD_JSON_</script>
 
-    function switchView(mode) {
+  <script>
+    let SCAN_PRICE = __PRICE_RAW__;
+    let SCAN_TS = '__SCAN_TS__';
+    let PROMPT_TEXT = _RAW_PROMPT_JSON_;
+    let BLIND_PROMPT_TEXT = _BLIND_PROMPT_JSON_;
+    let RAW_JSON_PAYLOAD = _RAW_JSON_TEXT_;
+    let currentViewMode = 'hud';
+
+    function switchView(mode, skipScroll) {
+      currentViewMode = mode;
       document.querySelectorAll('.view-btn').forEach(b => {
         b.classList.remove('active');
         b.setAttribute('aria-selected', 'false');
@@ -3499,21 +3505,21 @@ Decisive Call:
       if (mode === 'hud') {
         hudView.style.display = 'block';
         jsonView.style.display = 'none';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (!skipScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
       } else if (mode === 'json') {
         hudView.style.display = 'none';
         jsonView.style.display = 'block';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (!skipScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
       } else if (mode === 'delta') {
         hudView.style.display = 'block';
         jsonView.style.display = 'none';
         const d = document.getElementById('method-2');
-        if (d) d.scrollIntoView({ behavior: 'smooth' });
+        if (d && !skipScroll) d.scrollIntoView({ behavior: 'smooth' });
       } else if (mode === 'prompt') {
         hudView.style.display = 'block';
         jsonView.style.display = 'none';
         const p = document.getElementById('method-1');
-        if (p) p.scrollIntoView({ behavior: 'smooth' });
+        if (p && !skipScroll) p.scrollIntoView({ behavior: 'smooth' });
       }
     }
 
@@ -3570,7 +3576,7 @@ Decisive Call:
       }
     }
 
-    const scanMs = Date.parse(SCAN_TS);
+    let scanMs = Date.parse(SCAN_TS);
 
     function updateClocks() {
       const now = new Date();
@@ -3593,13 +3599,15 @@ Decisive Call:
       const sDateEl = document.getElementById('clock-sgt-date');
       if (sDateEl) sDateEl.innerText = sDate;
 
-      // Next scheduled :00 / :30 UTC scan window & countdown
+      // Next scheduled :02 / :32 UTC scan window & countdown
       const nextTarget = new Date(utcMs);
       nextTarget.setUTCSeconds(0, 0);
-      if (now.getUTCMinutes() < 30) {
-        nextTarget.setUTCMinutes(30);
+      if (now.getUTCMinutes() < 2) {
+        nextTarget.setUTCMinutes(2);
+      } else if (now.getUTCMinutes() < 32) {
+        nextTarget.setUTCMinutes(32);
       } else {
-        nextTarget.setUTCMinutes(0);
+        nextTarget.setUTCMinutes(2);
         nextTarget.setUTCHours(now.getUTCHours() + 1);
       }
       const nUH = pad(nextTarget.getUTCHours()), nUM = pad(nextTarget.getUTCMinutes());
@@ -3649,17 +3657,100 @@ Decisive Call:
     setInterval(updateClocks, 1000);
     updateClocks();
 
-    // Dynamic 30-minute Stale Telemetry & Confidence Downgrade Checker
-    if (!isNaN(scanMs) && (Date.now() - scanMs) > 30 * 60 * 1000) {
+    // Dynamic Stale Telemetry (>35m grace around 30m target) & Live Scan Auto-Refresh
+    function renderTextStaleState() {
+      const staticBanner = document.getElementById('static-stale-banner');
       const dynBanner = document.getElementById('dyn-stale-banner');
-      if (dynBanner) dynBanner.style.display = 'block';
       const confFresh = document.getElementById('p3-conf-fresh');
+      const ageMs = !isNaN(scanMs) ? (Date.now() - scanMs) : NaN;
+      const isStale = !isNaN(ageMs) && ageMs > 35 * 60 * 1000;
+      if (staticBanner) {
+        staticBanner.style.display = isStale ? 'block' : 'none';
+      }
+      if (dynBanner) {
+        dynBanner.style.display = isStale && (!staticBanner || staticBanner.style.display === 'none') ? 'block' : 'none';
+      }
       if (confFresh) {
-        const ageM = Math.floor((Date.now() - scanMs) / 60000);
-        confFresh.className = 'c-amber';
-        confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>30m)`;
+        if (isStale) {
+          const ageM = Math.max(0, Math.floor(ageMs / 60000));
+          confFresh.className = 'c-amber';
+          confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>30m target)`;
+        } else {
+          confFresh.className = 'c-muted';
+          confFresh.innerText = 'Freshness: Verified ≤35m Cadence';
+        }
       }
     }
+    renderTextStaleState();
+    setInterval(renderTextStaleState, 30000);
+
+    function sanitizeTextNode(root) {
+      root.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(function (n) { n.remove(); });
+      const allowedClicks = new Set([
+        "switchView('hud')",
+        "switchView('json')",
+        "switchView('delta')",
+        "switchView('prompt')",
+        "copyJsonFeed()",
+        "copyTelemetryPrompt()",
+        "copyBlindPrompt()"
+      ]);
+      root.querySelectorAll('*').forEach(function (n) {
+        Array.from(n.attributes).forEach(function (a) {
+          const name = a.name.toLowerCase();
+          const val = (a.value || '').trim().toLowerCase();
+          const rawVal = (a.value || '').trim();
+          if (name.indexOf('on') === 0 && !(name === 'onclick' && allowedClicks.has(rawVal))) {
+            n.removeAttribute(a.name);
+          } else if ((name === 'href' || name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0) {
+            n.removeAttribute(a.name);
+          }
+        });
+      });
+    }
+
+    async function refreshLiveScan() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch('./regime.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const liveTs = Date.parse(data && data.timestamp);
+        if (!isNaN(liveTs) && liveTs > scanMs) {
+          const hres = await fetch('./text.html?t=' + Date.now(), { cache: 'no-store' });
+          if (!hres.ok) return;
+          const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
+          const payloadNode = doc.getElementById('text-live-payload');
+          const newWrapper = doc.querySelector('.terminal-wrapper');
+          const curWrapper = document.querySelector('.terminal-wrapper');
+          if (payloadNode && newWrapper && curWrapper) {
+            const payload = JSON.parse(payloadNode.textContent || '{}');
+            const parsedNewTs = Date.parse(payload.scan_ts || '');
+            if (!isNaN(parsedNewTs) && parsedNewTs > scanMs) {
+              sanitizeTextNode(newWrapper);
+              curWrapper.innerHTML = newWrapper.innerHTML;
+              SCAN_TS = payload.scan_ts;
+              scanMs = parsedNewTs;
+              const livePx = Number(payload.scan_price);
+              if (livePx > 0) SCAN_PRICE = livePx;
+              if (typeof payload.prompt_text === 'string') PROMPT_TEXT = payload.prompt_text;
+              if (typeof payload.blind_prompt_text === 'string') BLIND_PROMPT_TEXT = payload.blind_prompt_text;
+              if (typeof payload.raw_json_text === 'string') RAW_JSON_PAYLOAD = payload.raw_json_text;
+              switchView(currentViewMode, true);
+              updateClocks();
+              updateLivePrice();
+              showToast('✓ Live Scan Telemetry Updated');
+            }
+          }
+        }
+      } catch (e) {}
+      renderTextStaleState();
+    }
+    setInterval(refreshLiveScan, 60000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) { refreshLiveScan(); updateLivePrice(); }
+    });
+    refreshLiveScan();
 
     const PRICE_APIS = [
       'https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT',
@@ -3799,8 +3890,17 @@ Decisive Call:
         html = html.replace("__ATR__", f"{atr:,.2f}")
         html = html.replace("__ATR_COMP_DISP__", atr_comp_disp)
 
+        live_payload_json = _json.dumps({
+            "scan_ts": ts_iso,
+            "scan_price": round(float(price), 2),
+            "prompt_text": raw_prompt,
+            "blind_prompt_text": blind_prompt,
+            "raw_json_text": raw_json_str,
+        }).replace("</", "<\\/")
+
         html = html.replace("__PROMPT_LEN__", f"{len(raw_prompt)}")
         html = html.replace("__RAW_PROMPT__", raw_prompt)
+        html = html.replace("_TEXT_LIVE_PAYLOAD_JSON_", live_payload_json)
         html = html.replace("_RAW_PROMPT_JSON_", _json.dumps(raw_prompt))
         html = html.replace("_BLIND_PROMPT_JSON_", _json.dumps(blind_prompt))
         html = html.replace("__RAW_JSON__", raw_json_str)

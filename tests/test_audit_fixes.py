@@ -217,6 +217,31 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
         self.assertIn("N/A (Fallback)", text_html)
         self.assertIn("Unavailable (Fallback)", text_html)
 
+    def test_text_auto_refresh_and_workflow_backup_schedule(self):
+        metrics, clusters = _make_sample_inputs()
+        regime = RegimeClassifier().classify(metrics, clusters)
+        risk = RiskManager().evaluate_risk(regime)
+        payload = {
+            "timestamp": "2026-11-11T15:32:00+00:00",
+            "symbol": "BTCUSDT",
+            "regime": asdict(regime),
+            "metrics": {k: v for k, v in asdict(metrics).items() if k != "liquidation_clusters"},
+            "risk": risk,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            WebGenerator(output_dir=tmp).generate(payload)
+            with open(os.path.join(tmp, "text.html"), encoding="utf-8") as f:
+                text_html = f.read()
+        for token in ("refreshLiveScan", "renderTextStaleState", "sanitizeTextNode", 'id="text-live-payload"'):
+            self.assertIn(token, text_html)
+
+        radar_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".github", "workflows", "radar.yml")
+        with open(radar_path, encoding="utf-8") as f:
+            radar_yml = f.read()
+        self.assertIn("2,32 * * * *", radar_yml)
+        self.assertIn("11,41 * * * *", radar_yml)
+        self.assertIn("needs.build.outputs.skip != 'true'", radar_yml)
+
 
 if __name__ == "__main__":
     unittest.main()

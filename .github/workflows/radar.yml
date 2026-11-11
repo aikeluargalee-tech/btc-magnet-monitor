@@ -2,8 +2,9 @@ name: BTC Magnet Scheduled Diagnostic & Pages Deploy
 
 on:
   schedule:
-    # Run every 30 minutes
-    - cron: '*/30 * * * *'
+    # Primary off-peak 30m cadence + backup catch-up slots (avoids global :00/:30 cron drops)
+    - cron: '2,32 * * * *'
+    - cron: '11,41 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub UI
   push:
     branches:
@@ -23,31 +24,59 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.fresh.outputs.skip }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check telemetry freshness (skip redundant backup schedule runs)
+        id: fresh
+        run: |
+          python3 - <<'EOF'
+          import json, datetime, os
+          skip = 'false'
+          if os.environ.get('GITHUB_EVENT_NAME') == 'schedule' and os.path.exists('data/regime.json'):
+              try:
+                  ts = json.load(open('data/regime.json'))['timestamp'].replace('Z', '+00:00')
+                  age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(ts)).total_seconds()
+                  if age < 1320:
+                      skip = 'true'
+              except Exception:
+                  pass
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'skip={skip}\n')
+          print(f'schedule freshness check -> skip={skip}')
+          EOF
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+
       - name: Set up Python
+        if: steps.fresh.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Automated Data Integrity Test Suite
+        if: steps.fresh.outputs.skip != 'true'
         run: |
-          python -m unittest tests/test_engine.py
+          python -m unittest discover -s tests -v
 
       - name: Run BTC Magnet Diagnostic Engine
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           python main.py
 
       - name: Commit & Push updated data/regime.json
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action [BTC Magnet]"
@@ -56,19 +85,22 @@ jobs:
           git push || echo "No changes to commit or push skipped"
 
       - name: Setup Pages
+        if: steps.fresh.outputs.skip != 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages Artifact
+        if: steps.fresh.outputs.skip != 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'dist'
 
   deploy:
+    needs: build
+    if: ${{ needs.build.result == 'success' && needs.build.outputs.skip != 'true' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
