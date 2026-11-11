@@ -478,8 +478,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950">
-          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
+          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -1233,11 +1233,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <span>&bull;</span>
       <a href="regimes.html" class="text-cyan-400 hover:underline">5 Regimes Guide</a>
       <span>&bull;</span>
-      <a href="regime.json" target="_blank" class="text-cyan-400 hover:underline">Public JSON API</a>
-      <span>&bull;</span>
       <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
-      <span>&bull;</span>
-      <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank" class="text-cyan-400 hover:underline">GitHub</a>
     </div>
     <p>Automated Quantitative Telemetry Pipeline &bull; Binance Vision &amp; Binance/Deribit Feeds &bull; Zero Leverage Mandate</p>
     <p class="text-[11px] text-zinc-400">Strictly for informational and risk research purposes. Not financial advice.</p>
@@ -1791,8 +1787,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950">
-          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
+          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
@@ -2275,20 +2271,24 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       gap: 10px;
     }
     .brand-logo-squircle {
-      width: 44px;
-      height: 44px;
+      width: 52px;
+      height: 52px;
       flex-shrink: 0;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
-      border: 1px solid #3f3f46;
-      background: #09090b;
-      box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      background: radial-gradient(circle at center, #14171f 0%, #09090b 100%);
+      box-shadow: 0 0 16px rgba(0, 230, 118, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
     }
     .brand-logo-img {
       width: 100%;
       height: 100%;
       display: block;
-      object-fit: cover;
+      object-fit: contain;
     }
     .brand-title-group {
       display: flex;
@@ -2450,7 +2450,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <header class="app-brand-header">
       <div class="brand-top-row">
         <div class="brand-logo-squircle">
-          <img src="./icon-192.png" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
+          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
         </div>
         <div class="brand-title-group">
           <div class="brand-name">BTC Magnet Monitor</div>
@@ -2716,12 +2716,8 @@ Decisive Conclusion:
       </div>
       <div>
         <a href="index.html">Web Dashboard (Full 6-Panel)</a> &bull;
-        <a href="regimes.html">5 Regimes Reference Guide</a>
-      </div>
-      <div style="margin-top: 4px;">
-        <a href="regime.json" target="_blank">Public JSON REST API Feed</a> &bull;
-        <a href="privacy.html">Privacy Policy</a> &bull;
-        <a href="https://github.com/aikeluargalee-tech/btc-magnet-monitor" target="_blank">GitHub</a>
+        <a href="regimes.html">5 Regimes Reference Guide</a> &bull;
+        <a href="privacy.html">Privacy Policy</a>
       </div>
       <div style="margin-top: 10px; color: #52525b; font-size: 9.5px;">
         Automated Quantitative Telemetry Pipeline &bull; Binance Vision &amp; Binance/Deribit Feeds &bull; Zero Leverage Mandate<br>
