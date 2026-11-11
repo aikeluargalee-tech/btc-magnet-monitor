@@ -795,85 +795,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     </div>
 
     <!-- ============================================================ -->
-    <!-- PANEL 4: ACTION & ROTATION DIRECTIVE • MANDATE               -->
-    <!-- ============================================================ -->
-    <div id="panel-4" class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 sm:p-8 backdrop-blur-md shadow-xl space-y-6">
-      
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Panel 4 &bull; Action &amp; Capital Rotation Directive</span>
-          </div>
-          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-0.5">
-            What should you do with your portfolio right now?
-          </h2>
-          <p class="text-xs text-zinc-400 mt-1">
-            Spot-only capital rotation. Strictly zero borrowed leverage, zero futures gambling, zero shorting.
-          </p>
-        </div>
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 self-start sm:self-auto">
-          <span>🛡️ Mandate:</span>
-          <span class="text-emerald-400 font-mono">SPOT ONLY</span>
-        </div>
-      </div>
-
-      <!-- Action Protocol, Stop Loss, and Risk Rules -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        <!-- Recommended Rotation -->
-        <div class="p-5 rounded-xl border {action_bg} bg-zinc-950/80 space-y-1.5">
-          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Recommended Rotation</div>
-          <div class="text-2xl font-extrabold mono text-white flex items-center gap-2">
-            <span>{rotation}</span>
-          </div>
-          <div class="text-xs font-medium text-zinc-300">
-            {action_pill} &bull; Sizing: <span class="font-mono font-bold text-white">{sizing}x</span>
-          </div>
-        </div>
-
-        <!-- Playbook Protocol -->
-        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
-          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Playbook Protocol</div>
-          <div class="text-base font-bold text-white">{playbook}</div>
-          <p class="text-xs text-zinc-300 leading-relaxed pt-1">{entry_inst}</p>
-        </div>
-
-        <!-- Dual Inviolable Stop-Loss -->
-        <div class="bg-zinc-950/80 p-5 rounded-xl border border-zinc-800/80 space-y-1.5">
-          <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Dual Inviolable Stop-Loss</div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">Hard Risk Bound</span>
-          </div>
-          <div class="text-base font-bold mono text-rose-400">
-            ${disaster_stop:,.2f} <span class="text-xs font-normal text-zinc-400">({disaster_stop_dist:.2f}% Disaster Hard Stop)</span>
-          </div>
-          <div class="text-[11px] text-zinc-300 font-mono">
-            Structural Invalidation: 1H Close &lt; ${structural_inval:,.2f}
-          </div>
-          <p class="text-[11px] text-zinc-400 leading-relaxed pt-0.5">{stop_rule}</p>
-        </div>
-
-      </div>
-
-      <!-- Risk Management Status Box -->
-      <div class="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div class="flex items-center gap-2.5">
-          <span class="text-lg">{'✅' if risk.get('risk_budget_ok') else '⚠️'}</span>
-          <div>
-            <span class="font-bold uppercase tracking-wider text-zinc-400 text-[10px] block">Risk Budget Enforcement</span>
-            <span class="font-extrabold text-white text-sm">
-              {'✓ Approved (Within 1% Risk Budget)' if risk.get('risk_budget_ok') else '⚠️ Cash Preservation / Risk Reduced'}
-            </span>
-          </div>
-        </div>
-        <div class="text-zinc-300 font-medium max-w-xl text-left sm:text-right">
-          {risk.get("actionable_trade_instruction", "")}
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ============================================================ -->
     <!-- BRIDGE: TWO INDEPENDENT VERDICT METHODS                      -->
     <!-- ============================================================ -->
     <div class="rounded-2xl border border-zinc-800 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-xl text-center space-y-3">
@@ -2560,41 +2481,6 @@ __MATCHED_CRITERIA_ASCII__
 [ ] 5. Distribution
 
 <a href="regimes.html" style="color: #38bdf8;">[Learn About the 5 Regimes &amp; Math &rarr;]</a></pre>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- PANEL 4: ACTION & CAPITAL ROTATION DIRECTIVE                 -->
-    <!-- ============================================================ -->
-    <div id="panel-4">
-      <div class="panel-hdr">Panel 4 &bull; Action &amp; Capital Rotation Directive</div>
-      <pre class="ascii">What should you do with your portfolio
-right now?
-Spot-only capital rotation. Strictly
-zero borrowed leverage, zero futures
-gambling, zero shorting.
-
-Mandate: <span class="c-green">SPOT ONLY</span>
-
-Recommended Rotation:
-<span class="c-amber">__ROTATION__</span>
-Sizing: 0.0x (100% USDT Cash)
-
-Playbook Protocol:
-__PLAYBOOK__
-
-Execution Directive:
-__ENTRY_INST__
-
-Dual Inviolable Stop-Loss:
-<span class="c-rose">$__STOP_PRICE__</span> (__STOP_DIST__% Disaster Stop)
-Structural Invalidation: 1H Close &lt; $__STRUCT_LOW__
-Stop Rule:
-__STOP_RULE__
-
-Risk Budget Enforcement:
-<span class="c-green">__RISK_STATUS__</span>
-Instruction:
-__RISK_INSTRUCTION__</pre>
     </div>
 
     <!-- ============================================================ -->
