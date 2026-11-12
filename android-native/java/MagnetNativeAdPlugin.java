@@ -72,6 +72,8 @@ public class MagnetNativeAdPlugin extends Plugin {
 
         activity.runOnUiThread(() -> {
             ensureHostAttached();
+            hasAnchorRect = false;
+            slotVisible = false;
             if (initialWidthCss > 0f) {
                 anchorWidthCss = initialWidthCss;
             }
@@ -343,7 +345,7 @@ public class MagnetNativeAdPlugin extends Plugin {
         adViewportHost.addView(adWrapper, wrapperParams);
 
         double heightCss = measureAndApplyWrapperSize();
-        slotVisible = true;
+        slotVisible = hasAnchorRect;
         repositionCard();
 
         JSObject result = new JSObject();

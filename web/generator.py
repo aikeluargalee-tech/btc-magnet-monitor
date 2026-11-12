@@ -2988,27 +2988,67 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       font-weight: 800;
       cursor: pointer;
     }
+    .native-ad-slot {
+      width: 100%;
+      margin: 2px 0 12px 0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
     .cta-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       margin-bottom: 14px;
     }
     .enter-btn {
-      display: flex;
+      position: relative;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      width: 100%;
-      min-height: 48px;
-      padding: 12px 14px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      border: 1.5px solid #6ee7b7;
-      color: #04120c;
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: 0.4px;
+      gap: 6px;
+      width: auto;
+      min-width: 210px;
+      max-width: 92%;
+      min-height: 36px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.24) 0%, rgba(6, 95, 70, 0.34) 55%, rgba(52, 211, 153, 0.16) 100%);
+      border: 1px solid rgba(167, 243, 208, 0.45);
+      backdrop-filter: blur(16px) saturate(165%);
+      -webkit-backdrop-filter: blur(16px) saturate(165%);
+      color: #ecfdf5;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.45px;
       text-decoration: none;
       text-transform: uppercase;
-      box-shadow: 0 0 18px rgba(16, 185, 129, 0.35);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.4),
+        inset 0 -1px 2px rgba(6, 78, 59, 0.55),
+        0 6px 20px rgba(16, 185, 129, 0.22);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .enter-btn::before {
+      content: "";
+      position: absolute;
+      inset: 1px 2px auto 2px;
+      height: 46%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.0) 100%);
+      pointer-events: none;
+    }
+    .enter-btn:hover {
+      border-color: rgba(167, 243, 208, 0.72);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.5),
+        inset 0 -1px 2px rgba(6, 78, 59, 0.65),
+        0 8px 24px rgba(16, 185, 129, 0.34);
+      transform: translateY(-1px);
+    }
+    .enter-btn:active {
+      transform: scale(0.98);
     }
     .enter-sub {
       text-align: center;
@@ -3320,6 +3360,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
       </div>
 
+      <div id="entry-native-ad-anchor" class="native-ad-slot" style="display: none;" aria-hidden="true"></div>
+
       <div id="verdict1-showcase" class="data-card data-card-amber">
         <div class="data-hdr">
           <span data-i18n="entry_v1_title" style="color:#facc15;">Why &amp; How This App Helps You</span>
@@ -3409,10 +3451,124 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       fitEntryVideoStage('entry-badger-video', 'entry-badger-stage');
     }
 
+    let entryNativeAdHeightCss = 0;
+    let entryNativeAdBooted = false;
+
+    function getEntryNativeAdPlugin() {
+      const plugins = window.Capacitor && window.Capacitor.Plugins;
+      if (plugins && plugins.MagnetNativeAd && typeof plugins.MagnetNativeAd.loadAndAttach === 'function') {
+        return plugins.MagnetNativeAd;
+      }
+      return null;
+    }
+
+    function syncEntryNativeAdSlot() {
+      const anchor = document.getElementById('entry-native-ad-anchor');
+      const plugin = getEntryNativeAdPlugin();
+      if (!anchor || !plugin) return;
+
+      if (entryNativeAdHeightCss > 0) {
+        anchor.style.display = 'block';
+        anchor.style.height = Math.ceil(entryNativeAdHeightCss) + 'px';
+        anchor.setAttribute('aria-hidden', 'false');
+        const rect = anchor.getBoundingClientRect();
+        if (rect.width > 0) {
+          plugin.updateRect({
+            leftCss: rect.left + (window.scrollX || window.pageXOffset || 0),
+            docTopCss: rect.top + (window.scrollY || window.pageYOffset || 0),
+            widthCss: rect.width
+          }).catch(function () {});
+          plugin.setVisible({ visible: true }).catch(function () {});
+        }
+      } else {
+        anchor.style.display = 'none';
+        anchor.style.height = '0px';
+        anchor.setAttribute('aria-hidden', 'true');
+        plugin.setVisible({ visible: false }).catch(function () {});
+      }
+    }
+
+    function initEntryNativeAd() {
+      if (entryNativeAdBooted) {
+        syncEntryNativeAdSlot();
+        return;
+      }
+      const plugin = getEntryNativeAdPlugin();
+      if (!plugin) return;
+      entryNativeAdBooted = true;
+
+      const wrapEl = document.querySelector('.entry-wrap');
+      const getSlotWidth = function () {
+        return Math.max(
+          200,
+          Math.round(wrapEl ? wrapEl.getBoundingClientRect().width : (window.innerWidth - 20))
+        );
+      };
+      const attachNativeListener = function (eventName, handler) {
+        if (typeof plugin.addListener !== 'function') return;
+        try {
+          const handle = plugin.addListener(eventName, handler);
+          if (handle && typeof handle.catch === 'function') {
+            handle.catch(function () {});
+          }
+        } catch (e) {}
+      };
+      attachNativeListener('nativeAdLoaded', function (ev) {
+        if (ev && ev.heightCss > 0) {
+          entryNativeAdHeightCss = ev.heightCss;
+          requestAnimationFrame(syncEntryNativeAdSlot);
+        }
+      });
+      attachNativeListener('nativeAdFailed', function () {
+        entryNativeAdHeightCss = 0;
+        syncEntryNativeAdSlot();
+      });
+      if (typeof ResizeObserver === 'function' && wrapEl) {
+        new ResizeObserver(function () {
+          if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
+        }).observe(wrapEl);
+      }
+
+      const startLoad = function () {
+        let retries = 0;
+        const requestAd = function () {
+          plugin.loadAndAttach({
+            adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+            widthCss: getSlotWidth()
+          }).then(function (res) {
+            if (res && res.heightCss > 0) {
+              entryNativeAdHeightCss = res.heightCss;
+              requestAnimationFrame(syncEntryNativeAdSlot);
+            }
+          }).catch(function () {
+            if (retries < 1 && entryNativeAdHeightCss <= 0) {
+              retries += 1;
+              setTimeout(requestAd, 4000);
+            }
+          });
+        };
+        requestAd();
+      };
+
+      try {
+        const admob = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob;
+        if (admob && typeof admob.initialize === 'function') {
+          admob.initialize({
+            requestTrackingAuthorization: true,
+            initializeForTesting: true,
+          }).then(startLoad).catch(startLoad);
+        } else {
+          startLoad();
+        }
+      } catch (e) {
+        startLoad();
+      }
+    }
+
     function hideMonitorOverlaysOnEntry() {
       try {
         const plugins = window.Capacitor && window.Capacitor.Plugins;
-        if (plugins && plugins.MagnetNativeAd && typeof plugins.MagnetNativeAd.setVisible === 'function') {
+        if (plugins && plugins.MagnetNativeAd && typeof plugins.MagnetNativeAd.setVisible === 'function' && entryNativeAdHeightCss <= 0) {
           plugins.MagnetNativeAd.setVisible({ visible: false }).catch(function () {});
         }
         if (plugins && plugins.AdMob && typeof plugins.AdMob.hideBanner === 'function') {
@@ -3614,12 +3770,26 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       ensureEntryVideoPlays();
       refreshEntryLiveData();
       refreshEntryRegimeSnapshot();
+      initEntryNativeAd();
+      if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
     });
     window.addEventListener('pageshow', function () {
       hideMonitorOverlaysOnEntry();
       ensureEntryVideoPlays();
       refreshEntryLiveData();
       refreshEntryRegimeSnapshot();
+      initEntryNativeAd();
+      if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
+    });
+    window.addEventListener('resize', function () {
+      if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
+    });
+    window.addEventListener('btc-magnet:langchange', function () {
+      if (entryNativeAdHeightCss > 0) requestAnimationFrame(syncEntryNativeAdSlot);
+    });
+    window.addEventListener('pagehide', function () {
+      const plugin = getEntryNativeAdPlugin();
+      if (plugin) plugin.setVisible({ visible: false }).catch(function () {});
     });
     setInterval(refreshEntryLiveData, 8000);
     setInterval(refreshEntryRegimeSnapshot, 30000);
@@ -5279,6 +5449,9 @@ Decisive Call:
             });
             window.addEventListener('pageshow', function () {
               if (nativeAdHeightCss > 0) syncNativeAdSlot();
+            });
+            window.addEventListener('btc-magnet:langchange', function () {
+              if (nativeAdHeightCss > 0) requestAnimationFrame(syncNativeAdSlot);
             });
             window.addEventListener('pagehide', function () {
               nativePlugin.setVisible({ visible: false }).catch(function () {});

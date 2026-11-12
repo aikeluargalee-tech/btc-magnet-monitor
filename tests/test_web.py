@@ -122,8 +122,22 @@ class TestGeneratedSite(unittest.TestCase):
             "Aggressive Flow (24H CVD)",
             "Crowd Leverage Skew (L/S)",
             "hideMonitorOverlaysOnEntry",
+            'id="entry-native-ad-anchor"',
+            "initEntryNativeAd",
+            "backdrop-filter: blur(",
         ):
             self.assertIn(token, entry_html, f"Missing {token} in entry.html")
+
+        self.assertLess(
+            entry_html.index('id="entry-badger-card"'),
+            entry_html.index('id="entry-native-ad-anchor"'),
+            "Entry native ad slot must sit below Honey Badger video card",
+        )
+        self.assertLess(
+            entry_html.index('id="entry-native-ad-anchor"'),
+            entry_html.index('id="verdict1-showcase"'),
+            "Entry native ad slot must sit above Verdict 1 showcase card",
+        )
 
         # Verify fallback honesty when ls_ratio_available is false on entry.html
         import copy as _copy
@@ -376,6 +390,11 @@ class TestScalabilityAndNativeAd(unittest.TestCase):
             with open(gradle_path, "r", encoding="utf-8") as fh:
                 gradle_text = fh.read()
             self.assertIn(ADMOB_DEP_LINE.strip(), gradle_text)
+
+            with open(os.path.join(pkg_dir, "MainActivity.java"), "r", encoding="utf-8") as fh:
+                main_act = fh.read()
+            self.assertIn("OnBackPressedCallback", main_act)
+            self.assertIn("/entry.html", main_act)
 
             # Second run must be idempotent
             self.assertFalse(ensure_admob_gradle_dependency(gradle_path))

@@ -3,6 +3,8 @@ package com.aikeluargalee.btcmagnet;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -44,5 +46,46 @@ public class MainActivity extends BridgeActivity {
             });
             ViewCompat.requestApplyInsets(contentView);
         }
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+                if (webView == null) {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                    return;
+                }
+                String url = webView.getUrl();
+                if (url != null && url.contains("/entry.html")) {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                    return;
+                }
+                String localUrl = getBridge().getLocalUrl();
+                String entryUrl = (localUrl != null && !localUrl.isEmpty())
+                    ? (localUrl.endsWith("/") ? (localUrl + "entry.html") : (localUrl + "/entry.html"))
+                    : null;
+                if (url != null && (url.contains("/text.html") || url.contains("/app.html") || url.contains("/index.html") || url.endsWith("/"))) {
+                    if (entryUrl != null) {
+                        webView.loadUrl(entryUrl);
+                        return;
+                    }
+                }
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+                if (entryUrl != null) {
+                    webView.loadUrl(entryUrl);
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
     }
 }
