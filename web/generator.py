@@ -2717,9 +2717,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     def _render_entry_page(self, data: Dict[str, Any]) -> str:
         """Renders the every-launch App Entry Landing Page (entry.html).
         Displays the full hero bull-vs-bear video, primary Enter CTA button, and
-        expandable data slot below the video before routing users into text.html.
+        the Bull vs. Bear Pressure Meter + live snapshot below the video before routing users into text.html.
         """
         import html as _html
+        import json as _json
 
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
@@ -2729,6 +2730,69 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         price = float(metrics.get("price", 0.0) or 0.0)
         regime_name = self._public_copy(str(regime.get("name", "Transition / Mixed")))
         dom_magnet = str(regime.get("dominant_magnet", "Neutral"))
+
+        # 1) Order-Book Depth (±1.5%)
+        depth_ratio = float(metrics.get("bids_asks_depth_ratio", 0.0) or 0.0)
+        if depth_ratio > 0:
+            depth_bull_pct = (depth_ratio / (1.0 + depth_ratio)) * 100.0
+            depth_bear_pct = 100.0 - depth_bull_pct
+            depth_bull_lbl = f"BULL BIDS {depth_bull_pct:.1f}%"
+            depth_bear_lbl = f"BEAR ASKS {depth_bear_pct:.1f}%"
+            depth_mid_lbl = f"Ratio {depth_ratio:.2f}"
+            depth_sub = "Scan ±1.5% L2 Book • awaiting live phone refresh"
+            depth_muted = False
+        else:
+            depth_bull_pct = 50.0
+            depth_bull_lbl = "BULL BIDS --"
+            depth_bear_lbl = "BEAR ASKS --"
+            depth_mid_lbl = "DATA UNAVAILABLE"
+            depth_sub = "Order-book depth unavailable in snapshot"
+            depth_muted = True
+
+        # 2) Aggressive Flow (Spot 24H CVD + Perp 24H Trend)
+        spot_vol = float(metrics.get("spot_vol_24h", 0.0) or 0.0)
+        cvd_ratio = float(metrics.get("spot_cvd_ratio", 0.0) or 0.0)
+        perp_trend = str(metrics.get("perp_cvd_trend", "neutral") or "neutral")
+        perp_slope = float(metrics.get("perp_cvd_slope_24h", 0.0) or 0.0)
+        if spot_vol > 0 and cvd_ratio > 0:
+            flow_bull_pct = (cvd_ratio / (1.0 + cvd_ratio)) * 100.0
+            flow_bear_pct = 100.0 - flow_bull_pct
+            flow_bull_lbl = f"SPOT BUYS {flow_bull_pct:.1f}%"
+            flow_bear_lbl = f"SPOT SELLS {flow_bear_pct:.1f}%"
+            flow_mid_lbl = f"CVD {cvd_ratio:.2f}"
+            flow_muted = False
+        else:
+            flow_bull_pct = 50.0
+            flow_bull_lbl = "SPOT BUYS --"
+            flow_bear_lbl = "SPOT SELLS --"
+            flow_mid_lbl = "DATA UNAVAILABLE"
+            flow_muted = True
+        perp_note = f"Perp 24h Trend: {perp_trend} ({perp_slope:+.0f} BTC)"
+
+        # 3) Crowd Leverage Skew (L/S Accounts & Funding)
+        ls_avail = bool(metrics.get("ls_ratio_available", True))
+        ls_ratio = float(metrics.get("long_short_account_ratio", 0.0) or 0.0)
+        funding_pct = float(metrics.get("funding_rate", 0.0) or 0.0) * 100.0
+        if ls_avail and ls_ratio > 0:
+            ls_bull_pct = (ls_ratio / (1.0 + ls_ratio)) * 100.0
+            ls_bear_pct = 100.0 - ls_bull_pct
+            ls_bull_lbl = f"LONGS {ls_bull_pct:.1f}%"
+            ls_bear_lbl = f"SHORTS {ls_bear_pct:.1f}%"
+            ls_mid_lbl = f"L/S {ls_ratio:.2f} • {funding_pct:+.4f}%"
+            if ls_bull_pct >= 62.0:
+                ls_note = "Crowd leans long (downside liquidation fuel)"
+            elif ls_bull_pct <= 42.0:
+                ls_note = "Crowd leans short (upper squeeze fuel)"
+            else:
+                ls_note = "Balanced crowd L/S positioning"
+            ls_muted = False
+        else:
+            ls_bull_pct = 50.0
+            ls_bull_lbl = "LONGS --"
+            ls_bear_lbl = "SHORTS --"
+            ls_mid_lbl = "DATA UNAVAILABLE"
+            ls_note = "L/S ratio feed unavailable in snapshot"
+            ls_muted = True
 
         tpl = """<!DOCTYPE html>
 <html lang="en">
@@ -2902,15 +2966,111 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     .data-card-cyan {
       border-color: rgba(56, 189, 248, 0.45);
     }
+    .data-card-clash {
+      border-color: rgba(16, 185, 129, 0.45);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.08);
+    }
     .data-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       font-size: 11px;
       font-weight: 800;
       color: #38bdf8;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       padding-bottom: 6px;
-      margin-bottom: 8px;
+      margin-bottom: 9px;
       border-bottom: 1px dashed #27272a;
+    }
+    .live-badge {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      white-space: nowrap;
+    }
+    .live-badge.is-live {
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(16, 185, 129, 0.14);
+      color: #4ade80;
+    }
+    .tug-block {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 7px;
+      padding: 9px;
+      margin-bottom: 8px;
+    }
+    .tug-block:last-child {
+      margin-bottom: 0;
+    }
+    .tug-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 5px;
+    }
+    .tug-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: #f4f4f5;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .tug-mid {
+      font-size: 10px;
+      font-weight: 800;
+      color: #facc15;
+    }
+    .tug-sides {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 9px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .tug-track {
+      position: relative;
+      width: 100%;
+      height: 11px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #ef4444;
+      border: 1px solid #3f3f46;
+      display: flex;
+    }
+    .tug-track.is-muted {
+      background: #27272a;
+    }
+    .tug-bull {
+      height: 100%;
+      background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
+      transition: width 0.35s ease;
+    }
+    .tug-track.is-muted .tug-bull {
+      background: #3f3f46;
+    }
+    .tug-center-tick {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      margin-left: -1px;
+      background: rgba(9, 9, 11, 0.85);
+      z-index: 2;
+    }
+    .tug-sub {
+      font-size: 9px;
+      color: #a1a1aa;
+      margin-top: 5px;
     }
     .stat-grid {
       display: grid;
@@ -2935,8 +3095,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       margin-top: 2px;
     }
     .c-green { color: #4ade80; }
+    .c-rose { color: #fb7185; }
     .c-amber { color: #facc15; }
     .c-cyan { color: #38bdf8; }
+    .c-muted { color: #a1a1aa; }
     .brief-list {
       list-style: none;
       display: flex;
@@ -2999,8 +3161,69 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
 
     <section id="entry-data-slot" aria-label="Entry Market Data">
+      <div id="entry-pressure-meter" class="data-card data-card-clash">
+        <div class="data-hdr">
+          <span class="c-green">Bull vs. Bear Pressure Meter</span>
+          <span id="entry-depth-badge" class="live-badge">SCAN SNAPSHOT</span>
+        </div>
+
+        <!-- Bar 1: Order-Book Depth (±1.5% L2 Spot) -->
+        <div class="tug-block">
+          <div class="tug-title-row">
+            <span class="tug-title">1. Order-Book Depth (&plusmn;1.5%)</span>
+            <span id="depth-mid-lbl" class="tug-mid">__DEPTH_MID_LBL__</span>
+          </div>
+          <div class="tug-sides">
+            <span id="depth-bull-lbl" class="c-green">__DEPTH_BULL_LBL__</span>
+            <span id="depth-bear-lbl" class="c-rose">__DEPTH_BEAR_LBL__</span>
+          </div>
+          <div id="depth-track" class="tug-track __DEPTH_MUTED_CLS__">
+            <div id="depth-bull-bar" class="tug-bull" style="width: __DEPTH_BULL_PCT__%;"></div>
+            <div class="tug-center-tick"></div>
+          </div>
+          <div id="depth-sub-lbl" class="tug-sub">__DEPTH_SUB__</div>
+        </div>
+
+        <!-- Bar 2: Aggressive Flow (Spot 24H CVD vs Perp Trend) -->
+        <div class="tug-block">
+          <div class="tug-title-row">
+            <span class="tug-title">2. Aggressive Flow (24H CVD)</span>
+            <span id="flow-mid-lbl" class="tug-mid">__FLOW_MID_LBL__</span>
+          </div>
+          <div class="tug-sides">
+            <span id="flow-bull-lbl" class="c-green">__FLOW_BULL_LBL__</span>
+            <span id="flow-bear-lbl" class="c-rose">__FLOW_BEAR_LBL__</span>
+          </div>
+          <div id="flow-track" class="tug-track __FLOW_MUTED_CLS__">
+            <div id="flow-bull-bar" class="tug-bull" style="width: __FLOW_BULL_PCT__%;"></div>
+            <div class="tug-center-tick"></div>
+          </div>
+          <div id="flow-sub-lbl" class="tug-sub">__PERP_NOTE__</div>
+        </div>
+
+        <!-- Bar 3: Crowd Leverage Skew (L/S & Funding) -->
+        <div class="tug-block">
+          <div class="tug-title-row">
+            <span class="tug-title">3. Crowd Leverage Skew (L/S)</span>
+            <span id="ls-mid-lbl" class="tug-mid">__LS_MID_LBL__</span>
+          </div>
+          <div class="tug-sides">
+            <span id="ls-bull-lbl" class="c-green">__LS_BULL_LBL__</span>
+            <span id="ls-bear-lbl" class="c-rose">__LS_BEAR_LBL__</span>
+          </div>
+          <div id="ls-track" class="tug-track __LS_MUTED_CLS__">
+            <div id="ls-bull-bar" class="tug-bull" style="width: __LS_BULL_PCT__%;"></div>
+            <div class="tug-center-tick"></div>
+          </div>
+          <div id="ls-sub-lbl" class="tug-sub">__LS_NOTE__</div>
+        </div>
+      </div>
+
       <div class="data-card data-card-cyan">
-        <div class="data-hdr">Live Telemetry Snapshot (Pre-Entry Brief)</div>
+        <div class="data-hdr">
+          <span>Live Telemetry Snapshot</span>
+          <span id="entry-scan-id-lbl" class="live-badge">__ENTRY_DATE__</span>
+        </div>
         <div class="stat-grid">
           <div class="stat-tile">
             <div class="stat-lbl">BTC Spot Price</div>
@@ -3008,24 +3231,24 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           </div>
           <div class="stat-tile">
             <div class="stat-lbl">Dominant Magnet</div>
-            <div class="stat-val c-amber">__ENTRY_MAGNET__</div>
+            <div id="entry-dom-magnet" class="stat-val c-amber">__ENTRY_MAGNET__</div>
           </div>
           <div class="stat-tile">
             <div class="stat-lbl">Active Macro Regime</div>
-            <div class="stat-val c-cyan">__ENTRY_REGIME__</div>
+            <div id="entry-regime-name" class="stat-val c-cyan">__ENTRY_REGIME__</div>
           </div>
           <div class="stat-tile">
             <div class="stat-lbl">Latest Radar Scan</div>
-            <div class="stat-val">__ENTRY_UTC__</div>
+            <div id="entry-scan-utc" class="stat-val">__ENTRY_UTC__</div>
           </div>
         </div>
         <div id="entry-custom-data-slot" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #27272a; color: #a1a1aa; font-size: 9px;">
-          Scan ID: <span class="c-cyan">__ENTRY_SCAN_ID__</span> &bull; Cadence: Every 30m (:02/:32 UTC) &bull; __ENTRY_DATE__
+          Scan ID: <span id="entry-scan-id" class="c-cyan">__ENTRY_SCAN_ID__</span> &bull; Cadence: Every 30m (:02/:32 UTC)
         </div>
       </div>
 
       <div class="data-card">
-        <div class="data-hdr">Before You Enter &bull; What This Terminal Shows</div>
+        <div class="data-hdr"><span>Before You Enter &bull; What This Terminal Shows</span></div>
         <ul class="brief-list">
           <li class="brief-item"><strong class="c-green">Panels 1–2:</strong> Live spot price + observable closed-4H VWAP, volume, OI &amp; funding facts.</li>
           <li class="brief-item"><strong class="c-cyan">Panel 3:</strong> 5-Regime + Transition classifier mapping where spot &amp; liquidity pressure sit.</li>
@@ -3045,6 +3268,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   </div>
 
   <script>
+    const ENTRY_LIVE_BASE = 'https://aikeluargalee-tech.github.io/btc-magnet-monitor/';
+    let ENTRY_SCAN_TS = __ENTRY_SCAN_TS_JSON__;
+    let latestEntryPrice = __ENTRY_PRICE_RAW__;
+    let lastRegimeFetchBucket = -1;
+
     function toggleEntryAudio() {
       const vid = document.getElementById('entry-hero-video');
       const btn = document.getElementById('entry-sound-btn');
@@ -3079,9 +3307,32 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       } catch (e) {}
     }
 
-    async function refreshEntryPrice() {
-      const el = document.getElementById('entry-live-price');
-      if (!el) return;
+    function applyDepthUi(ratio, bidsSum, asksSum, isLiveFeed) {
+      const bullEl = document.getElementById('depth-bull-lbl');
+      const bearEl = document.getElementById('depth-bear-lbl');
+      const midEl = document.getElementById('depth-mid-lbl');
+      const barEl = document.getElementById('depth-bull-bar');
+      const trackEl = document.getElementById('depth-track');
+      const subEl = document.getElementById('depth-sub-lbl');
+      const badgeEl = document.getElementById('entry-depth-badge');
+      if (!(ratio > 0)) return;
+      const bullPct = (ratio / (1.0 + ratio)) * 100.0;
+      const bearPct = 100.0 - bullPct;
+      if (bullEl) bullEl.innerText = 'BULL BIDS ' + bullPct.toFixed(1) + '%';
+      if (bearEl) bearEl.innerText = 'BEAR ASKS ' + bearPct.toFixed(1) + '%';
+      if (midEl) midEl.innerText = 'Ratio ' + ratio.toFixed(2);
+      if (barEl) barEl.style.width = bullPct.toFixed(1) + '%';
+      if (trackEl) trackEl.classList.remove('is-muted');
+      if (isLiveFeed && bidsSum > 0 && asksSum > 0) {
+        if (subEl) subEl.innerText = 'Live ±1.5% Book: ' + bidsSum.toFixed(1) + ' BTC Bids vs ' + asksSum.toFixed(1) + ' BTC Asks';
+        if (badgeEl) {
+          badgeEl.innerText = '● LIVE BOOK';
+          badgeEl.classList.add('is-live');
+        }
+      }
+    }
+
+    async function fetchEntryPrice() {
       const feeds = [
         async function () {
           const r = await fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT', { cache: 'no-store' });
@@ -3098,33 +3349,184 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         try {
           const p = await fn();
           if (Number.isFinite(p) && p > 0) {
-            el.innerText = '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            latestEntryPrice = p;
+            const el = document.getElementById('entry-live-price');
+            if (el) el.innerText = '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return p;
+          }
+        } catch (e) {}
+      }
+      return latestEntryPrice;
+    }
+
+    async function fetchEntryLiveDepth(refPrice) {
+      if (!(refPrice > 0)) return;
+      const urls = [
+        'https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=100',
+        'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=100'
+      ];
+      for (const u of urls) {
+        try {
+          const r = await fetch(u, { cache: 'no-store' });
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (!d || !Array.isArray(d.bids) || !Array.isArray(d.asks)) continue;
+          const minBid = refPrice * 0.985;
+          const maxAsk = refPrice * 1.015;
+          let bidsSum = 0;
+          let asksSum = 0;
+          for (const row of d.bids) {
+            if (parseFloat(row[0]) >= minBid) bidsSum += parseFloat(row[1]) || 0;
+          }
+          for (const row of d.asks) {
+            if (parseFloat(row[0]) <= maxAsk) asksSum += parseFloat(row[1]) || 0;
+          }
+          if (bidsSum + asksSum > 0) {
+            const ratio = asksSum > 0 ? (bidsSum / asksSum) : 1.0;
+            applyDepthUi(ratio, bidsSum, asksSum, true);
             return;
           }
         } catch (e) {}
       }
     }
 
+    function applyEntryRegimePayload(data) {
+      if (!data || !data.metrics || !data.regime) return;
+      const m = data.metrics;
+      const reg = data.regime;
+      if (data.timestamp && ENTRY_SCAN_TS && data.timestamp <= ENTRY_SCAN_TS) return;
+      if (data.timestamp) ENTRY_SCAN_TS = data.timestamp;
+
+      const domEl = document.getElementById('entry-dom-magnet');
+      if (domEl && reg.dominant_magnet) domEl.innerText = reg.dominant_magnet;
+      const regEl = document.getElementById('entry-regime-name');
+      if (regEl && reg.name) regEl.innerText = reg.name;
+      if (data.timestamp) {
+        const dt = new Date(data.timestamp);
+        if (!isNaN(dt.getTime())) {
+          const hh = String(dt.getUTCHours()).padStart(2, '0');
+          const mm = String(dt.getUTCMinutes()).padStart(2, '0');
+          const ss = String(dt.getUTCSeconds()).padStart(2, '0');
+          const utcEl = document.getElementById('entry-scan-utc');
+          if (utcEl) utcEl.innerText = hh + ':' + mm + ':' + ss + ' UTC';
+        }
+      }
+
+      const cvd = parseFloat(m.spot_cvd_ratio || 0);
+      const spotVol = parseFloat(m.spot_vol_24h || 0);
+      if (spotVol > 0 && cvd > 0) {
+        const bull = (cvd / (1.0 + cvd)) * 100.0;
+        const bear = 100.0 - bull;
+        const fb = document.getElementById('flow-bull-lbl');
+        const fs = document.getElementById('flow-bear-lbl');
+        const fm = document.getElementById('flow-mid-lbl');
+        const fbar = document.getElementById('flow-bull-bar');
+        const ftrk = document.getElementById('flow-track');
+        const fsub = document.getElementById('flow-sub-lbl');
+        if (fb) fb.innerText = 'SPOT BUYS ' + bull.toFixed(1) + '%';
+        if (fs) fs.innerText = 'SPOT SELLS ' + bear.toFixed(1) + '%';
+        if (fm) fm.innerText = 'CVD ' + cvd.toFixed(2);
+        if (fbar) fbar.style.width = bull.toFixed(1) + '%';
+        if (ftrk) ftrk.classList.remove('is-muted');
+        if (fsub && m.perp_cvd_trend) {
+          const slope = parseFloat(m.perp_cvd_slope_24h || 0);
+          fsub.innerText = 'Perp 24h Trend: ' + m.perp_cvd_trend + ' (' + (slope >= 0 ? '+' : '') + Math.round(slope) + ' BTC)';
+        }
+      }
+
+      const lsAvail = m.ls_ratio_available !== false;
+      const ls = parseFloat(m.long_short_account_ratio || 0);
+      const fundPct = parseFloat(m.funding_rate || 0) * 100.0;
+      if (lsAvail && ls > 0) {
+        const lbull = (ls / (1.0 + ls)) * 100.0;
+        const lbear = 100.0 - lbull;
+        const lb = document.getElementById('ls-bull-lbl');
+        const lsh = document.getElementById('ls-bear-lbl');
+        const lm = document.getElementById('ls-mid-lbl');
+        const lbar = document.getElementById('ls-bull-bar');
+        const ltrk = document.getElementById('ls-track');
+        const lsub = document.getElementById('ls-sub-lbl');
+        if (lb) lb.innerText = 'LONGS ' + lbull.toFixed(1) + '%';
+        if (lsh) lsh.innerText = 'SHORTS ' + lbear.toFixed(1) + '%';
+        if (lm) lm.innerText = 'L/S ' + ls.toFixed(2) + ' • ' + (fundPct >= 0 ? '+' : '') + fundPct.toFixed(4) + '%';
+        if (lbar) lbar.style.width = lbull.toFixed(1) + '%';
+        if (ltrk) ltrk.classList.remove('is-muted');
+        if (lsub) {
+          lsub.innerText = lbull >= 62.0
+            ? 'Crowd leans long (downside liquidation fuel)'
+            : (lbull <= 42.0 ? 'Crowd leans short (upper squeeze fuel)' : 'Balanced crowd L/S positioning');
+        }
+      }
+    }
+
+    async function refreshEntryRegimeSnapshot() {
+      const bucket = Math.floor(Date.now() / 30000);
+      if (bucket === lastRegimeFetchBucket) return;
+      lastRegimeFetchBucket = bucket;
+      if (location.protocol.indexOf('http') !== 0) return;
+      const targetUrl = (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())
+        ? (ENTRY_LIVE_BASE + 'regime.json?v=' + bucket)
+        : ('./regime.json?v=' + bucket);
+      try {
+        const r = await fetch(targetUrl);
+        if (!r.ok) return;
+        const j = await r.json();
+        applyEntryRegimePayload(j);
+      } catch (e) {}
+    }
+
+    async function refreshEntryLiveData() {
+      const p = await fetchEntryPrice();
+      await fetchEntryLiveDepth(p);
+    }
+
     window.addEventListener('load', function () {
       hideMonitorOverlaysOnEntry();
       ensureEntryVideoPlays();
-      refreshEntryPrice();
+      refreshEntryLiveData();
+      refreshEntryRegimeSnapshot();
     });
     window.addEventListener('pageshow', function () {
       hideMonitorOverlaysOnEntry();
       ensureEntryVideoPlays();
+      refreshEntryLiveData();
+      refreshEntryRegimeSnapshot();
     });
-    setInterval(refreshEntryPrice, 10000);
+    setInterval(refreshEntryLiveData, 8000);
+    setInterval(refreshEntryRegimeSnapshot, 30000);
   </script>
 </body>
 </html>"""
 
         html_out = tpl.replace("__ENTRY_PRICE__", f"{price:,.2f}")
+        html_out = html_out.replace("__ENTRY_PRICE_RAW__", f"{price:.2f}")
+        html_out = html_out.replace("__ENTRY_SCAN_TS_JSON__", _json.dumps(ts_iso))
         html_out = html_out.replace("__ENTRY_MAGNET__", _html.escape(dom_magnet))
         html_out = html_out.replace("__ENTRY_REGIME__", _html.escape(regime_name))
         html_out = html_out.replace("__ENTRY_UTC__", _html.escape(utc_time_str))
         html_out = html_out.replace("__ENTRY_DATE__", _html.escape(date_str))
         html_out = html_out.replace("__ENTRY_SCAN_ID__", _html.escape(scan_id))
+
+        html_out = html_out.replace("__DEPTH_MID_LBL__", _html.escape(depth_mid_lbl))
+        html_out = html_out.replace("__DEPTH_BULL_LBL__", _html.escape(depth_bull_lbl))
+        html_out = html_out.replace("__DEPTH_BEAR_LBL__", _html.escape(depth_bear_lbl))
+        html_out = html_out.replace("__DEPTH_BULL_PCT__", f"{depth_bull_pct:.1f}")
+        html_out = html_out.replace("__DEPTH_MUTED_CLS__", "is-muted" if depth_muted else "")
+        html_out = html_out.replace("__DEPTH_SUB__", _html.escape(depth_sub))
+
+        html_out = html_out.replace("__FLOW_MID_LBL__", _html.escape(flow_mid_lbl))
+        html_out = html_out.replace("__FLOW_BULL_LBL__", _html.escape(flow_bull_lbl))
+        html_out = html_out.replace("__FLOW_BEAR_LBL__", _html.escape(flow_bear_lbl))
+        html_out = html_out.replace("__FLOW_BULL_PCT__", f"{flow_bull_pct:.1f}")
+        html_out = html_out.replace("__FLOW_MUTED_CLS__", "is-muted" if flow_muted else "")
+        html_out = html_out.replace("__PERP_NOTE__", _html.escape(perp_note))
+
+        html_out = html_out.replace("__LS_MID_LBL__", _html.escape(ls_mid_lbl))
+        html_out = html_out.replace("__LS_BULL_LBL__", _html.escape(ls_bull_lbl))
+        html_out = html_out.replace("__LS_BEAR_LBL__", _html.escape(ls_bear_lbl))
+        html_out = html_out.replace("__LS_BULL_PCT__", f"{ls_bull_pct:.1f}")
+        html_out = html_out.replace("__LS_MUTED_CLS__", "is-muted" if ls_muted else "")
+        html_out = html_out.replace("__LS_NOTE__", _html.escape(ls_note))
         return html_out
 
     def _render_text_page(self, data: Dict[str, Any]) -> str:

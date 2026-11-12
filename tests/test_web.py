@@ -108,9 +108,23 @@ class TestGeneratedSite(unittest.TestCase):
             'id="enter-monitor-btn"',
             'href="text.html"',
             'id="entry-data-slot"',
+            'id="entry-pressure-meter"',
+            "Bull vs. Bear Pressure Meter",
+            "data-api.binance.vision/api/v3/depth?symbol=BTCUSDT",
+            "Order-Book Depth",
+            "Aggressive Flow (24H CVD)",
+            "Crowd Leverage Skew (L/S)",
             "hideMonitorOverlaysOnEntry",
         ):
             self.assertIn(token, entry_html, f"Missing {token} in entry.html")
+
+        # Verify fallback honesty when ls_ratio_available is false on entry.html
+        import copy as _copy
+        no_ls_payload = _copy.deepcopy(self.payload)
+        no_ls_payload["metrics"]["ls_ratio_available"] = False
+        no_ls_payload["metrics"]["long_short_account_ratio"] = 0.0
+        no_ls_entry = WebGenerator(output_dir=self.tmp)._render_entry_page(no_ls_payload)
+        self.assertIn("DATA UNAVAILABLE", no_ls_entry)
         self.assertNotIn("cdn.tailwindcss.com", entry_html)
         self.assertNotIn("fonts.googleapis.com", entry_html)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, "assets", "media", "entry-hero.mp4")))
