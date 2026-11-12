@@ -36,8 +36,9 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertIn('data-scan-ts="%s"' % self.payload["timestamp"], self.index)
 
     def test_live_refresh_logic_present(self):
-        for token in ("refreshLiveScan", "sanitizeLiveNode", "STALE DATA", "renderAgeBanner"):
+        for token in ("refreshLiveScan", "sanitizeLiveNode", "LIVE SPOT FEED ACTIVE", "renderAgeBanner"):
             self.assertIn(token, self.index)
+        self.assertNotIn("STALE DATA", self.index)
 
     def test_price_feed_prefers_non_geoblocked_endpoint(self):
         self.assertLess(
@@ -83,15 +84,15 @@ class TestGeneratedSite(unittest.TestCase):
             "wb-buy", "wb-sell", "wb-clear", "panel-2", "panel-3", "verdict-guide", "verdict-1", "verdict-2",
             "Verdict 1 vs Verdict 2",
             "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
-            "BTC MAGNET MONITOR :: 5-REGIME RADAR", "Bidirectional Spot Liquidity Terminal",
-            "MODE: SPOT-ONLY SWING RADAR (NO LEVERAGE)", "quick-nav", "min-height: 44px",
+            "BTC MAGNET MONITOR :: 5-REGIME RADAR", "Bidirectional Liquidity Telemetry Terminal",
+            "MODE: 5-REGIME MAGNET RADAR (BIDIRECTIONAL)", "quick-nav", "min-height: 44px",
             "IS_NATIVE_APP", "LIVE_BASE", "serviceWorker", "AdMob", "index.html?desktop=1",
-            "Spot Signal:", "Spot Bidirectional Playbook:", "Spot Patience &amp; Hold Rules:",
-            "TIER", "EST.POOL", "[WARNING: TELEMETRY STALE &gt;30M]"
+            "Radar Signal:", "Bidirectional Magnet Playbook:", "Bidirectional Patience &amp; Risk Rules:",
+            "TIER", "EST.POOL", "p3-conf-fresh"
         ):
             self.assertIn(token, text_html)
 
-        self.assertIn("Verdict 2 &bull; Built-In Spot Engine", self.index)
+        self.assertIn("Verdict 2 &bull; Built-In Radar Engine", self.index)
         self.assertIn("window.location.replace('./entry.html'", self.index)
         self.assertIn("p.get('desktop') === '1'", self.index)
         self.assertIn('src="./assets/app-logo.png?v=9"', text_html)
@@ -105,6 +106,12 @@ class TestGeneratedSite(unittest.TestCase):
         for token in (
             'id="entry-hero-video"',
             'src="./assets/media/entry-hero.mp4"',
+            'id="entry-badger-video"',
+            'src="./assets/media/entry-badger.mp4"',
+            'id="verdict1-showcase"',
+            "Why &amp; How This App Helps You",
+            "Copy Telemetry for AI",
+            "toggleEntryAudio('entry-badger-video', 'entry-badger-sound-btn')",
             'id="enter-monitor-btn"',
             'href="text.html"',
             'id="entry-data-slot"',
@@ -128,6 +135,7 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertNotIn("cdn.tailwindcss.com", entry_html)
         self.assertNotIn("fonts.googleapis.com", entry_html)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, "assets", "media", "entry-hero.mp4")))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "assets", "media", "entry-badger.mp4")))
 
         def _strip_prompt_payloads(doc: str) -> str:
             cleaned = re.sub(r"<textarea[^>]*>.*?</textarea>", "", doc, flags=re.DOTALL | re.IGNORECASE)
@@ -144,7 +152,11 @@ class TestGeneratedSite(unittest.TestCase):
             ("regimes.html", regimes_html),
         ):
             visible = _strip_prompt_payloads(html_doc)
-            for jargon in ("MANDATE: DIBSE", "10% USDT", "10% BTC", "80% Core", "80% core", "Active Sandbox", "DIBSE"):
+            for jargon in (
+                "MANDATE: DIBSE", "10% USDT", "10% BTC", "80% Core", "80% core",
+                "Active Sandbox", "DIBSE", "NO LEVERAGE", "SPOT-ONLY",
+                "Spot-Only", "No Leverage", "WARNING: TELEMETRY STALE", "STALE DATA",
+            ):
                 self.assertNotIn(jargon, visible, f"{surface_name} visible HTML retained jargon {jargon!r}")
 
         for surface_name, html_doc in (("index.html", self.index), ("text.html", text_html)):
@@ -164,7 +176,7 @@ class TestGeneratedSite(unittest.TestCase):
             for banned_ind in ("20D EMA", "50D EMA", "200D SMA", "Daily ATR", "1H ATR", "ATR Compress"):
                 self.assertNotIn(banned_ind, html_doc, f"{surface_name} retained lagged indicator {banned_ind}")
 
-        self.assertIn("Bidirectional Spot Protocol", regimes_html)
+        self.assertIn("Bidirectional Liquidity Protocol", regimes_html)
         for banned_reg in ("20D EMA", "50D EMA", "200D SMA", "1% equity risk-budget"):
             self.assertNotIn(banned_reg, regimes_html)
 
@@ -195,7 +207,8 @@ class TestGeneratedSite(unittest.TestCase):
         sweep_payload["timestamp"] = "2020-01-01T00:00:00Z"
         sweep_html = gen._render_text_page(sweep_payload)
         self.assertIn("PIERCING / ACTIVE SWEEP", sweep_html)
-        self.assertIn("id=\"static-stale-banner\" style=\"display: block;\"", sweep_html)
+        self.assertIn('id="static-stale-banner" style="display: none;"', sweep_html)
+        self.assertNotIn("WARNING: TELEMETRY STALE", sweep_html)
 
     def test_manifest_includes_maskable_and_icons(self):
         with open(os.path.join(self.tmp, "manifest.json"), "r", encoding="utf-8") as fh:
@@ -367,7 +380,7 @@ class TestScalabilityAndNativeAd(unittest.TestCase):
                 "scheduleNextTextPoll",
                 "Math.floor(nowMs / 30000)",
                 "lastManualCheckMs + 25000",
-                "OVERDUE (${ageM}m old)",
+                "Scan ${ageM}m ago • next in",
                 "MagnetNativeAd",
                 "ca-app-pub-3940256099942544/2247696110",
                 "syncNativeAdSlot",
@@ -395,7 +408,7 @@ class TestScalabilityAndNativeAd(unittest.TestCase):
             for token in (
                 "scheduleNextScanPoll",
                 "Math.floor(lastAutoScanCheckMs / 30000)",
-                "OVERDUE (${ageMin}m old)",
+                "Scan ${ageMin}m ago • next in",
             ):
                 self.assertIn(token, index_html, f"Missing {token} in index.html")
             self.assertNotIn("?t=' + Date.now()", index_html)

@@ -2535,7 +2535,7 @@ self.addEventListener('fetch', (e) => {
         <span class="quick-glance-badge" style="background: rgba(255, 184, 0, 0.15); border-color: rgba(255, 184, 0, 0.4); color: #ffb800;">MANDATE</span>
       </div>
       <div class="card-plain-title">What should you do with your portfolio right now?</div>
-      <div class="card-plain-sub">Strict spot-only execution. Zero borrowed leverage, zero futures gambling, zero shorting.</div>
+      <div class="card-plain-sub">Strict discipline: wait for confirmed sweeps, size calmly to risk, and never chase crowded moves.</div>
 
       <!-- Action Box -->
       <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px;">

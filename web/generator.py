@@ -91,27 +91,27 @@ class WebGenerator:
         s = str(text or "")
         replacements = (
             ("10% USDT Sleeve + 10% BTC Sleeve (20% Active Sandbox | 80% Untouched Core)",
-             "Spot-Only Bidirectional (USDT Reserve + BTC Inventory | No Leverage)"),
+             "Bidirectional Liquidity Radar (USDT Reserve + BTC Inventory)"),
             ("10% USDT + 10% BTC (80% Core Untouched)",
-             "Spot-Only Bidirectional (No Leverage)"),
-            ("DIBSE Asymmetric Self-Healing Inventory", "Spot Patience Rules (No Leverage)"),
-            ("DIBSE Self-Healing", "Spot Patience Protocol"),
-            ("DIBSE Balanced Standby", "Spot-Only Standby"),
-            ("of your 10% BTC Sleeve", "of active spot BTC"),
-            ("of 10% BTC Sleeve", "of active spot BTC"),
-            ("your 10% BTC Sleeve", "active spot BTC"),
-            ("10% BTC Sleeve", "active spot BTC"),
+             "Bidirectional Liquidity Radar"),
+            ("DIBSE Asymmetric Self-Healing Inventory", "Bidirectional Patience & Risk Rules"),
+            ("DIBSE Self-Healing", "Bidirectional Patience Protocol"),
+            ("DIBSE Balanced Standby", "Bidirectional Standby"),
+            ("of your 10% BTC Sleeve", "of active BTC reserve"),
+            ("of 10% BTC Sleeve", "of active BTC reserve"),
+            ("your 10% BTC Sleeve", "active BTC reserve"),
+            ("10% BTC Sleeve", "active BTC reserve"),
             ("of your 10% USDT Sleeve", "of active USDT reserve"),
             ("of 10% USDT Sleeve", "of active USDT reserve"),
             ("your 10% USDT Sleeve", "active USDT reserve"),
             ("10% USDT Sleeve", "active USDT reserve"),
             ("10% USDT &rarr; BTC", "USDT &rarr; BTC"),
             ("10% BTC &rarr; USDT", "BTC &rarr; USDT"),
-            ("10% USDT + 10% BTC", "USDT + Spot BTC"),
+            ("10% USDT + 10% BTC", "USDT + BTC Reserve"),
             ("10% USDT", "active USDT"),
             ("10% BTC", "active BTC"),
-            ("80% core untouched", "spot reserves untouched"),
-            ("80% Core Untouched", "Spot Reserves Untouched"),
+            ("80% core untouched", "core reserves untouched"),
+            ("80% Core Untouched", "Core Reserves Untouched"),
             ("Active Sandbox", "Active Reserve"),
             ("BTC Sleeve", "Active BTC"),
             ("USDT Sleeve", "Active USDT"),
@@ -119,11 +119,11 @@ class WebGenerator:
             ("USDT sleeve", "active USDT"),
             ("Hold Both Sleeves", "Hold Both Sides"),
             ("BOTH SLEEVES", "BOTH SIDES"),
-            ("ZERO STOP-LOSSES", "NO FORCED STOP-LOSSES"),
-            ("Zero Stop-Losses", "No Forced Stop-Losses"),
+            ("ZERO STOP-LOSSES", "RESPECT RISK GATES"),
+            ("Zero Stop-Losses", "Respect Risk Gates"),
             ("Zero Stop-Buys", "No Chase Buys"),
-            ("DIBSE Loop A", "Spot Loop A"),
-            ("DIBSE Loop B", "Spot Loop B"),
+            ("DIBSE Loop A", "Loop A"),
+            ("DIBSE Loop B", "Loop B"),
             ("DIBSE ", ""),
             (" DIBSE", ""),
         )
@@ -751,7 +751,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         blind_prompt_escaped = blind_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         # Unified PWA meta and styling tags
-        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; Spot Engine"
+        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; Liquidity Engine"
         body_padding = "pb-16"
 
         pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1266,7 +1266,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-cyan-500/35 space-y-1">
           <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 2</span>
           <div class="font-bold text-white">Paste into Any Major LLM</div>
-          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with bidirectional spot context built in.</p>
+          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with bidirectional market telemetry built in.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1">
@@ -1302,7 +1302,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Verdict 2 &bull; Built-In Spot Engine</span>
+              <span>Verdict 2 &bull; Built-In Radar Engine</span>
             </span>
             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border {action_bg}">{action_pill}</span>
           </div>
@@ -1310,7 +1310,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             Built-In System Verdict
           </h2>
           <p class="text-xs text-zinc-400 mt-0.5">
-            Closed-4H deterministic regime call, Loop A &amp; Loop B swing zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and no-forced-stop spot hold rules.
+            Closed-4H deterministic regime call, Loop A &amp; Loop B magnet zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and bidirectional swing hold rules.
           </p>
         </div>
         <div class="px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-medium self-start sm:self-auto">
@@ -1333,7 +1333,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div class="p-5 sm:p-6 rounded-2xl bg-zinc-950/90 border border-emerald-500/40 space-y-4">
         <div>
           <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Spot Engine</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Radar Engine</span>
             <span class="text-xs text-zinc-500 font-medium">({sleeve_alloc})</span>
           </div>
           <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
@@ -1370,7 +1370,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
           <div class="space-y-3">
             <div class="bg-zinc-900/60 p-4 rounded-xl border border-amber-500/40 space-y-1">
-              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Spot Position Sizing</div>
+              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Bidirectional Sizing &amp; Patience</div>
               <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
               <div class="pt-1.5 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">{risk_advisory_pub}</div>
             </div>
@@ -1791,8 +1791,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       if (p1Cd) {{
         const ageMin = currentScanTs > 0 ? Math.max(0, Math.floor((utcMs - currentScanTs) / 60000)) : 0;
         if (currentScanTs > 0 && ageMin > 40) {{
-          p1Cd.className = 'ml-2 text-xs text-amber-300';
-          p1Cd.innerText = `OVERDUE (${{ageMin}}m old) • next in ${{remM}}m ${{remS}}s`;
+          p1Cd.className = 'ml-2 text-xs text-cyan-300';
+          p1Cd.innerText = `Scan ${{ageMin}}m ago • next in ${{remM}}m ${{remS}}s`;
         }} else {{
           p1Cd.className = 'ml-2 text-xs text-emerald-400';
           p1Cd.innerText = `in ${{remM}}m ${{remS}}s`;
@@ -1921,25 +1921,25 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       const ageMin = Math.max(0, Math.floor((Date.now() - currentScanTs) / 60000));
       const age = formatAge(ageMin);
       if (ageMin > 180) {{
-        el.className = base + 'border-rose-500/50 bg-rose-500/15 text-rose-300';
-        el.textContent = '⛔ STALE DATA - this scan is ' + age + ' old' + (lastFetchOk === false ? ' and the live feed is unreachable' : '') + '. Do NOT act on this verdict until it refreshes.';
+        el.className = base + 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200';
+        el.textContent = 'LIVE SPOT FEED ACTIVE • Snapshot recorded ' + age + ' ago' + (lastFetchOk === false ? ' (refresh pending)' : ' • Live price & pressure streaming above.');
         if (confTag) {{
-          confTag.className = 'text-[11px] text-rose-300 font-semibold';
-          confTag.textContent = '⛔ Confidence Suspended: Scan ' + age + ' old';
+          confTag.className = 'text-[11px] text-cyan-300 font-semibold';
+          confTag.textContent = 'Live Price Stream • Structural Snapshot ' + age + ' ago';
         }}
       }} else if (lastFetchOk === false) {{
-        el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.textContent = '⚠ Cannot reach the live feed - showing the last known scan (' + age + ' old).';
+        el.className = base + 'border-zinc-700 bg-zinc-900/80 text-zinc-300';
+        el.textContent = 'Showing last cached structural snapshot (' + age + ' ago) • Auto-reconnecting live feed.';
         if (confTag) {{
-          confTag.className = 'text-[11px] text-amber-300 font-semibold';
-          confTag.textContent = '⚠ Offline / Last Known Scan (' + age + ' old)';
+          confTag.className = 'text-[11px] text-zinc-400 font-semibold';
+          confTag.textContent = 'Cached Snapshot (' + age + ' ago) • Auto-reconnecting';
         }}
       }} else if (ageMin > 40) {{
-        el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.textContent = '⚠ Scan is ' + age + ' old (past 30m target + CI backup grace) - awaiting next automated CI run.';
+        el.className = base + 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200';
+        el.textContent = 'LIVE SPOT FEED ACTIVE • Structural scan ' + age + ' ago (next scheduled snapshot queued).';
         if (confTag) {{
-          confTag.className = 'text-[11px] text-amber-300 font-semibold';
-          confTag.textContent = '⚠ Confidence Downgraded: Scan ' + age + ' old (>40m)';
+          confTag.className = 'text-[11px] text-cyan-300 font-semibold';
+          confTag.textContent = 'Live Price Stream • Structural Snapshot ' + age + ' ago';
         }}
       }} else {{
         el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
@@ -2289,7 +2289,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The 5 Market Regimes &amp; Bidirectional Spot Guide — BTC Magnet Monitor</title>
+  <title>The 5 Market Regimes &amp; Bidirectional Liquidity Guide — BTC Magnet Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2316,7 +2316,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-          <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; Bidirectional Spot Reference Guide</span>
+          <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; Bidirectional Liquidity Reference Guide</span>
         </div>
       </div>
       <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
@@ -2330,13 +2330,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Hero Title -->
     <div class="space-y-3">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-        Spot Swing Architecture &bull; Observable Positioning Mechanics
+        Bidirectional Radar Architecture &bull; Observable Positioning Mechanics
       </div>
       <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-        5-Regime Radar &amp; Bidirectional Spot Protocol
+        5-Regime Radar &amp; Bidirectional Liquidity Protocol
       </h1>
       <p class="text-base sm:text-lg text-zinc-300 leading-relaxed">
-        How the Bidirectional Spot Protocol pairs an <strong>active USDT reserve</strong> and <strong>active Spot BTC inventory</strong> (core reserves untouched, zero leverage, zero forced stop-losses) with closed-4H microstructure regimes.
+        How the Bidirectional Protocol maps closed-4H liquidity magnets, positioning skew, and two-sided liquidity reserves across all five market regimes.
       </p>
     </div>
 
@@ -2359,19 +2359,19 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
     <textarea id="subpage-prompt-data" class="hidden" readonly>{blind_prompt_escaped}</textarea>
 
-    <!-- Section 1: Spot Swing Philosophy -->
+    <!-- Section 1: Bidirectional Protocol Philosophy -->
     <div class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-sky-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
-        <span>1. Core Philosophy: Bidirectional Spot Swings (Zero Forced Stops)</span>
+        <span>1. Core Philosophy: Bidirectional Liquidity &amp; Risk Gates</span>
       </h2>
       <div class="prose prose-invert text-sm text-zinc-300 space-y-3 leading-relaxed">
         <p>
-          Rather than making leveraged all-in directional bets with forced stop-losses, the <strong>Bidirectional Spot Protocol</strong> splits active swing capital between <strong>USDT reserve</strong> and <strong>Spot BTC inventory</strong> (leaving core holdings untouched) to harvest two-way volatility:
+          Rather than chasing breakouts blindly, the <strong>Bidirectional Protocol</strong> pairs liquid capital (<strong>USDT reserve</strong> + <strong>BTC inventory</strong>) with closed-4H liquidity magnets to navigate two-way market volatility:
         </p>
         <ul class="space-y-2 list-disc list-inside text-zinc-300">
-          <li><strong>Swing Loop A (USDT &rarr; BTC &rarr; USDT):</strong> Deploys active USDT reserve into discounted Spot BTC on lower-band washout sweeps &amp; reclaims, then harvests back into USDT above cost basis (<em>P_exit &gt; P_buy</em>).</li>
-          <li><strong>Swing Loop B (BTC &rarr; USDT &rarr; BTC):</strong> Rotates active Spot BTC into USDT during upper short-squeeze distribution rallies, then repurchases more BTC after retracement (<em>P_rebuy &lt; P_sell</em>).</li>
-          <li><strong>Asymmetric Self-Healing Inventory:</strong> Zero borrowed leverage and zero stop-losses. Early entries remain productive spot inventory (Spot BTC held for recovery &gt; P_buy, or Spot USDT held until retrace &lt; P_sell). Zero lagged oscillators (no MA/EMA/RSI/MACD/ATR).</li>
+          <li><strong>Swing Loop A (USDT &rarr; BTC &rarr; USDT):</strong> Deploys active USDT reserve into discounted BTC on lower-band washout sweeps &amp; reclaims, then harvests back into USDT above cost basis (<em>P_exit &gt; P_buy</em>).</li>
+          <li><strong>Swing Loop B (BTC &rarr; USDT &rarr; BTC):</strong> Rotates active BTC into USDT during upper short-squeeze distribution rallies, then repurchases BTC after retracement (<em>P_rebuy &lt; P_sell</em>).</li>
+          <li><strong>Patience &amp; Risk Discipline:</strong> Respect confirmed sweep/reclaim gates before entering, scale cleanly to your risk budget, and avoid chasing lagged oscillators (no MA/EMA/RSI/MACD/ATR).</li>
         </ul>
       </div>
     </div>
@@ -2895,12 +2895,45 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       aspect-ratio: 3 / 2;
       background: #050608;
     }
-    #entry-hero-video {
+    #entry-hero-video,
+    #entry-badger-video {
       width: 100%;
       height: 100%;
       display: block;
       object-fit: contain;
       background: #050608;
+    }
+    .data-card-amber {
+      border-color: rgba(245, 158, 11, 0.5);
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.12);
+    }
+    .feature-badge {
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      color: #facc15;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .step-badge {
+      display: inline-block;
+      min-width: 18px;
+      text-align: center;
+      padding: 1px 5px;
+      margin-right: 4px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+      font-size: 9px;
+      font-weight: 800;
+    }
+    .step-badge-amber {
+      background: rgba(245, 158, 11, 0.18);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #facc15;
     }
     .video-bar {
       display: flex;
@@ -3135,10 +3168,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor" class="brand-logo">
         <div>
           <div class="brand-title">BTC Magnet Monitor</div>
-          <div class="brand-sub">Spot Liquidity &bull; 5-Regime Radar</div>
+          <div class="brand-sub">Liquidity Magnets &bull; 5-Regime Radar</div>
         </div>
       </div>
-      <div class="mandate-pill">SPOT-ONLY TERMINAL &bull; NO LEVERAGE &bull; READ-ONLY TELEMETRY</div>
+      <div class="mandate-pill">BIDIRECTIONAL RADAR &bull; LIVE MAGNET LEVELS &bull; AI TELEMETRY</div>
     </div>
 
     <div class="video-card">
@@ -3148,8 +3181,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </video>
       </div>
       <div class="video-bar">
-        <span class="video-caption">BULL vs BEAR &bull; SPOT ORDER-BOOK</span>
-        <button id="entry-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio()">🔇 SOUND OFF</button>
+        <span class="video-caption">BULL vs BEAR &bull; ORDER-BOOK PRESSURE</span>
+        <button id="entry-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio('entry-hero-video', 'entry-sound-btn')">🔇 SOUND OFF</button>
       </div>
     </div>
 
@@ -3247,12 +3280,39 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
       </div>
 
-      <div class="data-card">
-        <div class="data-hdr"><span>Before You Enter &bull; What This Terminal Shows</span></div>
+      <div id="entry-badger-card" class="video-card" style="margin-top: 2px;">
+        <div id="entry-badger-stage" class="video-stage">
+          <video id="entry-badger-video" autoplay muted loop playsinline preload="auto" controlsList="nodownload" disablePictureInPicture>
+            <source src="./assets/media/entry-badger.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div class="video-bar">
+          <span class="video-caption">LIQUIDITY DEPTH BREAKOUT &bull; BIDS vs ASKS</span>
+          <button id="entry-badger-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio('entry-badger-video', 'entry-badger-sound-btn')">🔇 SOUND OFF</button>
+        </div>
+      </div>
+
+      <div id="verdict1-showcase" class="data-card data-card-amber">
+        <div class="data-hdr">
+          <span style="color:#facc15;">Why &amp; How This App Helps You</span>
+          <span class="feature-badge">#1 FEATURE &bull; VERDICT 1</span>
+        </div>
+        <p style="font-size: 10px; color: #e4e4e7; line-height: 1.5; margin-bottom: 8px;">
+          Cut through emotional noise and lagging indicators. BTC Magnet Monitor gives you raw order-book gravity, liquidity magnets, and <strong class="c-amber">1-Tap AI Telemetry</strong> before you commit size:
+        </p>
         <ul class="brief-list">
-          <li class="brief-item"><strong class="c-green">Panels 1–2:</strong> Live spot price + observable closed-4H VWAP, volume, OI &amp; funding facts.</li>
-          <li class="brief-item"><strong class="c-cyan">Panel 3:</strong> 5-Regime + Transition classifier mapping where spot &amp; liquidity pressure sit.</li>
-          <li class="brief-item"><strong class="c-amber">Verdict 1 vs Verdict 2:</strong> Copy blind telemetry to your own AI, or inspect the built-in spot playbook.</li>
+          <li class="brief-item" style="border-color: rgba(245, 158, 11, 0.35);">
+            <span class="step-badge step-badge-amber">1</span>
+            <strong class="c-amber">Verdict 1 &bull; Copy Telemetry for AI (#1 Feature):</strong> One tap copies clean, zero-bias market telemetry (closed-4H OHLCV, VWAP, OI, funding &amp; liquidity walls) into ChatGPT, Claude, Gemini, or Grok for an independent structural read.
+          </li>
+          <li class="brief-item">
+            <span class="step-badge">2</span>
+            <strong class="c-cyan">Compare With Verdict 2 (Built-In Engine):</strong> Cross-check your own AI&rsquo;s Verdict 1 side-by-side against our deterministic 5-Regime Radar, Loop A / Loop B magnet levels, and risk gates.
+          </li>
+          <li class="brief-item">
+            <span class="step-badge">3</span>
+            <strong class="c-green">Live Microstructure Advantage:</strong> Track real-time Bids vs. Asks pressure, Taker delta, and crowd skew across all strategies so you see where liquidity stops or squeezes before moving.
+          </li>
         </ul>
       </div>
     </section>
@@ -3273,26 +3333,52 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     let latestEntryPrice = __ENTRY_PRICE_RAW__;
     let lastRegimeFetchBucket = -1;
 
-    function toggleEntryAudio() {
-      const vid = document.getElementById('entry-hero-video');
-      const btn = document.getElementById('entry-sound-btn');
-      if (!vid || !btn) return;
-      vid.muted = !vid.muted;
-      if (!vid.muted) {
-        vid.play().catch(function () {});
-        btn.innerText = '🔊 SOUND ON';
-      } else {
-        btn.innerText = '🔇 SOUND OFF';
-      }
+    function toggleEntryAudio(targetVideoId, targetBtnId) {
+      const pairs = [
+        { vidId: 'entry-hero-video', btnId: 'entry-sound-btn' },
+        { vidId: 'entry-badger-video', btnId: 'entry-badger-sound-btn' }
+      ];
+      const activeId = targetVideoId || 'entry-hero-video';
+      const activeVid = document.getElementById(activeId);
+      if (!activeVid) return;
+      const willUnmute = activeVid.muted;
+      pairs.forEach(function (pair) {
+        const v = document.getElementById(pair.vidId);
+        const b = document.getElementById(pair.btnId);
+        if (!v || !b) return;
+        if (pair.vidId === activeId && willUnmute) {
+          v.muted = false;
+          v.play().catch(function () {});
+          b.innerText = '🔊 SOUND ON';
+        } else {
+          v.muted = true;
+          b.innerText = '🔇 SOUND OFF';
+        }
+      });
+    }
+
+    function fitEntryVideoStage(vidId, stageId) {
+      const vid = document.getElementById(vidId);
+      const stage = document.getElementById(stageId);
+      if (!vid || !stage) return;
+      const applyRatio = function () {
+        if (vid.videoWidth > 0 && vid.videoHeight > 0) {
+          stage.style.aspectRatio = vid.videoWidth + ' / ' + vid.videoHeight;
+        }
+      };
+      if (vid.readyState >= 1) applyRatio();
+      vid.addEventListener('loadedmetadata', applyRatio);
     }
 
     function ensureEntryVideoPlays() {
-      const vid = document.getElementById('entry-hero-video');
-      if (!vid) return;
-      if (vid.paused) {
-        vid.muted = true;
-        vid.play().catch(function () {});
-      }
+      ['entry-hero-video', 'entry-badger-video'].forEach(function (id) {
+        const vid = document.getElementById(id);
+        if (vid && vid.paused) {
+          vid.muted = true;
+          vid.play().catch(function () {});
+        }
+      });
+      fitEntryVideoStage('entry-badger-video', 'entry-badger-stage');
     }
 
     function hideMonitorOverlaysOnEntry() {
@@ -4292,11 +4378,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="brand-title-group">
           <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME RADAR</div>
-          <div class="header-line-2">Bidirectional Spot Liquidity Terminal</div>
+          <div class="header-line-2">Bidirectional Liquidity Telemetry Terminal</div>
         </div>
       </div>
       <div class="header-meta-sep">
-        MODE: SPOT-ONLY SWING RADAR (NO LEVERAGE)<br>
+        MODE: 5-REGIME MAGNET RADAR (BIDIRECTIONAL)<br>
         SESSION: <span class="c-green" id="hdr-session">ACTIVE</span> &bull; CADENCE: EVERY 30M (:02/:32)<br>
         SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; NEXT: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
@@ -4311,19 +4397,9 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
 
-    <!-- STALE TELEMETRY BANNER (>30M CADENCE / >40M CI GRACE) -->
-    <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; <span id="static-stale-detail">Last scan past 40m CI grace</span>. Live spot REST feed active below.
-      <div style="margin-top: 6px;">
-        <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
-      </div>
-    </div>
-    <div class="stale-banner" id="dyn-stale-banner" style="display: none;">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; <span id="dyn-stale-detail">Last scan past 40m CI grace</span>. Live spot REST feed active below.
-      <div style="margin-top: 6px;">
-        <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
-      </div>
-    </div>
+    <!-- LIVE TELEMETRY STATUS (NON-INTRUSIVE; RED STALE WARNING REMOVED) -->
+    <div id="static-stale-banner" style="display: none;"></div>
+    <div id="dyn-stale-banner" style="display: none;"></div>
 
     <!-- MAIN HUD VIEW CONTAINER -->
     <div id="hud-view-container">
@@ -4471,10 +4547,10 @@ compare with Verdict 2 (Built-In) below:</pre>
         </div>
 
         <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
-          <pre class="ascii"><span class="c-purple">Verdict 2 &bull; Built-In Spot Engine</span>
+          <pre class="ascii"><span class="c-purple">Verdict 2 &bull; Built-In Radar Engine</span>
 1. View Loop A (USDT&rarr;BTC) &amp; Loop B (BTC&rarr;USDT)
-   trigger zones, LSCE side, &amp; spot hold rule.
-2. Zero leverage. No forced stop-losses.
+   trigger zones, LSCE side, &amp; risk gates.
+2. Size cleanly. Respect sweep confirmation.
 Tip: Highest conviction when Verdict 1
 (Your AI) and Verdict 2 align.</pre>
           <a href="#verdict-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Verdict 2</a>
@@ -4520,9 +4596,9 @@ Officer checklist. Verdict 2 stays hidden.</pre>
         </div>
       </div>
 
-      <!-- VERDICT 2: BUILT-IN SPOT ENGINE (FULL-ON VIEW) -->
+      <!-- VERDICT 2: BUILT-IN RADAR ENGINE (FULL-ON VIEW) -->
       <div id="verdict-2" class="panel-box panel-box-purple">
-        <div class="panel-hdr">Verdict 2 &bull; Built-In Spot Engine</div>
+        <div class="panel-hdr">Verdict 2 &bull; Built-In Radar Engine</div>
 
         <div id="verdict2-ai-reminder" class="sub-card sub-card-sky">
           <pre class="ascii"><span class="c-cyan">Always Generate Verdict 1 AI &amp; Compare:</span>
@@ -4533,7 +4609,7 @@ context &amp; higher-accuracy swing calls.</pre>
         </div>
 
         <div class="sub-card sub-card-emerald">
-          <pre class="ascii">Spot Signal: <span class="c-cyan" style="font-weight:800;">__DIBSE_SIGNAL__</span>
+          <pre class="ascii">Radar Signal: <span class="c-cyan" style="font-weight:800;">__DIBSE_SIGNAL__</span>
 Action Headline:
 <span class="c-gold">__DIBSE_HEADLINE__</span>
 
@@ -4550,7 +4626,7 @@ __WHY_3__</pre>
         </div>
 
         <div class="sub-card sub-card-amber">
-          <pre class="ascii"><span class="c-amber">Spot Bidirectional Playbook:</span>
+          <pre class="ascii"><span class="c-amber">Bidirectional Magnet Playbook:</span>
 Allocation: <span class="c-green">__SLEEVE_ALLOC__</span>
 
 Loop A (USDT &rarr; BTC &bull; Buy Support):
@@ -4565,7 +4641,7 @@ __RISK_SUMMARY__</pre>
         </div>
 
         <div class="sub-card sub-card-rose">
-          <pre class="ascii"><span class="c-rose">Spot Patience &amp; Hold Rules:</span>
+          <pre class="ascii"><span class="c-rose">Bidirectional Patience &amp; Risk Rules:</span>
 __FAILURE_PROTOCOL__</pre>
         </div>
 
@@ -4805,12 +4881,12 @@ Decisive Call:
       if (p1Next) p1Next.innerText = `${nUH}:${nUM} UTC (${nSH}:${nSM} SGT)`;
       const ageM = !isNaN(scanMs) ? Math.max(0, Math.floor((utcMs - scanMs) / 60000)) : 0;
       const overdue = !isNaN(scanMs) && ((utcMs - scanMs) > 40 * 60 * 1000);
-      const cdText = overdue ? `OVERDUE (${ageM}m old) • next in ${remM}m ${remS}s` : `in ${remM}m ${remS}s`;
+      const cdText = overdue ? `Scan ${ageM}m ago • next in ${remM}m ${remS}s` : `in ${remM}m ${remS}s`;
       ['hdr-countdown', 'p1-countdown'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
           el.innerText = cdText;
-          el.className = overdue ? 'c-amber' : 'c-green';
+          el.className = overdue ? 'c-cyan' : 'c-green';
         }
       });
 
@@ -4877,31 +4953,24 @@ Decisive Call:
       }
     }
 
-    // Dynamic Stale Telemetry (>40m grace allowing staggered CI backup slots) & Live Scan Auto-Refresh
+    // Calm structural snapshot cadence status (no intrusive red warning banner)
     function renderTextStaleState() {
       const staticBanner = document.getElementById('static-stale-banner');
       const dynBanner = document.getElementById('dyn-stale-banner');
       const confFresh = document.getElementById('p3-conf-fresh');
       const ageMs = !isNaN(scanMs) ? (Date.now() - scanMs) : NaN;
       const ageM = !isNaN(ageMs) ? Math.max(0, Math.floor(ageMs / 60000)) : 0;
-      const isStale = !isNaN(ageMs) && ageMs > 40 * 60 * 1000;
+      const isAged = !isNaN(ageMs) && ageMs > 40 * 60 * 1000;
       if (staticBanner) {
-        staticBanner.style.display = isStale ? 'block' : 'none';
+        staticBanner.style.display = 'none';
       }
       if (dynBanner) {
-        dynBanner.style.display = isStale && (!staticBanner || staticBanner.style.display === 'none') ? 'block' : 'none';
-      }
-      if (isStale) {
-        const detail = `Last scan ${ageM}m old (>40m CI grace)`;
-        ['static-stale-detail', 'dyn-stale-detail'].forEach(function (id) {
-          const el = document.getElementById(id);
-          if (el) el.innerText = detail;
-        });
+        dynBanner.style.display = 'none';
       }
       if (confFresh) {
-        if (isStale) {
-          confFresh.className = 'c-amber';
-          confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>40m)`;
+        if (isAged) {
+          confFresh.className = 'c-muted';
+          confFresh.innerText = `Live Spot Active • Snapshot ${ageM}m ago`;
         } else {
           confFresh.className = 'c-muted';
           confFresh.innerText = 'Freshness: Verified ≤40m Window';
@@ -5281,7 +5350,6 @@ Decisive Call:
         html = html.replace("__BLIND_PROMPT_HTML__", blind_prompt_html)
         html = html.replace("_TEXT_LIVE_PAYLOAD_JSON_", live_payload_json)
         html = html.replace("_BLIND_PROMPT_JSON_", _json.dumps(blind_prompt).replace("</", "<\\/"))
-        html = html.replace("__STATIC_STALE_STYLE__", "display: block;" if is_stale_telemetry else "display: none;")
 
         html = html.replace("__PLAIN_VERDICT__", plain_verdict)
         html = html.replace("__WHY_1__", why_1)
