@@ -26,9 +26,6 @@ def _make_sample_inputs(
         price=price,
         daily_vwap=daily_vwap,
         weekly_vwap=74195.38,
-        ema_20d=77435.91,
-        ema_50d=78906.57,
-        ma_200d=73172.88,
         spot_vol_24h=16007.12,
         spot_vol_ma20=14501.22,
         spot_vol_ratio=1.10,
@@ -45,8 +42,6 @@ def _make_sample_inputs(
         funding_rate=0.000066,
         funding_rate_annualized=7.27,
         futures_basis_annualized=basis,
-        atr=435.15,
-        atr_compression_pct=76.1,
         price_change_1h_pct=-0.10,
         price_change_24h_pct=-1.17,
         long_short_account_ratio=ls_ratio,
@@ -56,7 +51,10 @@ def _make_sample_inputs(
         swing_low_4h=72727.27,
         swing_high_4h=74474.00,
         base_floor=72727.27,
+        base_ceiling=74474.00,
         capitulation_wick_low=72727.27,
+        euphoria_wick_high=74474.00,
+        closed_4h_bar_close_time="2026-11-11T12:00:00+00:00",
         data_quality="LIVE",
         spot_data_source="Binance Public Market-Data REST (data-api.binance.vision/api/v3 Live Klines & Depth)",
         futures_data_source="OKX Live Public Stats & Deribit/Kraken Perps",
@@ -66,13 +64,12 @@ def _make_sample_inputs(
         ls_ratio_available=ls_avail,
         oi_history_available=oi_hist_ok,
         ls_ratio_percentile_72h=54.2 if ls_avail else None,
-        atr_percentile_72h=32.5,
     )
     clusters = [
         LiquidationCluster(
             price_level=73900.0,
             distance_pct=0.53,
-            distance_atr=0.90,
+            distance_atr=None,
             estimated_vol_usd=18500000.0,
             side="upper",
             cluster_type="Modeled Short Liquidity Pool (Algorithmic Estimate)",
@@ -80,7 +77,7 @@ def _make_sample_inputs(
         LiquidationCluster(
             price_level=73450.0,
             distance_pct=0.08,
-            distance_atr=0.14,
+            distance_atr=None,
             estimated_vol_usd=72400000.0,
             side="lower",
             cluster_type="Modeled Long Liquidity Pool (Algorithmic Estimate)",
@@ -163,13 +160,30 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
             self.assertIn(px_str, full_prompt)
             self.assertIn(px_str, blind_prompt)
 
-        # Blind prompt avoids anchoring on engine verdict/sizing while keeping Modeled Estimate tags
+        # Blind prompt avoids anchoring on engine verdict/sizing while enforcing DIBSE & Modeled Estimate tags
         self.assertIn("(Modeled Estimate)", blind_prompt)
+        self.assertIn("DIBSE BLIND SPOT TELEMETRY AUDIT", blind_prompt)
+        self.assertIn("5-REGIME RADAR REFERENCE DEFINITIONS", blind_prompt)
+        self.assertIn("INSTITUTIONAL RISK OFFICER", blind_prompt)
+        self.assertIn("LOOP A", blind_prompt)
+        self.assertIn("LOOP B", blind_prompt)
+        self.assertIn("[ACTIVE INVENTORY WATERMARKS]:", blind_prompt)
         self.assertIn("SINGLE-VENUE", blind_prompt.upper() + " " + payload["metrics"]["oi_scope"].upper())
+        self.assertNotIn("DIBSE ENGINE CALL", blind_prompt)
         self.assertNotIn("EXECUTIVE TRADING DIRECTIVE", blind_prompt)
         self.assertNotIn("Recommend Cash Deploy", blind_prompt)
-        self.assertIn("EXECUTIVE TRADING DIRECTIVE", full_prompt)
+        for banned in ("20D EMA", "50D EMA", "200D SMA", "1H ATR", "ATR Compression"):
+            self.assertNotIn(banned, blind_prompt)
+        self.assertIn("[DIBSE ENGINE CALL & BIDIRECTIONAL SLEEVE DIRECTIVE]:", full_prompt)
         self.assertIn("(Modeled Estimate)", full_prompt)
+        self.assertIn('id="copy-blind-btn"', index_html)
+        self.assertIn('id="copy-blind-btn"', text_html)
+        self.assertIn('id="method2-ai-reminder"', index_html)
+        self.assertIn('id="method2-ai-reminder"', text_html)
+        self.assertIn('id="wb-details"', index_html)
+        self.assertIn('id="wb-details"', text_html)
+        self.assertNotIn('id="copy-prompt-btn"', index_html)
+        self.assertNotIn('id="copy-prompt-btn"', text_html)
 
         # T2 & T5 fixes in text.html
         self.assertIn('id="live-24h-change"', text_html)
@@ -214,8 +228,12 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
             gen.generate(payload)
             with open(os.path.join(tmp, "text.html"), encoding="utf-8") as f:
                 text_html = f.read()
-        self.assertIn("N/A (Fallback)", text_html)
-        self.assertIn("Unavailable (Fallback)", text_html)
+            with open(os.path.join(tmp, "index.html"), encoding="utf-8") as f:
+                index_html = f.read()
+            blind_prompt = gen._build_blind_llm_prompt(payload)
+        self.assertGreaterEqual(text_html.count("DATA UNAVAILABLE"), 2)
+        self.assertGreaterEqual(index_html.count("DATA UNAVAILABLE"), 2)
+        self.assertIn("DATA UNAVAILABLE", blind_prompt)
 
     def test_text_auto_refresh_and_workflow_backup_schedule(self):
         metrics, clusters = _make_sample_inputs()

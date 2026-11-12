@@ -44,17 +44,17 @@ class MarketDataFetcher:
         current_price = float(ticker_data["lastPrice"])
         price_change_24h_pct = float(ticker_data["priceChangePercent"])
 
-        # 2. Spot Daily Klines (200 days for 200D MA, 50D EMA, 20D EMA, Vol MA)
+        # 2. Spot Daily Klines (60 closed days for 20D Spot Vol Baseline & 7D/14D Spot CVD — zero MA/EMA)
         daily_klines = self._get_json([
             "https://data-api.binance.vision/api/v3/klines",
             "https://api.binance.com/api/v3/klines"
         ], {
             "symbol": "BTCUSDT",
             "interval": "1d",
-            "limit": 200
+            "limit": 60
         })
 
-        # 3. Spot 4H Klines (for swing points, local structure, and weekly VWAP)
+        # 3. Spot 4H Klines (closed bars via [:-1] per DIBSE Rule 6)
         four_h_klines = self._get_json([
             "https://data-api.binance.vision/api/v3/klines",
             "https://api.binance.com/api/v3/klines"
@@ -64,7 +64,7 @@ class MarketDataFetcher:
             "limit": 60
         })
 
-        # 4. Spot 1H Klines (for ATR, daily VWAP, recent price changes)
+        # 4. Spot 1H Klines (daily VWAP, closed 24h spike wicks, Spot CVD)
         one_h_klines = self._get_json([
             "https://data-api.binance.vision/api/v3/klines",
             "https://api.binance.com/api/v3/klines"
@@ -73,6 +73,12 @@ class MarketDataFetcher:
             "interval": "1h",
             "limit": 100
         })
+
+        closed_daily = daily_klines[:-1] if len(daily_klines) >= 2 else daily_klines
+        closed_4h = four_h_klines[:-1] if len(four_h_klines) >= 2 else four_h_klines
+        closed_1h = one_h_klines[:-1] if len(one_h_klines) >= 2 else one_h_klines
+        if len(closed_4h) < 6 or len(closed_1h) < 2:
+            raise RuntimeError("Insufficient closed 4H/1H bar history from spot exchange.")
 
         # 5. Order Book Depth Ratio (Bids vs Asks within ±1.5% of current price)
         depth_data = self._get_json([
@@ -89,45 +95,43 @@ class MarketDataFetcher:
         # 6. Futures Metrics (Funding, OI, Basis, Perp CVD) - Real exchanges only, zero fabricated defaults
         fut = self._fetch_futures_data(current_price)
 
-        # Technical Indicators calculation
-        daily_closes = [float(k[4]) for k in daily_klines]
-        daily_volumes = [float(k[5]) for k in daily_klines]
-        # Strict data integrity: never substitute a made-up value for the 200-day average.
-        if len(daily_closes) < 200:
+        # Empirical Volume & Anchors (DIBSE Rule 4: zero MA/EMA/RSI/MACD/ATR; Rule 6: closed 4H bars klines[:-1])
+        closed_daily_vols = [float(k[5]) for k in closed_daily]
+        if len(closed_daily_vols) < 20:
             raise RuntimeError(
-                f"Insufficient daily history for 200D MA: need 200 closes, got {len(daily_closes)}"
+                f"Insufficient closed daily volume history for 20D baseline: got {len(closed_daily_vols)}"
             )
-        ma_200d = sum(daily_closes[-200:]) / 200
-        ema_20d = self._calc_ema(daily_closes, 20)
-        ema_50d = self._calc_ema(daily_closes, 50)
-
+        vol_slice_20d = closed_daily_vols[-20:]
         spot_vol_24h = float(ticker_data["volume"])
-        vol_slice_20d = daily_volumes[-21:-1] if len(daily_volumes) >= 21 else daily_volumes
-        spot_vol_ma20 = (sum(vol_slice_20d) / len(vol_slice_20d)) if vol_slice_20d else spot_vol_24h
+        spot_vol_ma20 = sum(vol_slice_20d) / len(vol_slice_20d)
         spot_vol_ratio = (spot_vol_24h / spot_vol_ma20) if spot_vol_ma20 > 0 else 1.0
 
         daily_vwap = self._calc_vwap_from_midnight(one_h_klines)
-        weekly_vwap = self._calc_vwap_from_monday(four_h_klines)
-        atr, atr_compression_pct, atr_pct_72h = self._calc_atr(one_h_klines, period=14)
+        weekly_vwap = self._calc_vwap_from_monday(closed_4h)
 
-        price_1h_ago = float(one_h_klines[-2][4]) if len(one_h_klines) >= 2 else current_price
-        price_change_1h_pct = ((current_price - price_1h_ago) / price_1h_ago) * 100
+        last_closed_1h_close = float(closed_1h[-1][4])
+        price_change_1h_pct = ((current_price - last_closed_1h_close) / last_closed_1h_close) * 100 if last_closed_1h_close > 0 else 0.0
 
-        spot_cvd_ratio, spot_cvd_7d, spot_cvd_14d = self._calc_spot_cvd(daily_klines, one_h_klines)
+        spot_cvd_ratio, spot_cvd_7d, spot_cvd_14d = self._calc_spot_cvd(closed_daily, closed_1h)
 
-        swing_low_4h = min(float(k[3]) for k in four_h_klines[-6:])
-        swing_high_4h = max(float(k[2]) for k in four_h_klines[-6:])
-        base_floor = min(float(k[3]) for k in four_h_klines[-18:])
-        capitulation_wick_low = min(float(k[3]) for k in one_h_klines[-24:])
+        swing_low_4h = min(float(k[3]) for k in closed_4h[-6:])
+        swing_high_4h = max(float(k[2]) for k in closed_4h[-6:])
+        base_floor = min(float(k[3]) for k in closed_4h[-18:])
+        base_ceiling = max(float(k[2]) for k in closed_4h[-18:])
+        capitulation_wick_low = min(float(k[3]) for k in closed_1h[-24:])
+        euphoria_wick_high = max(float(k[2]) for k in closed_1h[-24:])
+
+        closed_4h_close_ms = int(closed_4h[-1][6]) if len(closed_4h[-1]) > 6 else 0
+        closed_4h_close_iso = (
+            datetime.datetime.fromtimestamp(closed_4h_close_ms / 1000.0, tz=datetime.timezone.utc).isoformat()
+            if closed_4h_close_ms > 0 else None
+        )
         current_oi = fut["current_oi"]
 
         metrics = MarketMetrics(
             price=current_price,
             daily_vwap=daily_vwap,
             weekly_vwap=weekly_vwap,
-            ema_20d=ema_20d,
-            ema_50d=ema_50d,
-            ma_200d=ma_200d,
             spot_vol_24h=spot_vol_24h,
             spot_vol_ma20=spot_vol_ma20,
             spot_vol_ratio=spot_vol_ratio,
@@ -144,8 +148,6 @@ class MarketDataFetcher:
             funding_rate=fut["funding_rate"],
             funding_rate_annualized=fut["funding_ann"],
             futures_basis_annualized=fut["basis_ann"],
-            atr=atr,
-            atr_compression_pct=atr_compression_pct,
             price_change_1h_pct=price_change_1h_pct,
             price_change_24h_pct=price_change_24h_pct,
             long_short_account_ratio=fut["ls_ratio"],
@@ -155,9 +157,12 @@ class MarketDataFetcher:
             swing_low_4h=swing_low_4h,
             swing_high_4h=swing_high_4h,
             base_floor=base_floor,
+            base_ceiling=base_ceiling,
             capitulation_wick_low=capitulation_wick_low,
+            euphoria_wick_high=euphoria_wick_high,
+            closed_4h_bar_close_time=closed_4h_close_iso,
             data_quality="LIVE",
-            spot_data_source="Binance Public Market-Data REST (data-api.binance.vision/api/v3 Live Klines & Depth)",
+            spot_data_source="Binance Public Market-Data REST (data-api.binance.vision/api/v3 Closed 4H/1H Klines & L2 Depth)",
             futures_data_source=fut["futures_source"],
             etf_net_inflow_m=None,      # Not fabricated: set to None unless verified source wired
             whale_inflow_proxy=None,    # Not fabricated: set to None unless verified source wired
@@ -165,10 +170,9 @@ class MarketDataFetcher:
             ls_ratio_available=fut["ls_ratio_available"],
             oi_history_available=fut["oi_history_available"],
             ls_ratio_percentile_72h=fut.get("ls_ratio_percentile_72h"),
-            atr_percentile_72h=atr_pct_72h,
         )
 
-        clusters = self._calc_liquidation_clusters(current_price, atr, four_h_klines, current_oi)
+        clusters = self._calc_liquidation_clusters(current_price, closed_4h, current_oi)
         return metrics, clusters
 
     @staticmethod
@@ -207,9 +211,10 @@ class MarketDataFetcher:
             oi_72h = float(oi_hist[0]["sumOpenInterest"]) if len(oi_hist) >= 72 else current_oi
 
             fapi_klines = self._get_json(["https://fapi.binance.com/fapi/v1/klines"], {
-                "symbol": "BTCUSDT", "interval": "1h", "limit": 72
+                "symbol": "BTCUSDT", "interval": "1h", "limit": 73
             })
-            perp_slope, perp_trend = self._calc_perp_cvd(fapi_klines)
+            closed_fapi = fapi_klines[:-1] if len(fapi_klines) >= 2 else fapi_klines
+            perp_slope, perp_trend = self._calc_perp_cvd(closed_fapi)
 
             ls_data = self._get_json(["https://fapi.binance.com/futures/data/globalLongShortAccountRatio"], {
                 "symbol": "BTCUSDT", "period": "1h", "limit": 72
@@ -392,15 +397,6 @@ class MarketDataFetcher:
         # If all fail: strictly fail without fabricating fake data
         raise RuntimeError(f"Data Integrity Failure: All futures endpoints failed ({'; '.join(errors)})")
 
-    def _calc_ema(self, series: List[float], period: int) -> float:
-        if not series:
-            return 0.0
-        alpha = 2 / (period + 1)
-        ema = series[0]
-        for val in series[1:]:
-            ema = alpha * val + (1 - alpha) * ema
-        return ema
-
     def _calc_vwap_from_midnight(self, klines_1h: List[List[Any]]) -> float:
         now = datetime.datetime.now(datetime.timezone.utc)
         midnight_utc = datetime.datetime(now.year, now.month, now.day, tzinfo=datetime.timezone.utc)
@@ -446,31 +442,6 @@ class MarketDataFetcher:
             return cum_pv / cum_vol
         return float(klines_4h[-1][4])
 
-    def _calc_atr(self, klines_1h: List[List[Any]], period: int = 14) -> Tuple[float, float, Optional[float]]:
-        trs = []
-        for i in range(1, len(klines_1h)):
-            high = float(klines_1h[i][2])
-            low = float(klines_1h[i][3])
-            prev_close = float(klines_1h[i-1][4])
-            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
-            trs.append(tr)
-
-        if len(trs) < period:
-            return 500.0, 0.0, None
-
-        recent_atr = sum(trs[-period:]) / period
-        peak_tr = max(trs[-72:]) if len(trs) >= 72 else max(trs)
-        peak_atr = max(peak_tr * 0.8, recent_atr)
-        compression_pct = max(0.0, ((peak_atr - recent_atr) / peak_atr) * 100) if peak_atr > 0 else 0.0
-
-        rolling_atrs = [
-            sum(trs[j - period:j]) / period
-            for j in range(period, len(trs) + 1)
-        ]
-        atr_pct_72h = self._calc_percentile(rolling_atrs[-72:], recent_atr)
-
-        return recent_atr, compression_pct, atr_pct_72h
-
     def _calc_spot_cvd(self, daily_klines: List[List[Any]], one_h_klines: List[List[Any]]) -> Tuple[float, float, float]:
         taker_buy_24h = sum(float(k[9]) for k in one_h_klines[-24:])
         total_vol_24h = sum(float(k[5]) for k in one_h_klines[-24:])
@@ -503,17 +474,16 @@ class MarketDataFetcher:
     def _calc_liquidation_clusters(
         self,
         current_price: float,
-        atr: float,
-        four_h_klines: List[List[Any]],
+        closed_4h: List[List[Any]],
         total_oi: float
     ) -> List[LiquidationCluster]:
         """
-        Derives algorithmic estimated leverage concentration zones.
-        Simulates standard leverage distribution (100x, 50x, 25x, 10x) anchored to 4H swing extremes.
+        Derives algorithmic estimated leverage concentration zones from closed 4H klines[:-1].
+        Uses empirical price-proportional binning (~0.15% spot tick step; zero ATR smoothing).
         Explicitly classified as Modeled Liquidity Pools, not verified private exchange orders.
         """
-        recent_highs = [float(k[2]) for k in four_h_klines[-40:]]
-        recent_lows = [float(k[3]) for k in four_h_klines[-40:]]
+        recent_highs = [float(k[2]) for k in closed_4h[-40:]]
+        recent_lows = [float(k[3]) for k in closed_4h[-40:]]
 
         tiers = [
             (100, 0.008, 0.15),
@@ -522,7 +492,7 @@ class MarketDataFetcher:
             (10, 0.095, 0.20),
         ]
 
-        bin_size = max(100.0, round(atr * 0.25, -1))
+        bin_size = max(100.0, round(current_price * 0.0015, -1))
         upper_bins: Dict[float, float] = {}
         lower_bins: Dict[float, float] = {}
 
@@ -562,30 +532,28 @@ class MarketDataFetcher:
         sorted_upper = [item for item in sorted(upper_bins.items(), key=lambda x: x[0]) if item[0] > current_price]
         for p, vol in sorted_upper[:2]:
             dist_pct = ((p - current_price) / current_price) * 100
-            dist_atr = (p - current_price) / max(atr, 1.0)
             clusters.append(
                 LiquidationCluster(
                     price_level=round(p, 2),
                     distance_pct=round(dist_pct, 2),
-                    distance_atr=round(dist_atr, 2),
                     estimated_vol_usd=round(vol, 0),
                     side="upper",
-                    cluster_type="Modeled Short Liquidity Pool (Algorithmic Estimate)"
+                    cluster_type="Modeled Short Liquidity Pool (Algorithmic Estimate)",
+                    distance_atr=None,
                 )
             )
 
         sorted_lower = [item for item in sorted(lower_bins.items(), key=lambda x: x[0], reverse=True) if item[0] < current_price]
         for p, vol in sorted_lower[:2]:
             dist_pct = ((current_price - p) / current_price) * 100
-            dist_atr = (current_price - p) / max(atr, 1.0)
             clusters.append(
                 LiquidationCluster(
                     price_level=round(p, 2),
                     distance_pct=round(dist_pct, 2),
-                    distance_atr=round(dist_atr, 2),
                     estimated_vol_usd=round(vol, 0),
                     side="lower",
-                    cluster_type="Modeled Long Liquidity Pool (Algorithmic Estimate)"
+                    cluster_type="Modeled Long Liquidity Pool (Algorithmic Estimate)",
+                    distance_atr=None,
                 )
             )
 

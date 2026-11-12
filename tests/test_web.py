@@ -65,15 +65,34 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertTrue(os.path.exists(text_path), "text.html was not generated")
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
+        with open(os.path.join(self.tmp, "regimes.html"), "r", encoding="utf-8") as fh:
+            regimes_html = fh.read()
+
+        # Text terminal & index share ONE clean Blind Telemetry button + optional local watermarks
         for token in (
-            "panel-1", "copyPrompt", "PROMPT_TEXT", "panel-2", "panel-3", "verdict-guide", "method-1", "method-2",
+            "panel-1", "copyBlindPrompt", "copy-blind-btn", "BLIND_PROMPT_TEXT",
+            "wb-buy", "wb-sell", "wb-clear", "panel-2", "panel-3", "verdict-guide", "method-1", "method-2",
             "How to Get Your Trading Verdict",
             "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
-            "BTC MAGNET MONITOR :: 5-REGIME ENGINE", "Microstructure Positioning &amp; Liquidation Telemetry",
-            "MANDATE: SPOT ONLY", "min-height: 44px",
+            "BTC MAGNET MONITOR :: DIBSE ENGINE", "Dual-Inventory Bidirectional Spot Terminal",
+            "MANDATE: DIBSE (10% USDT + 10% BTC | ZERO STOPS)", "min-height: 44px",
             "TIER", "EST.POOL", "[WARNING: TELEMETRY STALE &gt;30M]"
         ):
             self.assertIn(token, text_html)
+
+        for surface_name, html_doc in (("index.html", self.index), ("text.html", text_html)):
+            self.assertIn('id="copy-blind-btn"', html_doc, surface_name)
+            self.assertIn('id="wb-buy"', html_doc, surface_name)
+            self.assertIn('id="wb-sell"', html_doc, surface_name)
+            for removed_btn in ("copy-prompt-btn", "COPY FULL AUDIT PROMPT", "Copy Full Audit Prompt", "copyTelemetryPrompt", "llm-prompt-data", "let PROMPT_TEXT"):
+                self.assertNotIn(removed_btn, html_doc, f"{surface_name} retained {removed_btn}")
+            for banned_ind in ("20D EMA", "50D EMA", "200D SMA", "Daily ATR", "1H ATR", "ATR Compress"):
+                self.assertNotIn(banned_ind, html_doc, f"{surface_name} retained lagged indicator {banned_ind}")
+
+        self.assertIn("DIBSE", regimes_html)
+        for banned_reg in ("20D EMA", "50D EMA", "200D SMA", "1% equity risk-budget"):
+            self.assertNotIn(banned_reg, regimes_html)
+
         for removed in ("view-switcher", "[HUD]", "[JSON]", "[DELTA]", "[PROMPT]"):
             self.assertNotIn(removed, text_html)
         self.assertNotIn("panel-4", text_html)

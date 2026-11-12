@@ -101,16 +101,18 @@ class WebGenerator:
     def _get_canonical_ladder(data: Dict[str, Any]) -> list:
         """
         Single source of truth for the 6-tier 10x-100x Modeled Liquidation Ladder across
-        index.html, text.html, and exported AI prompts.
+        index.html, text.html, and exported AI prompts (percentage-distance only; zero ATR).
         """
         regime = data.get("regime", {}) or {}
         metrics = data.get("metrics", {}) or {}
         existing = regime.get("liquidation_ladder")
         if isinstance(existing, list) and len(existing) == 6:
-            return existing
+            return [
+                {**row, "distance_atr": None}
+                for row in existing
+            ]
 
         price = max(1.0, float(metrics.get("price", 0.0) or 1.0))
-        atr_safe = max(1.0, float(metrics.get("atr", 500.0) or 500.0))
         sw_h = float(metrics.get("swing_high_4h", price * 1.01) or price * 1.01)
         sw_l = float(metrics.get("swing_low_4h", price * 0.99) or price * 0.99)
         oi = float(metrics.get("open_interest", 0.0) or 0.0)
@@ -134,20 +136,17 @@ class WebGenerator:
         l_25_v = round(max(1.0, oi_notional_m * 0.040 * l_w), 1)
         l_10_v = round(max(1.0, oi_notional_m * 0.028 * l_w), 1)
 
-        def _make_row(tier: str, lev: str, side: str, lvl: float, vol_m: float, dist_ovr=None, atr_ovr=None, is_near: bool = False):
+        def _make_row(tier: str, lev: str, side: str, lvl: float, vol_m: float, dist_ovr=None, is_near: bool = False):
             d_pct = ((lvl - price) / price) * 100.0
             if dist_ovr is not None:
                 d_pct = float(dist_ovr) if side == "upper" else -float(dist_ovr)
-            d_atr = (lvl - price) / atr_safe
-            if atr_ovr is not None:
-                d_atr = float(atr_ovr) if side == "upper" else -float(atr_ovr)
             return {
                 "tier": tier,
                 "leverage": lev,
                 "side": side,
                 "price": round(lvl, 2),
                 "distance_pct": round(d_pct, 2),
-                "distance_atr": round(d_atr, 2),
+                "distance_atr": None,
                 "estimated_vol_m": round(vol_m, 1),
                 "modeled": True,
                 "is_nearest": is_near,
@@ -156,8 +155,8 @@ class WebGenerator:
         return [
             _make_row("10x Shorts", "10x", "upper", sw_h * 1.025, u_10_v),
             _make_row("25x Shorts", "25x", "upper", sw_h * 1.012, u_25_v),
-            _make_row("50-100x Shorts", "50-100x", "upper", u_p, u_v, upper_c.get("distance_pct"), upper_c.get("distance_atr"), True),
-            _make_row("100x Longs", "100x", "lower", l_p, l_v, lower_c.get("distance_pct"), lower_c.get("distance_atr"), True),
+            _make_row("50-100x Shorts", "50-100x", "upper", u_p, u_v, upper_c.get("distance_pct"), True),
+            _make_row("100x Longs", "100x", "lower", l_p, l_v, lower_c.get("distance_pct"), True),
             _make_row("25x Longs", "25x", "lower", sw_l * 0.988, l_25_v),
             _make_row("10x Longs", "10x", "lower", sw_l * 0.975, l_10_v),
         ]
@@ -174,171 +173,189 @@ class WebGenerator:
             t_raw = ts_iso.split("T")[1][:8] if "T" in ts_iso else "00:00:00"
             return f"{t_raw} UTC", "--:--:-- SGT", ts_iso[:10] if len(ts_iso) >= 10 else "Unknown"
 
-    def _build_blind_llm_prompt(self, data: Dict[str, Any]) -> str:
-        """Constructs an unanchored, metrics-only prompt with zero engine verdict/sizing bias."""
-        metrics = data.get("metrics", {})
+    @staticmethod
+    def _fmt_usd_or_na(val: Any, decimals: int = 2) -> str:
+        """Formats positive USD prices or emits explicit DATA UNAVAILABLE."""
+        try:
+            num = float(val or 0.0)
+        except (TypeError, ValueError):
+            return "DATA UNAVAILABLE"
+        if num <= 0.0:
+            return "DATA UNAVAILABLE"
+        return f"${num:,.{decimals}f}"
+
+    def _build_telemetry_sections(self, data: Dict[str, Any], mark_dominant: bool = False) -> Dict[str, Any]:
+        """Builds unified raw Sections 1-4 (closed 4H bars, zero MA/EMA/RSI/MACD/ATR)."""
+        regime = data.get("regime", {}) or {}
+        metrics = data.get("metrics", {}) or {}
         ts = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
         scan_id = self._compute_scan_id(data)
         ladder = self._get_canonical_ladder(data)
 
-        price = metrics.get("price", 0.0)
-        daily_vwap = metrics.get("daily_vwap", 0.0)
-        weekly_vwap = metrics.get("weekly_vwap", 0.0)
-        ema_20d = metrics.get("ema_20d", 0.0)
-        ema_50d = metrics.get("ema_50d", 0.0)
-        ma_200d = metrics.get("ma_200d", 0.0)
-        swing_high = metrics.get("swing_high_4h", 0.0)
-        swing_low = metrics.get("swing_low_4h", 0.0)
-        base_floor = metrics.get("base_floor", 0.0)
-        cap_wick = metrics.get("capitulation_wick_low", 0.0)
+        price = float(metrics.get("price", 0.0) or 0.0)
+        daily_vwap = float(metrics.get("daily_vwap", 0.0) or 0.0)
+        weekly_vwap = float(metrics.get("weekly_vwap", 0.0) or 0.0)
+        swing_high = float(metrics.get("swing_high_4h", 0.0) or 0.0)
+        swing_low = float(metrics.get("swing_low_4h", 0.0) or 0.0)
+        base_floor = float(metrics.get("base_floor", 0.0) or 0.0)
+        base_ceiling = float(metrics.get("base_ceiling", 0.0) or 0.0)
+        cap_wick = float(metrics.get("capitulation_wick_low", 0.0) or 0.0)
+        euph_wick = float(metrics.get("euphoria_wick_high", 0.0) or 0.0)
+        closed_4h_cutoff = metrics.get("closed_4h_bar_close_time") or "Closed 4H bars (klines[:-1])"
 
-        spot_vol = metrics.get("spot_vol_24h", 0.0)
-        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.0)
-        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
-        spot_cvd_7d = metrics.get("spot_cvd_slope_7d", 0.0)
-        spot_cvd_14d = metrics.get("spot_cvd_slope_14d", 0.0)
-        perp_trend = metrics.get("perp_cvd_trend", "Flat")
-        bids_asks_depth = metrics.get("bids_asks_depth_ratio", 1.0)
+        spot_vol = float(metrics.get("spot_vol_24h", 0.0) or 0.0)
+        spot_vol_ratio = float(metrics.get("spot_vol_ratio", 1.0) or 1.0)
+        spot_cvd_ratio = float(metrics.get("spot_cvd_ratio", 1.0) or 1.0)
+        spot_cvd_7d = float(metrics.get("spot_cvd_slope_7d", 0.0) or 0.0)
+        spot_cvd_14d = float(metrics.get("spot_cvd_slope_14d", 0.0) or 0.0)
+        perp_trend = metrics.get("perp_cvd_trend") or "DATA UNAVAILABLE"
+        bids_asks_depth = float(metrics.get("bids_asks_depth_ratio", 0.0) or 0.0)
 
-        oi = metrics.get("open_interest", 0.0)
-        oi_24h = metrics.get("oi_change_24h_pct", 0.0)
-        oi_1h = metrics.get("oi_change_1h_pct", 0.0)
-        oi_4h = metrics.get("oi_change_4h_pct", 0.0)
-        oi_3d = metrics.get("oi_change_3d_pct", 0.0)
-        oi_hist_ok = metrics.get("oi_history_available", True)
-        funding_rate = metrics.get("funding_rate", 0.0) * 100
-        funding_ann = metrics.get("funding_rate_annualized", 0.0)
-        basis = metrics.get("futures_basis_annualized", 0.0)
-        ls_ratio = metrics.get("long_short_account_ratio", 1.0)
-        ls_avail = metrics.get("ls_ratio_available", True)
+        oi = float(metrics.get("open_interest", 0.0) or 0.0)
+        oi_24h = float(metrics.get("oi_change_24h_pct", 0.0) or 0.0)
+        oi_1h = float(metrics.get("oi_change_1h_pct", 0.0) or 0.0)
+        oi_4h = float(metrics.get("oi_change_4h_pct", 0.0) or 0.0)
+        oi_3d = float(metrics.get("oi_change_3d_pct", 0.0) or 0.0)
+        oi_hist_ok = bool(metrics.get("oi_history_available", True))
+        funding_rate = float(metrics.get("funding_rate", 0.0) or 0.0) * 100
+        funding_ann = float(metrics.get("funding_rate_annualized", 0.0) or 0.0)
+        basis = float(metrics.get("futures_basis_annualized", 0.0) or 0.0)
+        ls_ratio = float(metrics.get("long_short_account_ratio", 1.0) or 1.0)
+        ls_avail = bool(metrics.get("ls_ratio_available", True))
         long_pct = (ls_ratio / (1.0 + ls_ratio)) * 100 if (1.0 + ls_ratio) > 0 else 50.0
         ls_pct_72h = metrics.get("ls_ratio_percentile_72h")
-        atr = metrics.get("atr", 0.0)
-        atr_comp = metrics.get("atr_compression_pct", 0.0)
-        atr_pct_72h = metrics.get("atr_percentile_72h")
-        range_width = ((swing_high - swing_low) / max(price, 1.0)) * 100
+        range_width = ((swing_high - swing_low) / max(price, 1.0)) * 100 if (swing_high > 0 and swing_low > 0) else 0.0
         spot_src = metrics.get("spot_data_source", "Binance Public Market-Data REST")
         fut_src = metrics.get("futures_data_source", "Perp Public REST")
         oi_scope = metrics.get("oi_scope", "Tracked venue perp subset (not total market OI)")
 
+        oi_disp = f"{oi:,.1f} BTC (~${(oi * price) / 1e9:.2f}B notional in tracked contract(s))" if oi > 0 else "DATA UNAVAILABLE"
         oi_delta_line = (
             f"1H: {oi_1h:+.2f}% | 4H: {oi_4h:+.2f}% | 24H: {oi_24h:+.2f}% | 3D: {oi_3d:+.2f}%"
-            if oi_hist_ok else "Multi-hour OI history unavailable on current fallback feed"
+            if (oi_hist_ok and oi > 0) else "DATA UNAVAILABLE (Multi-hour OI history missing on fallback feed)"
         )
         ls_line = (
             f"{ls_ratio:.2f} ({long_pct:.1f}% long" + (f", p{ls_pct_72h:.0f} 72h)" if ls_pct_72h is not None else ")")
-            if ls_avail else "Unavailable on fallback feed"
+            if ls_avail else "DATA UNAVAILABLE (L/S account ratio unavailable on fallback feed)"
         )
-        atr_pct_note = f" | 72h Rank: p{atr_pct_72h:.0f}" if atr_pct_72h is not None else ""
+        dvwap_str = (
+            f"${daily_vwap:,.2f} [{((price - daily_vwap) / daily_vwap * 100):+.2f}% vs Spot]"
+            if daily_vwap > 0 and price > 0 else "DATA UNAVAILABLE"
+        )
+        wvwap_str = (
+            f"${weekly_vwap:,.2f} [{((price - weekly_vwap) / weekly_vwap * 100):+.2f}% vs Spot]"
+            if weekly_vwap > 0 and price > 0 else "DATA UNAVAILABLE"
+        )
+        ch_4h_str = (
+            f"${swing_low:,.0f} (Floor) to ${swing_high:,.0f} (Ceiling) [Width: {range_width:.2f}%]"
+            if (swing_high > 0 and swing_low > 0) else "DATA UNAVAILABLE"
+        )
+        depth_str = f"{bids_asks_depth:.2f}" if bids_asks_depth > 0 else "DATA UNAVAILABLE"
+        spot_vol_str = f"{spot_vol:,.0f} BTC ({spot_vol_ratio:.2f}x 20D baseline)" if spot_vol > 0 else "DATA UNAVAILABLE"
 
         upper_rows = [r for r in ladder if r["side"] == "upper"]
         lower_rows = [r for r in ladder if r["side"] == "lower"]
         upper_lines = "\n".join(
-            f"  ▲ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}% / {r['distance_atr']:+.2f} ATR) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
+            f"  ▲ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}%) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
             for r in upper_rows
         )
         lower_lines = "\n".join(
-            f"  ▼ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}% / {r['distance_atr']:+.2f} ATR) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
+            f"  ▼ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}%) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
+            + (" [🔥 DOMINANT MAGNET CORE]" if (mark_dominant and r.get("is_nearest")) else "")
             for r in lower_rows
         )
 
-        return f"""================================================================================
-BLIND BITCOIN (BTC) MICROSTRUCTURE TELEMETRY AUDIT (UNANCHORED MODE)
-Scan ID: {scan_id} | Timestamp: {ts[:19]} UTC | Cadence: Every 30m (:02 & :32 UTC)
-Raw Spot Feed: {spot_src}
-Raw Futures Feed: {fut_src}
-Mandate: SPOT-ONLY ROTATION (BTC / USDT). Zero borrowed leverage. Zero shorting.
-Note: System engine verdict and sizing have been intentionally withheld to prevent anchoring bias.
-================================================================================
-
-SECTION 1 • RAW PRICE BENCHMARKS & RANGE GEOMETRY
-• Current BTC Spot Price: ${price:,.2f}
-• Daily VWAP (00:00 UTC): ${daily_vwap:,.2f} [{((price - daily_vwap)/max(daily_vwap,1)*100):+.2f}% vs Spot]
-• Weekly VWAP (Monday):   ${weekly_vwap:,.2f} [{((price - weekly_vwap)/max(weekly_vwap,1)*100):+.2f}% vs Spot]
-• Moving Averages: 20D EMA: ${ema_20d:,.2f} | 50D EMA: ${ema_50d:,.2f} | 200D SMA: ${ma_200d:,.2f}
-• 4-Hour Channel Range: ${swing_low:,.0f} (Floor) to ${swing_high:,.0f} (Ceiling) [Width: {range_width:.2f}%]
-• Structural Anchors: 3D Base Floor: ${base_floor:,.2f} | 24H Low: ${cap_wick:,.2f}
+        sections = f"""SECTION 1 • RAW PRICE BENCHMARKS & CLOSED 4H STRUCTURE
+• Current BTC Spot Price: {self._fmt_usd_or_na(price)}
+• Closed 4H Structural Cutoff: {closed_4h_cutoff} (Completed bars only — zero intrabar repainting)
+• Daily VWAP (00:00 UTC): {dvwap_str}
+• Weekly VWAP (Closed 4H, Monday): {wvwap_str}
+• 4-Hour Closed Channel: {ch_4h_str}
+• 3D Closed 4H Envelope: Floor {self._fmt_usd_or_na(base_floor)} | Ceiling {self._fmt_usd_or_na(base_ceiling)}
+• 24H Closed 1H Wicks: Low {self._fmt_usd_or_na(cap_wick)} | High {self._fmt_usd_or_na(euph_wick)}
 
 SECTION 2 • RAW ORDER FLOW & KLINE TAKER VOLUME DELTA
-• 24h Spot Volume: {spot_vol:,.0f} BTC ({spot_vol_ratio:.2f}x 20D MA)
+• 24h Spot Volume: {spot_vol_str}
 • Spot CVD Ratio (24h kline taker buy/sell): {spot_cvd_ratio:.2f} | Slopes: 7D {spot_cvd_7d:+.0f} | 14D {spot_cvd_14d:+.0f}
 • Perp Flow Trend: {perp_trend}
-• Order Book Depth Ratio (±1.5% bids/asks): {bids_asks_depth:.2f}
+• Order Book Depth Ratio (±1.5% bids/asks): {depth_str}
 
 SECTION 3 • RAW DERIVATIVES POSITIONING ({oi_scope})
-• Tracked Venue Open Interest: {oi:,.1f} BTC (~${(oi * price) / 1e9:.2f}B notional in tracked contract(s))
+• Tracked Venue Open Interest: {oi_disp}
 • OI Velocity: {oi_delta_line}
 • 8-Hour Funding Rate: {funding_rate:+.4f}% ({funding_ann:+.2f}% Ann.)
 • Futures Basis (Ann.): {basis:+.2f}%
 • Tracked L/S Account Ratio: {ls_line}
 
-SECTION 4 • VOLATILITY & MODELED LIQUIDATION ESTIMATES (ALGORITHMIC ESTIMATE)
-• 14-Period 1H ATR: ${atr:,.2f} (Compression vs 72h Peak: {atr_comp:.1f}%{atr_pct_note})
-[MODELED UPPER SHORT POOLS — ALGORITHMIC ESTIMATE FROM VENUE OI & 4H SWINGS]:
+SECTION 4 • MODELED LIQUIDATION LADDER (CLOSED 4H SWINGS & PRICE-% BANDS)
+[MODELED UPPER SHORT POOLS — LOOP B SQUEEZE/RESISTANCE TARGETS]:
 {upper_lines}
-● CURRENT BTC SPOT ANCHOR: ${price:,.2f}
-[MODELED LOWER LONG POOLS — ALGORITHMIC ESTIMATE FROM VENUE OI & 4H SWINGS]:
-{lower_lines}
+● CURRENT BTC SPOT ANCHOR: {self._fmt_usd_or_na(price)}
+[MODELED LOWER LONG POOLS — LOOP A WASHOUT/ACCUMULATION TARGETS]:
+{lower_lines}"""
 
-BLIND ANALYST TASK:
-Without seeing our internal call, form your own independent judgment:
-1. Classify the market into one of the 5 Regimes (Spot-Led Expansion, Leveraged/Fragile Upside, Range/Liquidation Magnet, Cascade/Forced Deleveraging, Distribution/Bear) or Transition/Mixed (Default Cash). Cite 3+ metrics.
-2. State your independent spot allocation (0.0x to 1.0x), exact invalidation level, and key risks.""".strip()
+        return {
+            "scan_id": scan_id,
+            "ts": ts,
+            "spot_src": spot_src,
+            "fut_src": fut_src,
+            "oi_scope": oi_scope,
+            "price": price,
+            "swing_high": swing_high,
+            "swing_low": swing_low,
+            "closed_4h_cutoff": closed_4h_cutoff,
+            "ladder": ladder,
+            "sections": sections,
+        }
+
+    def _build_blind_llm_prompt(self, data: Dict[str, Any]) -> str:
+        """Constructs an unanchored DIBSE telemetry prompt with zero engine verdict bias."""
+        t = self._build_telemetry_sections(data, mark_dominant=False)
+        return f"""================================================================================
+DIBSE BLIND SPOT TELEMETRY AUDIT (UNANCHORED MODE)
+Scan ID: {t['scan_id']} | Timestamp: {t['ts'][:19]} UTC | Cadence: Every 30m (:02 & :32 UTC)
+Raw Spot Feed: {t['spot_src']}
+Raw Futures Feed: {t['fut_src']}
+Mandate: DUAL-INVENTORY BIDIRECTIONAL SWING ENGINE (DIBSE) — 10% USDT Sleeve + 10% BTC Sleeve (20% Active Sandbox | 80% Untouched Core Reserve). Spot-only. Zero leverage. Zero liquidation risk. Zero stop-losses.
+Note: System engine verdict, LSCE gate pick, and Loop A/B call are withheld to prevent anchoring bias. Closed-bar telemetry + framework rules only (zero MA/EMA/RSI/MACD/ATR).
+[ACTIVE INVENTORY WATERMARKS]: Baseline 10% USDT Sleeve + 10% BTC Sleeve ready (No active P_buy / P_sell cost-basis override set).
+================================================================================
+
+{t['sections']}
+
+================================================================================
+DIBSE + 5-REGIME RADAR REFERENCE DEFINITIONS (UNANCHORED RULEBOOK)
+Evaluate using majority convergence (>=3 of 4 gates) on closed 4H bars (klines[:-1]):
+- REGIME 1 (Spot-Led Expansion): Price > Daily & Weekly VWAP; Spot CVD >= 1.05 & 7D/14D slope > 0; Funding <= +0.012% & OI 24h <= +3.5%; Spot Vol >= 1.0x 20D baseline. (DIBSE: Loop A buy on VWAP pullbacks; hold 10% BTC sleeve — zero upside stop-buys.)
+- REGIME 2 (Leveraged / Fragile Upside): 24h Price > +0.8% while Spot CVD < 1.12; OI 24h >= +4.0% or 3D >= +10.0% or Perp CVD surging; Funding >= +0.015% or Basis >= +12.0%; Spot Vol < 1.0x. (DIBSE: Loop B sell 10% BTC sleeve into squeeze euphoria.)
+- REGIME 3 (Range / Liquidation Magnet): Closed 4H width <= 4.5% inside channel; Spot CVD 0.90-1.25; L/S >= 1.6 or funding skewed; upper & lower modeled pools active. (DIBSE Core Two-Way Habitat: Loop A on lower washout reclaim [CVD >= 1.05, Depth >= 0.50], Loop B on upper sweep rejection/ceiling, else Hold Both Sleeves.)
+- REGIME 4 (Cascade / Forced Deleveraging): Sharp OI flush (-3% 4h / -6% 24h) + negative Spot/Perp CVD + negative funding/basis + 2.0x+ vol. (DIBSE: Hold Both Sleeves dry until stabilization.)
+- REGIME 5 (Distribution / Bear Continuation): Price < Daily & Weekly VWAP, weak volume (<1.0x), negative Spot & Perp CVD slopes, bounces sold. (DIBSE: Loop B trim into relief rallies; Loop A accumulation paused.)
+- TRANSITION / MIXED (Conflict Override): Triggered when <3 gates confirm OR conflicting signals align (Spot < Daily & Weekly VWAP + Basis < 0% + Depth < 0.35 without confirmed edge reclaim/rejection). (DIBSE: Hold Both Sleeves.)
+
+INSTITUTIONAL RISK OFFICER & BLIND DIBSE ANALYST TASK:
+Audit the telemetry critically and answer all 5 sections independently:
+1. INDEPENDENT REGIME CLASSIFICATION: Identify the regime (1-5 or Transition/Mixed) using the definitions above and cite at least 3 specific raw metrics from Sections 1-3.
+2. BIDIRECTIONAL SWING CALL (LOOP A vs LOOP B vs HOLD BOTH SLEEVES):
+   - Loop A (USDT -> BTC -> USDT): Should the 10% USDT Sleeve accumulate spot BTC at a lower sweep washout/reclaim, or stay in USDT? Specify exact entry zone & profit exit target (P_exit > P_buy).
+   - Loop B (BTC -> USDT -> BTC): Should the 10% BTC Sleeve sell spot BTC into USDT on an upper short-squeeze/distribution rally, or stay in BTC? Specify exact sell zone & lower rebuy target (P_rebuy < P_sell).
+   - Or verdict HOLD BOTH SLEEVES if spot sits mid-range without asymmetric edge.
+3. MODELED LIQUIDATION POOL & SKEW AUDIT: Critique Upper Short Pools vs Lower Long Pools in Section 4, flag any small-denominator skew inflation, and identify which pool acts as the stronger price magnet.
+4. SELF-HEALING & WATERMARK COMPLIANCE (ZERO STOP-LOSSES / ZERO STOP-BUYS): Apply any active P_buy or P_sell watermark listed at the top. Specify exact spot patience rules if filled early (zero forced stop-losses, zero FOMO stop-buys above resistance).
+5. CONTRARIAN RISK OFFICER CRITIQUE & DATA GAPS: What divergence (Spot vs Perps, Funding/Basis, thin Order Book Depth) or DATA UNAVAILABLE feed most threatens your primary thesis?""".strip()
 
     def _build_llm_prompt(self, data: Dict[str, Any]) -> str:
-        """Constructs an institutional-grade audit prompt strictly bound to scan telemetry."""
-        regime = data.get("regime", {})
-        metrics = data.get("metrics", {})
-        risk = data.get("risk", {})
-        ts = data.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
-        scan_id = self._compute_scan_id(data)
-        ladder = self._get_canonical_ladder(data)
-
-        price = metrics.get("price", 0.0)
-        daily_vwap = metrics.get("daily_vwap", 0.0)
-        weekly_vwap = metrics.get("weekly_vwap", 0.0)
-        ema_20d = metrics.get("ema_20d", 0.0)
-        ema_50d = metrics.get("ema_50d", 0.0)
-        ma_200d = metrics.get("ma_200d", 0.0)
-        swing_high = metrics.get("swing_high_4h", 0.0)
-        swing_low = metrics.get("swing_low_4h", 0.0)
-        base_floor = metrics.get("base_floor", 0.0)
-        cap_wick = metrics.get("capitulation_wick_low", 0.0)
-
-        spot_vol = metrics.get("spot_vol_24h", 0.0)
-        spot_vol_ratio = metrics.get("spot_vol_ratio", 1.0)
-        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
-        spot_cvd_7d = metrics.get("spot_cvd_slope_7d", 0.0)
-        spot_cvd_14d = metrics.get("spot_cvd_slope_14d", 0.0)
-        perp_trend = metrics.get("perp_cvd_trend", "Flat")
-        bids_asks_depth = metrics.get("bids_asks_depth_ratio", 1.0)
-
-        oi = metrics.get("open_interest", 0.0)
-        oi_24h = metrics.get("oi_change_24h_pct", 0.0)
-        oi_1h = metrics.get("oi_change_1h_pct", 0.0)
-        oi_4h = metrics.get("oi_change_4h_pct", 0.0)
-        oi_3d = metrics.get("oi_change_3d_pct", 0.0)
-        oi_hist_ok = metrics.get("oi_history_available", True)
-        funding_rate = metrics.get("funding_rate", 0.0) * 100
-        funding_ann = metrics.get("funding_rate_annualized", 0.0)
-        basis = metrics.get("futures_basis_annualized", 0.0)
-        ls_ratio = metrics.get("long_short_account_ratio", 1.0)
-        ls_avail = metrics.get("ls_ratio_available", True)
-        long_pct = (ls_ratio / (1.0 + ls_ratio)) * 100 if (1.0 + ls_ratio) > 0 else 50.0
-        ls_pct_72h = metrics.get("ls_ratio_percentile_72h")
-
-        atr = metrics.get("atr", 0.0)
-        atr_comp = metrics.get("atr_compression_pct", 0.0)
-        atr_pct_72h = metrics.get("atr_percentile_72h")
-        range_width = ((swing_high - swing_low) / max(price, 1.0)) * 100
-        spot_src = metrics.get("spot_data_source", "Binance Public Market-Data REST")
-        fut_src = metrics.get("futures_data_source", "Perp Public REST")
-        oi_scope = metrics.get("oi_scope", "Tracked venue perp subset (not total market OI)")
+        """Internal full DIBSE telemetry snapshot (aligned to single closed-4H scan state)."""
+        regime = data.get("regime", {}) or {}
+        metrics = data.get("metrics", {}) or {}
+        risk = data.get("risk", {}) or {}
+        t = self._build_telemetry_sections(data, mark_dominant=True)
+        ladder = t["ladder"]
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
-        u_v = upper_c.get("estimated_vol_usd", 0.0) / 1e6
-        l_v = lower_c.get("estimated_vol_usd", 0.0) / 1e6
+        u_v = float(upper_c.get("estimated_vol_usd", 0.0) or 0.0) / 1e6
+        l_v = float(lower_c.get("estimated_vol_usd", 0.0) or 0.0) / 1e6
 
         imm_ratio = regime.get("immediate_imbalance_ratio", round(l_v / max(u_v, 0.1), 1))
         tot_u_vol = regime.get("total_ladder_upper_vol", sum(r["estimated_vol_m"] for r in ladder if r["side"] == "upper"))
@@ -347,154 +364,51 @@ Without seeing our internal call, form your own independent judgment:
         imm_disp = f"~{round(imm_ratio):.0f}x" if imm_ratio >= 10 else f"{imm_ratio:.1f}x"
 
         lsce_status = regime.get("lsce_status", "UNTESTED")
-        lsce_detail = regime.get("lsce_detail", "Monitoring active liquidation zones.")
-
-        disaster_stop = regime.get("disaster_stop_price", regime.get("stop_price", 0.0))
-        disaster_stop_dist = regime.get("disaster_stop_distance_pct", regime.get("stop_distance_pct", 0.0))
-        structural_inval = regime.get("structural_invalidation_level", swing_low)
-        stop_note = regime.get("stop_placement_note", "")
-        effective_risk = risk.get("effective_risk_budget_pct", 0.0)
+        lsce_side = regime.get("lsce_side", "NONE")
+        lsce_detail = regime.get("lsce_detail", "Monitoring both upper short-squeeze & lower washout liquidation bands.")
+        dibse_signal = regime.get("dibse_signal", "HOLD BOTH SLEEVES")
+        sleeve_alloc = regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core Untouched)")
+        loop_a_zone = regime.get("loop_a_zone", "Monitor closed 4H support sweep")
+        loop_b_zone = regime.get("loop_b_zone", "Monitor closed 4H resistance squeeze")
+        failure_protocol = regime.get("failure_protocol", "Zero stop-losses; hold spot inventory asymmetrically.")
 
         regime_name = regime.get("name", "Unknown")
         majority = regime.get("majority_score", "")
         diagnosis = regime.get("diagnosis", "")
         dom_magnet = regime.get("dominant_magnet", "")
         dom_reason = regime.get("dominant_magnet_reason", "")
-        rotation = regime.get("rotation", "Remain USDT")
+        rotation = regime.get("rotation", "Hold Both Sleeves")
         action = regime.get("action", "")
         sizing = regime.get("sizing_factor", 0.0)
-
-        oi_delta_line = (
-            f"1H: {oi_1h:+.2f}% | 4H: {oi_4h:+.2f}% | 24H: {oi_24h:+.2f}% | 3D: {oi_3d:+.2f}%"
-            if oi_hist_ok else "Multi-hour OI history unavailable on current fallback feed"
-        )
-        ls_line = (
-            f"{ls_ratio:.2f} ({long_pct:.1f}% of tracked accounts are NET LONG"
-            + (f"; 72h rank: p{ls_pct_72h:.0f})" if ls_pct_72h is not None else ")")
-            if ls_avail else "Unavailable on current fallback feed"
-        )
-        atr_pct_note = f" | 72h Rank: p{atr_pct_72h:.0f}" if atr_pct_72h is not None else ""
-        if sizing == 0.0:
-            risk_banner = "STANDBY / CASH PRESERVATION (0.00% Active Risk — no spot trade active)"
-        elif risk.get("risk_budget_ok"):
-            risk_banner = f"APPROVED (Within 1% Risk Budget) [Portfolio Risk Capped at {effective_risk:.2f}%]"
-        else:
-            risk_banner = f"CASH PRESERVATION / RISK REDUCED [Portfolio Risk: {effective_risk:.2f}%]"
-
-        upper_rows = [r for r in ladder if r["side"] == "upper"]
-        lower_rows = [r for r in ladder if r["side"] == "lower"]
-        upper_lines = "\n".join(
-            f"  ▲ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}% / {r['distance_atr']:+.2f} ATR) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
-            for r in upper_rows
-        )
-        lower_lines = "\n".join(
-            f"  ▼ {r['tier']:<14} ${r['price']:,.0f} ({r['distance_pct']:+.2f}% / {r['distance_atr']:+.2f} ATR) | {self._format_pool_m(r['estimated_vol_m'])} (Modeled Estimate)"
-            + (" [🔥 DOMINANT MAGNET CORE]" if r.get("is_nearest") else "")
-            for r in lower_rows
-        )
+        sandbox_ok = bool(risk.get("risk_budget_ok", True))
+        risk_banner = f"DIBSE 20% ACTIVE SANDBOX ({sleeve_alloc}) | Zero Borrowed Leverage | Zero Stop-Losses" if sandbox_ok else "SANDBOX CAP GUARD"
 
         prompt = f"""================================================================================
-INSTITUTIONAL BITCOIN (BTC) ORDER FLOW & LIQUIDATION TELEMETRY AUDIT
-System: BTC Magnet Monitor | Scan ID: {scan_id} | Cadence: Every 30m (:02 & :32 UTC)
-Raw Spot Feed: {spot_src}
-Raw Futures Feed: {fut_src}
-Mandate: SPOT-ONLY ROTATION (BTC / USDT). Zero borrowed leverage. Zero shorting.
-Timestamp: {ts[:19]} UTC | Status: {data.get('data_status', 'LIVE')}
+DIBSE FULL SYSTEM AUDIT SNAPSHOT
+System: BTC Magnet Monitor | Scan ID: {t['scan_id']} | Cadence: Every 30m (:02 & :32 UTC)
+Raw Spot Feed: {t['spot_src']}
+Raw Futures Feed: {t['fut_src']}
+Mandate: DUAL-INVENTORY BIDIRECTIONAL SWING ENGINE (10% USDT Sleeve + 10% BTC Sleeve | Zero Stops)
+Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 ================================================================================
 
-[EXECUTIVE TRADING DIRECTIVE & SYSTEM CALL]:
+[DIBSE ENGINE CALL & BIDIRECTIONAL SLEEVE DIRECTIVE]:
 • Engine Regime Diagnosis: {regime_name} ({majority})
-• Physical Microstructure Diagnosis: {diagnosis}
-• Recommended Spot Capital Rotation: {rotation}
+• DIBSE Signal: {dibse_signal} ({rotation} | Sleeve Sizing: {sizing}x)
+• Loop A Zone (USDT -> BTC -> USDT): {loop_a_zone}
+• Loop B Zone (BTC -> USDT -> BTC): {loop_b_zone}
 • Playbook Execution Protocol: {action}
-• Prescribed Position Sizing: {sizing}x ({int(sizing * 100)}% of deployable cash budget)
-• Liquidation Sweep Engine (LSCE) Status: {lsce_status}
-  └ Details: {lsce_detail}
-• Dual Inviolable Stop Architecture:
-  ├ Structural Invalidation: 1-Hour candle close below ${structural_inval:,.2f} (Floor breakdown)
-  └ Inviolable Disaster Hard Stop: ${disaster_stop:,.2f} ({disaster_stop_dist:.2f}% distance) [Below 200D SMA (${ma_200d:,.0f}) & 25x shelf (${swing_low * 0.988:,.0f})]
-  {('└ Placement Note: ' + stop_note) if stop_note else ''}
+• Microstructure Diagnosis: {diagnosis}
+• Bidirectional LSCE Status: {lsce_status} (Side: {lsce_side}) — {lsce_detail}
+• Self-Healing Protocol: {failure_protocol}
 • Dominant Liquidation Magnet Target: {dom_magnet} ({dom_reason})
-• Desk Risk Management Status: {risk_banner}
+• Sandbox Budget Status: {risk_banner}
 
---------------------------------------------------------------------------------
-SECTION 1 • RAW PRICE BENCHMARKS & RANGE GEOMETRY (MACRO STRUCTURE)
---------------------------------------------------------------------------------
-• Current BTC Spot Price: ${price:,.2f}
-• Daily VWAP (Anchored 00:00 UTC):   ${daily_vwap:,.2f} [Price is {((price - daily_vwap)/max(daily_vwap,1)*100):+.2f}% vs Daily VWAP]
-• Weekly VWAP (Anchored Monday):     ${weekly_vwap:,.2f} [Price is {((price - weekly_vwap)/max(weekly_vwap,1)*100):+.2f}% vs Weekly VWAP]
-• Moving Averages: 20D EMA: ${ema_20d:,.2f} | 50D EMA: ${ema_50d:,.2f} | 200D SMA: ${ma_200d:,.2f}
-• 4-Hour Channel Range: ${swing_low:,.0f} (Floor) to ${swing_high:,.0f} (Ceiling) [Channel Width: {range_width:.2f}%]
-• Multi-Day Structural Anchors: 3D Base Floor: ${base_floor:,.2f} | 24H Capitulation Low: ${cap_wick:,.2f}
+{t['sections']}
 
---------------------------------------------------------------------------------
-SECTION 2 • RAW ORDER FLOW & TAKER VOLUME DELTA (KLINE SPOT CVD)
---------------------------------------------------------------------------------
-• 24h Spot Volume: {spot_vol:,.0f} BTC (Volume Ratio vs 20D MA: {spot_vol_ratio:.2f}x)
-• Spot CVD Ratio (Kline Taker Buy / Sell Volume): {spot_cvd_ratio:.2f} (>1.0 = Spot Bids Leading, <1.0 = Spot Selling)
-• Spot CVD Momentum Slopes: 7-Day: {spot_cvd_7d:+.0f} | 14-Day: {spot_cvd_14d:+.0f}
-• Perpetual Futures Flow Trend: {perp_trend}
-• Order Book Depth Balance (Bids vs Asks within ±1.5%): {bids_asks_depth:.2f}
-
---------------------------------------------------------------------------------
-SECTION 3 • RAW DERIVATIVES POSITIONING ({oi_scope})
---------------------------------------------------------------------------------
-• Tracked Venue Open Interest: {oi:,.1f} BTC (~${(oi * price) / 1e9:.2f}B notional in tracked contract(s))
-• OI Multi-Timeframe Velocity: {oi_delta_line}
-• 8-Hour Funding Rate: {funding_rate:+.4f}% [{funding_ann:+.2f}% Annualized] (Neutral baseline ~+0.0100%)
-• Futures Basis (Annualized Contango/Backwardation Spread): {basis:+.2f}%
-• Tracked Account Long/Short Ratio: {ls_line}
-
---------------------------------------------------------------------------------
-SECTION 4 • VOLATILITY & MODELED LIQUIDATION LADDER (ALGORITHMIC ESTIMATE)
---------------------------------------------------------------------------------
-• 14-Period 1-Hour ATR: ${atr:,.2f} (Compression vs 72h Peak: {atr_comp:.1f}%{atr_pct_note})
-
-[UPPER SHORT LIQUIDATION POOLS (MODELED ESTIMATE ABOVE)]:
-{upper_lines}
-
-[ZERO-AXIS EQUILIBRIUM SPOT ANCHOR]:
-  ● CURRENT BTC SPOT PRICE: ${price:,.2f} (Microstructure Baseline)
-
-[LOWER LONG LIQUIDATION POOLS (MODELED ESTIMATE BELOW)]:
-{lower_lines}
-
-• Dual Imbalance Analysis (Modeled Estimate — wide band sensitivity when denominator ~${u_v:.1f}M is small):
-  ├ Immediate Tier Imbalance: Lower 100x pool is {imm_disp} larger than Upper 50-100x pool ({self._format_pool_m(l_v)} vs {self._format_pool_m(u_v)}).
-  ├ Total Leverage Ladder Imbalance (10x-100x Modeled Bands): Total Lower ({self._format_pool_m(tot_l_vol)}) vs Total Upper ({self._format_pool_m(tot_u_vol)}) = {tot_ratio:.2f}x skew.
-  └ Active LSCE Sweep Confirmation Status: {lsce_status} ({lsce_detail})
-
-================================================================================
-INSTRUCTIONS FOR THE AI ANALYST (STRICT AUDIT MANDATE):
-You are the Chief Risk Officer and Head of Microstructure at an institutional spot trading desk.
-You are strictly bounded by a SPOT-ONLY investment mandate (USDT cash vs BTC spot). No leverage, no futures, no shorting.
-
-Evaluate the live telemetry against the 5-Regime Radar Framework:
-1. Spot-Led Expansion: Spot CVD leading, price holding VWAP, funding normal, OI stable. (Action: 0.75x-1.0x Long)
-2. Leveraged / Fragile Upside: Price rising but Spot CVD flat/lagging, OI/funding surging. (Action: Trim/Stand aside 0.0x-0.25x)
-3. Range / Liquidation Magnet: Price bound in channel, positioning crowded, liquidation clusters dominate. (Action: Trade the Magnet 0.5x-0.75x only upon confirmed LSCE sweep reclaim)
-4. Cascade / Forced Deleveraging: Waterfall drop, massive long liquidations, OI crashing. (Action: 0.0x Wait, NEVER buy waterfall)
-5. Distribution / Bear Continuation: Price below key VWAPs, Spot CVD negative, weak bounces. (Action: 0.0x Cash)
-Default: Transition / Mixed (0.0x cash).
-
-PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
-
-1. REGIME VERDICT & INDEPENDENT VOTE:
-   - State clearly whether you AGREE, DISAGREE, or call a different regime. Cite at least 3 specific empirical metrics.
-
-2. DUAL LIQUIDATION HEATMAP IMBALANCE AUDIT (MODELED ESTIMATE):
-   - Analyze both the Immediate Tier Imbalance ({imm_disp}) and the Total Leverage Ladder Imbalance ({tot_ratio:.2f}x across modeled 10x-100x bands).
-   - How does small denominator sensitivity (~${u_v:.1f}M upper vs ~${l_v:.1f}M lower) affect interpretation?
-
-3. SPOT EXECUTION & LSCE SWEEP DIRECTIVE:
-   - Critique the engine's suggested action: '{action}' ({sizing}x sizing) under LSCE state '{lsce_status}'.
-   - State clearly how a spot trader should execute right now given reclaim thresholds.
-
-4. DUAL INVIOLABLE STOP-LOSS SAFETY CHECK:
-   - Audit Structural Invalidation (${structural_inval:,.2f}) vs Disaster Stop (${disaster_stop:,.2f}, {disaster_stop_dist:.2f}% distance, anchored below 200D SMA ${ma_200d:,.0f} & 25x shelf ${swing_low * 0.988:,.0f} vs 10x shelf ${swing_low * 0.975:,.0f}).
-
-5. SPECIFIC INVALIDATION & RED FLAGS:
-   - What exact microstructure changes would invalidate this thesis or force an emergency exit to 100% USDT cash?
+• Dual Imbalance Summary (Modeled Estimate — small denominator sensitivity when Upper ~${u_v:.1f}M):
+  ├ Immediate Tier Imbalance: Lower 100x pool is {imm_disp} vs Upper 50-100x pool ({self._format_pool_m(l_v)} vs {self._format_pool_m(u_v)}).
+  └ Total Leverage Ladder Imbalance (10x-100x Modeled Bands): Total Lower ({self._format_pool_m(tot_l_vol)}) vs Total Upper ({self._format_pool_m(tot_u_vol)}) = {tot_ratio:.2f}x skew.
 ================================================================================"""
         return prompt.strip()
 
@@ -508,10 +422,16 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         diagnosis = regime.get("diagnosis", "")
         playbook = regime.get("playbook", "")
         majority_score = regime.get("majority_score", "4/4 observations confirmed")
-        rotation = regime.get("rotation", "Remain USDT")
+        rotation = regime.get("rotation", "Hold Both Sleeves")
+        dibse_signal = regime.get("dibse_signal", "HOLD BOTH SLEEVES")
+        dibse_headline = regime.get("dibse_action_headline", rotation)
+        loop_a_zone = regime.get("loop_a_zone", "Monitor closed 4H support sweep")
+        loop_b_zone = regime.get("loop_b_zone", "Monitor closed 4H resistance squeeze")
+        sleeve_alloc = regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core Untouched)")
+        failure_protocol = regime.get("failure_protocol", "Zero stop-losses; hold spot inventory asymmetrically.")
         sizing = regime.get("sizing_factor", 0.0)
         action = regime.get("action", "")
-        stop_rule = regime.get("stop_rule", "")
+        stop_rule = regime.get("stop_rule", "ZERO STOP-LOSSES (DIBSE Asymmetric Self-Healing Inventory)")
         stop_price = regime.get("stop_price", 0.0)
         stop_dist = regime.get("stop_distance_pct", 0.0)
         entry_inst = regime.get("entry_instruction", "")
@@ -522,98 +442,108 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         plain_verdict = regime.get("plain_english_verdict", "Analyzing current market conditions...")
         why_points = regime.get("why_points", [])
-        why_sizing = regime.get("why_sizing_reason", f"Deploying {sizing*100:.0f}% of available cash based on regime risk parameters.")
-        why_stop = regime.get("why_stop_reason", f"Safety stop anchored at ${stop_price:,.2f} ({stop_dist:.2f}% distance).")
+        why_sizing = regime.get("why_sizing_reason", f"DIBSE Active Sandbox: {sleeve_alloc}.")
+        why_stop = regime.get("why_stop_reason", failure_protocol)
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
 
-        # Institutional Upgrades: Dual Imbalance & LSCE & Dual Stops
+        # Dual Imbalance & Bidirectional LSCE
         imm_ratio = regime.get("immediate_imbalance_ratio", 1.0)
         tot_l_vol = regime.get("total_ladder_lower_vol", 0.0)
         tot_u_vol = regime.get("total_ladder_upper_vol", 0.0)
         tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.0)
         lsce_status = regime.get("lsce_status", "UNTESTED")
+        lsce_side = regime.get("lsce_side", "NONE")
         lsce_detail = regime.get("lsce_detail", "")
-        disaster_stop = regime.get("disaster_stop_price", stop_price)
-        disaster_stop_dist = regime.get("disaster_stop_distance_pct", stop_dist)
-        structural_inval = regime.get("structural_invalidation_level", metrics.get("swing_low_4h", 0.0))
 
         if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
             if sizing > 0 and "USDT -> BTC" in rotation:
                 lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
                 lsce_badge_icon = "✅"
-                lsce_badge_title = f"SWEEP &amp; RECLAIM CONFIRMED (BUY AUTHORIZED {sizing:.2f}x)"
+                lsce_badge_title = f"LOWER SWEEP &amp; RECLAIM CONFIRMED (LOOP A: 10% USDT &rarr; BTC {sizing:.2f}x)"
             else:
                 lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
                 lsce_badge_icon = "🛡️"
-                lsce_badge_title = "LOCAL SWEEP OBSERVED — BUY BLOCKED BY MACRO REGIME"
+                lsce_badge_title = "LOWER SWEEP OBSERVED — LOOP A PAUSED BY MACRO REGIME"
+        elif lsce_status == "UPPER_SWEEP_REJECTION_CONFIRMED":
+            if sizing > 0 and "BTC -> USDT" in rotation:
+                lsce_badge_class = "border-sky-500/45 bg-sky-500/15 text-sky-300"
+                lsce_badge_icon = "🔄"
+                lsce_badge_title = f"UPPER SQUEEZE REJECTION CONFIRMED (LOOP B: 10% BTC &rarr; USDT {sizing:.2f}x)"
+            else:
+                lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                lsce_badge_icon = "🛡️"
+                lsce_badge_title = "UPPER WICK REJECTION OBSERVED — HOLDING BTC SLEEVE"
         elif lsce_status == "SWEEP_IN_PROGRESS":
             lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300 animate-pulse"
             lsce_badge_icon = "⚠️"
-            lsce_badge_title = "SWEEP IN PROGRESS (DO NOT BUY)"
+            lsce_badge_title = "LOWER SWEEP IN PROGRESS (WAIT FOR CLOSED 4H RECLAIM)"
+        elif lsce_status == "UPPER_SWEEP_IN_PROGRESS":
+            lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300 animate-pulse"
+            lsce_badge_icon = "⚡"
+            lsce_badge_title = "UPPER SHORT SQUEEZE IN PROGRESS (WAIT FOR CLOSED 4H REJECTION)"
         elif lsce_status == "SWEEP_FAILED_BREAKDOWN":
             lsce_badge_class = "border-rose-500/40 bg-rose-500/15 text-rose-300"
             lsce_badge_icon = "🚨"
-            lsce_badge_title = "SWEEP FAILED / CASCADE RISK (100% CASH)"
+            lsce_badge_title = "LOWER FLOOR BROKEN — LOOP A PAUSED (HOLD SLEEVES)"
         else:
             lsce_badge_class = "border-zinc-700 bg-zinc-800/80 text-zinc-300"
             lsce_badge_icon = "⏸️"
-            lsce_badge_title = "UNTESTED (MONITORING / CASH)"
+            lsce_badge_title = "UNTESTED (MONITORING LOOP A &amp; LOOP B BANDS)"
 
         magnet_factors = regime.get("magnet_factors", {})
         f1 = magnet_factors.get("factor_1_size", "Evaluating cluster size disparity...")
         f2 = magnet_factors.get("factor_2_spot_leadership", "Evaluating spot vs derivatives CVD...")
         f3 = magnet_factors.get("factor_3_crowding_fuel", "Evaluating funding and positioning crowding...")
-        f4 = magnet_factors.get("factor_4_regime_structure", "Evaluating regime structure...")
+        f4 = magnet_factors.get("factor_4_regime_structure", "Evaluating closed 4H regime structure...")
         f5 = magnet_factors.get("factor_5_asymmetry", "Evaluating cluster distance asymmetry...")
-        f6 = magnet_factors.get("factor_6_atr_volatility", "Evaluating ATR compression...")
+        f6 = magnet_factors.get("factor_6_range_compression", magnet_factors.get("factor_6_atr_volatility", "Evaluating closed 4H range compression..."))
 
         # Specific styling tokens for the Standout Regime Panel
         if regime_id == "SPOT_LED_EXPANSION":
             regime_border_color = "border-emerald-500/50 shadow-emerald-500/10"
             regime_badge_bg = "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
             regime_icon = "🚀"
-            regime_tagline = "Genuine spot buyers in control. Favorable environment for trend-following spot longs."
+            regime_tagline = "Genuine spot buyers in control. Loop A accumulation on dips; hold BTC sleeve for upside continuation."
         elif regime_id == "LEVERAGED_FRAGILE_UPSIDE":
             regime_border_color = "border-orange-500/50 shadow-orange-500/10"
             regime_badge_bg = "bg-orange-500/15 text-orange-300 border-orange-500/30"
             regime_icon = "⚠️"
-            regime_tagline = "Advance built on dangerous borrowed futures leverage. High probability of long squeeze."
+            regime_tagline = "Advance built on borrowed futures leverage. Prime Loop B setup to harvest BTC into USDT above shorts."
         elif regime_id == "CASCADE_FORCED_DELEVERAGING":
             regime_border_color = "border-rose-500/60 shadow-rose-500/15"
             regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
             regime_icon = "⚡"
-            regime_tagline = "Forced margin liquidation cascade in progress. Strictly avoid buying until selling ceases."
+            regime_tagline = "Forced margin liquidation cascade in progress. Keep 10% USDT dry until closed 4H washout stabilizes."
         elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
             regime_border_color = "border-rose-500/50 shadow-rose-500/10"
             regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
             regime_icon = "📉"
-            regime_tagline = "Structural seller control. Whales distributing into retail bounces. Cash preservation priority."
+            regime_tagline = "Structural seller control. Loop B distribution sells BTC sleeve into weak bounces; Loop A waits for deep washout."
         elif regime_id == "RANGE_LIQUIDATION_MAGNET":
             regime_border_color = "border-cyan-500/50 shadow-cyan-500/10"
             regime_badge_bg = "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
             regime_icon = "🧲"
-            regime_tagline = "Price bound within defined horizontal channel. Positioning imbalance and liquidation magnets dominate."
+            regime_tagline = "Price bound in closed 4H channel. DIBSE alternates Loop A at floor washouts and Loop B at ceiling squeezes."
         else:
             regime_border_color = "border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.12)]"
             regime_badge_bg = "bg-amber-500/15 text-amber-300 border-amber-500/30"
             regime_icon = "⚖️"
-            regime_tagline = "Market indicators conflicting or transitioning between regimes. Capital preservation in cash."
+            regime_tagline = "Market indicators mixed across closed 4H range. Hold both sleeves (10% USDT + 10% BTC) at equilibrium."
 
         # Action banner color styling
         if "USDT -> BTC" in rotation:
-            action_bg = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-            action_pill = "Buy Spot (Accumulate)"
+            action_bg = "bg-emerald-500/10 border-emerald-500/35 text-emerald-300"
+            action_pill = "LOOP A: 10% USDT → BTC"
         elif "BTC -> USDT" in rotation:
-            action_bg = "bg-rose-500/10 border-rose-500/30 text-rose-400"
-            action_pill = "Trim Spot / Harvest to Cash"
+            action_bg = "bg-sky-500/10 border-sky-500/35 text-sky-300"
+            action_pill = "LOOP B: 10% BTC → USDT"
         else:
-            action_bg = "bg-amber-500/10 border-amber-500/30 text-amber-400"
-            action_pill = "Hold 100% Cash Reserve"
+            action_bg = "bg-amber-500/10 border-amber-500/35 text-amber-300"
+            action_pill = "HOLD BOTH SLEEVES (10% + 10%)"
 
         ev_border = "border-amber-500/35" if regime_id == "TRANSITION_MIXED" else "border-emerald-500/35"
-        # Evidence Cards for the Standout Regime Panel
         evidence_cards_html = "".join([
             f"""<div class='flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/75 border {ev_border}'>
                  <span class='text-emerald-400 font-bold mt-0.5 text-xs'>✓</span>
@@ -622,7 +552,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             for item in regime.get("matched_criteria", [])
         ])
 
-        # Why Points HTML
         why_points_html = "".join([
             f"""<div class='flex items-start gap-3 p-3.5 rounded-xl bg-zinc-950/80 border border-emerald-500/30'>
                  <span class='w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0 mt-0.5'>{idx+1}</span>
@@ -636,59 +565,70 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         utc_time_str, sgt_time_str, scan_date_str = self._format_utc_sgt(ts_iso)
         ladder = self._get_canonical_ladder(data)
 
-        price = metrics.get("price", 0.0)
-        price_change_24h = metrics.get("price_change_24h_pct", 0.0)
-        daily_vwap = metrics.get("daily_vwap", 0.0)
-        weekly_vwap = metrics.get("weekly_vwap", 0.0)
-        ema_20d = metrics.get("ema_20d", 0.0)
-        ema_50d = metrics.get("ema_50d", 0.0)
-        ma_200d = metrics.get("ma_200d", 0.0)
-        swing_high = metrics.get("swing_high_4h", 0.0)
-        swing_low = metrics.get("swing_low_4h", 0.0)
-        base_floor = metrics.get("base_floor", 0.0)
-        funding_rate = metrics.get("funding_rate", 0.0) * 100
-        spot_cvd_ratio = metrics.get("spot_cvd_ratio", 1.0)
-        oi_change_24h = metrics.get("oi_change_24h_pct", 0.0)
-        oi_change_1h = metrics.get("oi_change_1h_pct", 0.0)
-        oi_change_4h = metrics.get("oi_change_4h_pct", 0.0)
+        price = float(metrics.get("price", 0.0) or 0.0)
+        price_change_24h = float(metrics.get("price_change_24h_pct", 0.0) or 0.0)
+        daily_vwap = float(metrics.get("daily_vwap", 0.0) or 0.0)
+        weekly_vwap = float(metrics.get("weekly_vwap", 0.0) or 0.0)
+        swing_high = float(metrics.get("swing_high_4h", 0.0) or 0.0)
+        swing_low = float(metrics.get("swing_low_4h", 0.0) or 0.0)
+        base_floor = float(metrics.get("base_floor", 0.0) or 0.0)
+        base_ceiling = float(metrics.get("base_ceiling", 0.0) or 0.0)
+        cap_wick = float(metrics.get("capitulation_wick_low", 0.0) or 0.0)
+        euph_wick = float(metrics.get("euphoria_wick_high", 0.0) or 0.0)
+        raw_cutoff = str(metrics.get("closed_4h_bar_close_time") or "")
+        closed_4h_cutoff = (raw_cutoff[:16].replace("T", " ") + " UTC") if ("T" in raw_cutoff and len(raw_cutoff) >= 16) else (raw_cutoff or "Closed 4H bars")
+        funding_rate = float(metrics.get("funding_rate", 0.0) or 0.0) * 100
+        spot_cvd_ratio = float(metrics.get("spot_cvd_ratio", 1.0) or 1.0)
+        oi_change_24h = float(metrics.get("oi_change_24h_pct", 0.0) or 0.0)
+        oi_change_1h = float(metrics.get("oi_change_1h_pct", 0.0) or 0.0)
+        oi_change_4h = float(metrics.get("oi_change_4h_pct", 0.0) or 0.0)
         oi_hist_ok = bool(metrics.get("oi_history_available", True))
-        basis = metrics.get("futures_basis_annualized", 0.0)
-        ls_ratio = metrics.get("long_short_account_ratio", 1.0)
+        basis = float(metrics.get("futures_basis_annualized", 0.0) or 0.0)
+        ls_ratio = float(metrics.get("long_short_account_ratio", 1.0) or 1.0)
         ls_avail = bool(metrics.get("ls_ratio_available", True))
         ls_pct_72h = metrics.get("ls_ratio_percentile_72h")
-        atr_pct_72h = metrics.get("atr_percentile_72h")
-        current_oi = metrics.get("open_interest", 0.0)
+        current_oi = float(metrics.get("open_interest", 0.0) or 0.0)
+        depth_ratio = float(metrics.get("bids_asks_depth_ratio", 0.0) or 0.0)
+        spot_vol_24h = float(metrics.get("spot_vol_24h", 0.0) or 0.0)
         spot_source = metrics.get("spot_data_source", "Binance Public Market-Data REST (data-api.binance.vision/api/v3)")
         futures_source = metrics.get("futures_data_source", "Perp Public REST")
         oi_scope = metrics.get("oi_scope", "Tracked venue perpetual subset (not total market OI)")
-        stop_note = regime.get("stop_placement_note", "")
 
-        oi_24h_str = f"{oi_change_24h:+.2f}%" if oi_hist_ok else "N/A (Fallback)"
-        oi_1h_str = f"{oi_change_1h:+.2f}%" if oi_hist_ok else "N/A"
-        oi_4h_str = f"{oi_change_4h:+.2f}%" if oi_hist_ok else "N/A"
-        ls_pct_disp = f"{ls_ratio:.2f}" + (f" (p{ls_pct_72h:.0f} 72h)" if ls_pct_72h is not None else "") if ls_avail else "Unavailable"
-        atr_pct_disp = f" (p{atr_pct_72h:.0f} 72h)" if atr_pct_72h is not None else ""
+        oi_val_str = f"{current_oi:,.0f} BTC" if current_oi > 0 else "DATA UNAVAILABLE"
+        oi_24h_str = f"{oi_change_24h:+.2f}%" if (oi_hist_ok and current_oi > 0) else "DATA UNAVAILABLE"
+        oi_1h_4h_str = f"{oi_change_1h:+.2f}% / {oi_change_4h:+.2f}%" if (oi_hist_ok and current_oi > 0) else "DATA UNAVAILABLE"
+        ls_pct_disp = f"{ls_ratio:.2f}" + (f" (p{ls_pct_72h:.0f} 72h)" if ls_pct_72h is not None else "") if ls_avail else "DATA UNAVAILABLE"
+        depth_disp = f"{depth_ratio:.2f}" if depth_ratio > 0 else "DATA UNAVAILABLE"
+        wick_span_pct = ((euph_wick - cap_wick) / max(price, 1.0)) * 100.0 if (euph_wick > 0 and cap_wick > 0 and price > 0) else None
+        wick_span_disp = f"{wick_span_pct:.2f}%" if wick_span_pct is not None else "DATA UNAVAILABLE"
+        ch_width_pct = ((swing_high - swing_low) / max(price, 1.0)) * 100.0 if (swing_high > 0 and swing_low > 0 and price > 0) else None
+        ch_width_disp = f"{ch_width_pct:.2f}%" if ch_width_pct is not None else "DATA UNAVAILABLE"
+        env_3d_disp = f"${base_floor:,.0f} - ${base_ceiling:,.0f}" if (base_floor > 0 and base_ceiling > 0) else (f"${base_floor:,.0f} floor" if base_floor > 0 else "DATA UNAVAILABLE")
+        wicks_24h_disp = f"${cap_wick:,.0f} / ${euph_wick:,.0f}" if (cap_wick > 0 and euph_wick > 0) else (f"${cap_wick:,.0f} low" if cap_wick > 0 else "DATA UNAVAILABLE")
 
         upper_ladders_html = []
         lower_ladders_html = []
+        upper_active = "UPPER_SWEEP" in lsce_status
+        lower_active = ("SWEEP" in lsce_status) and not upper_active
         for row in ladder:
             vol_disp = self._format_pool_m(row["estimated_vol_m"])
             if row["side"] == "upper":
                 if row.get("is_nearest"):
                     w_bar = min(100, max(15, row["estimated_vol_m"] / 20.0 * 100.0))
+                    sq_tag = " <span class='text-[10px] text-amber-300 font-bold'>&laquo; SQUEEZE WATCH</span>" if upper_active else ""
                     upper_ladders_html.append(f"""          <!-- Upper Tier: {row['tier']} Nearest Active Pool -->
-          <div class="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/45">
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-rose-500/10 {'border-2 border-rose-400/70 shadow-lg shadow-rose-500/15' if upper_active else 'border border-rose-500/45'}">
             <div class="flex items-center gap-2.5 w-48">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">{row['tier']}</span>
               <span class="font-mono font-bold text-rose-300">${row['price']:,.0f}</span>
             </div>
             <div class="flex-1 mx-4 hidden sm:block">
               <div class="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden">
-                <div class="bg-gradient-to-r from-rose-700 to-rose-400 h-full rounded-full" style="width: {w_bar:.0f}%;"></div>
+                <div class="bg-gradient-to-r from-rose-700 to-rose-400 h-full rounded-full {'animate-pulse' if upper_active else ''}" style="width: {w_bar:.0f}%;"></div>
               </div>
             </div>
-            <div class="text-right font-mono text-rose-400 text-xs w-44">
-              {row['distance_pct']:+.2f}% &bull; {vol_disp} <span class="text-[10px] text-zinc-500">(Est.)</span>
+            <div class="text-right font-mono text-rose-300 text-xs w-48">
+              {row['distance_pct']:+.2f}% &bull; {vol_disp}{sq_tag}
             </div>
           </div>""")
                 else:
@@ -704,13 +644,13 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
                 <div class="bg-gradient-to-r from-rose-900 to-rose-600 h-full rounded-full" style="width: {w_bar}%;"></div>
               </div>
             </div>
-            <div class="text-right font-mono text-zinc-400 text-xs w-44">
+            <div class="text-right font-mono text-zinc-400 text-xs w-48">
               {row['distance_pct']:+.2f}% &bull; {vol_disp} <span class="text-[10px] text-zinc-500">(Est.)</span>
             </div>
           </div>""")
             else:
                 if row.get("is_nearest"):
-                    sweep_tag = " <span class='text-[10px] text-rose-300 font-bold'>&laquo; TESTING</span>" if "SWEEP" in lsce_status else ""
+                    sweep_tag = " <span class='text-[10px] text-amber-300 font-bold'>&laquo; TESTING</span>" if lower_active else ""
                     lower_ladders_html.append(f"""          <!-- Lower Tier: {row['tier']} DOMINANT MAGNET CORE -->
           <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10">
             <div class="flex items-center gap-2.5 w-48">
@@ -724,7 +664,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
                 <div class="bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-300 h-full rounded-full animate-pulse" style="width: 100%;"></div>
               </div>
             </div>
-            <div class="text-right font-mono text-emerald-300 font-bold text-xs w-44">
+            <div class="text-right font-mono text-emerald-300 font-bold text-xs w-48">
               {row['distance_pct']:+.2f}% &bull; {vol_disp}{sweep_tag}
             </div>
           </div>""")
@@ -741,7 +681,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
                 <div class="bg-gradient-to-r from-emerald-900 to-emerald-600 h-full rounded-full" style="width: {w_bar}%;"></div>
               </div>
             </div>
-            <div class="text-right font-mono text-zinc-400 text-xs w-44">
+            <div class="text-right font-mono text-zinc-400 text-xs w-48">
               {row['distance_pct']:+.2f}% &bull; {vol_disp} <span class="text-[10px] text-zinc-500">(Est.)</span>
             </div>
           </div>""")
@@ -750,14 +690,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         imm_disp = f"~{round(imm_ratio):.0f}x" if imm_ratio >= 10 else f"{imm_ratio:.1f}x"
 
-        # Build raw & blind prompts for clipboard
-        llm_prompt = self._build_llm_prompt(data)
-        llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        # Build blind telemetry prompt (Method 1 uses single Upgraded Blind Telemetry workflow)
         blind_prompt = self._build_blind_llm_prompt(data)
         blind_prompt_escaped = blind_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-        # Unified PWA meta and styling tags (applies to both index.html and app.html)
-        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; AI Telemetry Cockpit"
+        # Unified PWA meta and styling tags
+        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; DIBSE Spot Engine"
         body_padding = "pb-16"
 
         pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -804,6 +742,10 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     }}
     html {{
       scroll-behavior: smooth;
+      overflow-x: clip;
+    }}
+    body {{
+      overflow-x: clip;
     }}
   </style>
 </head>
@@ -819,13 +761,13 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   <!-- Top Navigation Bar -->
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
           <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
         </div>
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
           </div>
@@ -833,7 +775,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         </div>
       </div>
 
-      <div class="flex items-center gap-3 sm:gap-6">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-6">
         {top_switch_button}
         <div class="text-right">
           <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
@@ -970,14 +912,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     </div>
 
     <!-- ============================================================ -->
-    <!-- PANEL 2: ON-EXCHANGE TELEMETRY (4 MICROSTRUCTURE FEEDS)      -->
+    <!-- PANEL 2: ON-EXCHANGE TELEMETRY (CLOSED 4H & MODELED POOLS)   -->
     <!-- ============================================================ -->
     <div id="panel-2" class="rounded-2xl border-2 border-cyan-500/60 bg-gradient-to-b from-zinc-950 via-zinc-900/90 to-zinc-950 p-5 sm:p-6 backdrop-blur-md shadow-[0_0_25px_rgba(6,182,212,0.12)] space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cyan-500/30 pb-3">
         <div>
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry &amp; Modeled Pools</span>
-            <span class="text-[11px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 mono">Raw Feeds (1-3) + Modeled Pools (4)</span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 mono">Closed 4H Bars (1-3) + Modeled Pools (4)</span>
           </div>
           <h3 class="text-lg sm:text-xl font-bold text-white mt-0.5">Real-Time Market Microstructure Feeds</h3>
         </div>
@@ -989,21 +931,20 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <!-- 4 Categories Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
         
-        <!-- Category 1: Price & Structure -->
+        <!-- Category 1: Price & Closed 4H Structure -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-cyan-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/30 pb-1.5 flex items-center justify-between">
-            <span>1. Price &amp; Structure</span>
-            <span class="text-[10px] text-cyan-300 font-mono">Raw Spot</span>
+            <span>1. Closed 4H Structure</span>
+            <span class="text-[10px] text-cyan-300 font-mono">Zero Repaint</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
             <div class="flex justify-between"><span>Spot Price:</span> <span class="font-mono font-bold text-white">${price:,.2f}</span></div>
-            <div class="flex justify-between"><span>Daily VWAP:</span> <span class="font-mono text-zinc-300">${daily_vwap:,.2f}</span></div>
-            <div class="flex justify-between"><span>Weekly VWAP:</span> <span class="font-mono text-zinc-300">${weekly_vwap:,.2f}</span></div>
-            <div class="flex justify-between"><span>20D EMA:</span> <span class="font-mono text-zinc-300">${ema_20d:,.2f}</span></div>
-            <div class="flex justify-between"><span>50D EMA:</span> <span class="font-mono text-zinc-300">${ema_50d:,.2f}</span></div>
-            <div class="flex justify-between"><span>200D SMA:</span> <span class="font-mono text-zinc-300">${ma_200d:,.2f}</span></div>
-            <div class="flex justify-between"><span>4H Swing Range:</span> <span class="font-mono text-zinc-300">${swing_low:,.0f} - ${swing_high:,.0f}</span></div>
-            <div class="flex justify-between"><span>3D Base Floor:</span> <span class="font-mono text-zinc-300">${base_floor:,.2f}</span></div>
+            <div class="flex justify-between"><span>Daily VWAP:</span> <span class="font-mono text-zinc-300">{self._fmt_usd_or_na(daily_vwap)}</span></div>
+            <div class="flex justify-between"><span>Weekly VWAP (4H):</span> <span class="font-mono text-zinc-300">{self._fmt_usd_or_na(weekly_vwap)}</span></div>
+            <div class="flex justify-between"><span>Closed 4H Channel:</span> <span class="font-mono text-zinc-300">${swing_low:,.0f} - ${swing_high:,.0f}</span></div>
+            <div class="flex justify-between"><span>3D 4H Envelope:</span> <span class="font-mono text-zinc-300">{env_3d_disp}</span></div>
+            <div class="flex justify-between"><span>24H Closed Wicks:</span> <span class="font-mono text-zinc-300">{wicks_24h_disp}</span></div>
+            <div class="flex justify-between"><span>4H Bar Cutoff:</span> <span class="font-mono text-[11px] text-cyan-300">{closed_4h_cutoff}</span></div>
           </div>
         </div>
 
@@ -1015,12 +956,12 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           </div>
           <div class="space-y-1.5 text-zinc-300">
             <div class="flex justify-between"><span>Spot CVD Ratio:</span> <span class="font-mono font-bold text-emerald-400">{spot_cvd_ratio:.2f}</span></div>
-            <div class="flex justify-between"><span>24h Spot Volume:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_24h", 0.0):,.0f} BTC</span></div>
-            <div class="flex justify-between"><span>Volume / 20D MA:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_ratio", 1.0):.2f}x</span></div>
+            <div class="flex justify-between"><span>24h Spot Volume:</span> <span class="font-mono text-zinc-300">{f"{spot_vol_24h:,.0f} BTC" if spot_vol_24h > 0 else "DATA UNAVAILABLE"}</span></div>
+            <div class="flex justify-between"><span>Volume / 20D Base:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_vol_ratio", 1.0):.2f}x</span></div>
             <div class="flex justify-between"><span>7D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_7d", 0.0):+.0f}</span></div>
             <div class="flex justify-between"><span>14D Spot CVD Slope:</span> <span class="font-mono text-zinc-300">{metrics.get("spot_cvd_slope_14d", 0.0):+.0f}</span></div>
-            <div class="flex justify-between"><span>Perp Flow Trend:</span> <span class="font-mono text-zinc-300 capitalize">{metrics.get("perp_cvd_trend", "Flat")}</span></div>
-            <div class="flex justify-between"><span>Order Depth Ratio:</span> <span class="font-mono text-zinc-300">{metrics.get("bids_asks_depth_ratio", 1.0):.2f}</span></div>
+            <div class="flex justify-between"><span>Perp Flow Trend:</span> <span class="font-mono text-zinc-300 capitalize">{metrics.get("perp_cvd_trend", "DATA UNAVAILABLE")}</span></div>
+            <div class="flex justify-between"><span>Order Depth Ratio:</span> <span class="font-mono text-zinc-300">{depth_disp}</span></div>
           </div>
         </div>
 
@@ -1031,9 +972,9 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             <span class="text-[10px] text-amber-300 font-mono">Venue OI</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
-            <div class="flex justify-between" title="{oi_scope}"><span>Tracked Venue OI:</span> <span class="font-mono font-bold text-white">{current_oi:,.0f} BTC</span></div>
+            <div class="flex justify-between" title="{oi_scope}"><span>Tracked Venue OI:</span> <span class="font-mono font-bold text-white">{oi_val_str}</span></div>
             <div class="flex justify-between"><span>OI 24h Change:</span> <span class="font-mono text-zinc-300">{oi_24h_str}</span></div>
-            <div class="flex justify-between"><span>OI 1h / 4h:</span> <span class="font-mono text-zinc-300">{oi_1h_str} / {oi_4h_str}</span></div>
+            <div class="flex justify-between"><span>OI 1h / 4h:</span> <span class="font-mono text-zinc-300">{oi_1h_4h_str}</span></div>
             <div class="flex justify-between"><span>Funding Rate (8h):</span> <span class="font-mono text-zinc-300">{funding_rate:+.4f}%</span></div>
             <div class="flex justify-between"><span>Futures Basis Ann.:</span> <span class="font-mono text-zinc-300">{basis:+.2f}%</span></div>
             <div class="flex justify-between"><span>Retail Long/Short:</span> <span class="font-mono text-zinc-300">{ls_pct_disp}</span></div>
@@ -1041,16 +982,16 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           </div>
         </div>
 
-        <!-- Category 4: Volatility & Magnets -->
+        <!-- Category 4: Range Compression & Magnets -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-rose-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-rose-400 border-b border-rose-500/30 pb-1.5 flex items-center justify-between">
-            <span>4. Volatility &amp; Magnets</span>
+            <span>4. Range &amp; Magnets</span>
             <span class="text-[10px] text-rose-300 font-mono">Modeled Est.</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
-            <div class="flex justify-between"><span>1H ATR:</span> <span class="font-mono text-zinc-300">${metrics.get("atr", 0.0):,.2f}</span></div>
-            <div class="flex justify-between"><span>ATR Compression:</span> <span class="font-mono font-bold text-white">{metrics.get("atr_compression_pct", 0.0):.1f}%{atr_pct_disp}</span></div>
-            <div class="flex justify-between"><span>4H Channel Width:</span> <span class="font-mono text-zinc-300">{(((swing_high - swing_low) / max(price, 1.0)) * 100):.2f}%</span></div>
+            <div class="flex justify-between"><span>4H Channel Width:</span> <span class="font-mono font-bold text-white">{ch_width_disp}</span></div>
+            <div class="flex justify-between"><span>24h Closed Wick Span:</span> <span class="font-mono text-zinc-300">{wick_span_disp}</span></div>
+            <div class="flex justify-between"><span>Book Depth (±1.5%):</span> <span class="font-mono text-zinc-300">{depth_disp}</span></div>
             <div class="flex justify-between"><span>Upper Short Pool:</span> <span class="font-mono text-rose-400">${upper_c.get('price_level', 0.0):,.0f} (+{upper_c.get('distance_pct', 0.0):.2f}%)</span></div>
             <div class="flex justify-between"><span>Upper Est. Pool:</span> <span class="font-mono text-zinc-300">{self._format_pool_m(upper_c.get('estimated_vol_usd', 0.0)/1e6)}</span></div>
             <div class="flex justify-between"><span>Lower Long Pool:</span> <span class="font-mono text-emerald-400">${lower_c.get('price_level', 0.0):,.0f} (-{lower_c.get('distance_pct', 0.0):.2f}%)</span></div>
@@ -1164,38 +1105,38 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- ============================================================ -->
     <div id="verdict-guide" class="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-[0_0_25px_rgba(139,92,246,0.12)] text-center space-y-3">
       <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/40 text-violet-300 text-xs font-extrabold uppercase tracking-wider">
-        <span>⚖️ Bridge &bull; How to Get Your Trading Verdict</span>
+        <span>⚖️ Bridge &bull; How to Get Your DIBSE Spot Verdict</span>
       </div>
       <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">
-        Choose Method 1 (Your Own AI) or Method 2 (Our System Verdict)
+        Choose Method 1 (Your Own AI) or Method 2 (Our Bidirectional Engine)
       </h3>
       <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-        Panels 1–3 give you pure market facts with zero advice. To get an actionable trading verdict, pick either method below—or use <strong>both together</strong> so your independent AI double-checks our engine before you risk spot capital.
+        Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (10% USDT &rarr; BTC)</strong>, <strong>Loop B (10% BTC &rarr; USDT)</strong>, or <strong>Hold Both Sleeves</strong>, use either method below—or pair both for an unanchored second opinion.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
         <a href="#method-1" class="p-4 rounded-xl bg-zinc-950/85 border border-sky-500/50 hover:border-sky-400 transition-all flex items-start gap-3">
-          <span class="text-2xl">📋</span>
+          <span class="text-2xl">🧪</span>
           <div>
             <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Method 1 &bull; Use Your Own AI</div>
-            <div class="text-sm font-extrabold text-white">Copy Data &amp; Paste into ChatGPT / Claude / Gemini</div>
-            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 1 and tap <strong class="text-sky-300">Copy Blind Telemetry</strong> (raw metrics only, zero verdict shown) or <strong class="text-cyan-300">Full Audit Prompt</strong>.<br>2. Paste into your favorite AI to get an unbiased regime verdict and entry levels.</p>
+            <div class="text-sm font-extrabold text-white">Copy Blind Telemetry &rarr; ChatGPT / Claude / Gemini</div>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 1, optionally fill your <strong>P_buy / P_sell</strong> watermarks, and tap <strong class="text-sky-300">Copy Blind Telemetry for AI</strong>.<br>2. Paste into your own AI for an unanchored Loop A / Loop B verdict.</p>
           </div>
         </a>
 
         <a href="#method-2" class="p-4 rounded-xl bg-zinc-950/85 border border-purple-500/50 hover:border-purple-400 transition-all flex items-start gap-3">
           <span class="text-2xl">🧠</span>
           <div>
-            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Method 2 &bull; Built-In Rule Engine</div>
-            <div class="text-sm font-extrabold text-white">Read Our System Verdict (Full-On View)</div>
-            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 2 for the deterministic regime call, 3 core drivers, and LSCE sweep/reclaim gate.<br>2. Check the 10x–100x modeled liquidation ladder, stop level, and 1% risk-budget sizing.</p>
+            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Method 2 &bull; Built-In DIBSE Engine</div>
+            <div class="text-sm font-extrabold text-white">Read Our Bidirectional System Verdict</div>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 2 for our Loop A &amp; Loop B zones, symmetric LSCE sweep gate, and 10% + 10% sleeve call.<br>2. Review the zero-stop-loss self-healing rules and 10x–100x modeled liquidity map.</p>
           </div>
         </a>
       </div>
     </div>
 
     <!-- ============================================================ -->
-    <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI                -->
+    <!-- METHOD 1: VERDICT BY BLIND TELEMETRY COPY TO AI              -->
     <!-- ============================================================ -->
     <div id="method-1" class="rounded-2xl border-2 border-sky-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(14,165,233,0.12)] space-y-5">
       
@@ -1203,97 +1144,104 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <div>
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
-              <span>📋</span>
-              <span>Method 1: Verdict by Copy Data &amp; Prompt to AI</span>
+              <span>🧪</span>
+              <span>Method 1: Upgraded Blind Telemetry (Zero System Bias)</span>
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Analyze Live Telemetry with Your Own AI
+            Analyze Live DIBSE Telemetry with Your Own AI
           </h2>
           <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
-            Use <strong>Blind Telemetry</strong> for an unanchored second opinion (no system verdict or sizing revealed), or <strong>Full Audit Prompt</strong> to stress-test our deterministic regime call.
+            One clean export containing closed-4H market facts, modeled liquidation bands, and your optional inventory watermarks—with <strong>zero system verdict revealed</strong> so your AI stays 100% objective.
           </p>
         </div>
 
-        <!-- Dual One-Click Copy Buttons -->
+        <!-- Single Clean One-Click Copy Button -->
         <div class="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <button id="copy-blind-btn" onclick="copyBlindPrompt()" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs shadow-lg shadow-sky-500/25 transition-all cursor-pointer">
+          <button id="copy-blind-btn" onclick="copyBlindPrompt()" class="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs sm:text-sm shadow-lg shadow-sky-500/25 transition-all cursor-pointer">
             <span id="copy-blind-icon" class="text-base">🧪</span>
-            <span id="copy-blind-text">Copy Blind Telemetry (Unanchored)</span>
-          </button>
-          <button id="copy-prompt-btn" onclick="copyTelemetryPrompt()" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all cursor-pointer">
-            <span id="copy-btn-icon" class="text-base">📋</span>
-            <span id="copy-btn-text">Copy Full Audit Prompt</span>
+            <span id="copy-blind-text">Copy Blind Telemetry for AI</span>
           </button>
         </div>
       </div>
+
+      <!-- Optional Local-Only Inventory Watermarks (Collapsed for 1-Button Simplicity) -->
+      <details id="wb-details" class="rounded-xl bg-zinc-950/90 border border-sky-500/35 px-4 py-3">
+        <summary class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 cursor-pointer select-none">
+          <span class="text-xs font-bold uppercase tracking-wider text-sky-300">▸ Optional: Add P_buy / P_sell Inventory Watermarks (Local Only)</span>
+          <span id="wb-status" class="text-[11px] font-mono text-zinc-400">Baseline: 10% USDT + 10% BTC sleeves ready</span>
+        </summary>
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-3 mt-3 border-t border-zinc-800/80">
+          <div class="sm:col-span-5">
+            <label for="wb-buy" class="block text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-1">Loop A Spot BTC Cost ($P_buy)</label>
+            <input id="wb-buy" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 71200 (if holding Loop A BTC)" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-400">
+          </div>
+          <div class="sm:col-span-5">
+            <label for="wb-sell" class="block text-[10px] font-bold uppercase tracking-wider text-sky-300 mb-1">Loop B BTC Sale Price ($P_sell)</label>
+            <input id="wb-sell" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 75800 (if waiting to rebuy BTC)" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-sky-400">
+          </div>
+          <div class="sm:col-span-2">
+            <button id="wb-clear" type="button" class="w-full px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-[11px] font-bold text-zinc-200 cursor-pointer">Clear</button>
+          </div>
+        </div>
+      </details>
 
       <!-- 3-Step Simple Instructions -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-sky-500/35 space-y-1">
           <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Step 1</span>
-          <div class="font-bold text-white">Choose Blind or Full Copy</div>
-          <p class="text-[11px] text-zinc-400">Blind exports raw exchange metrics and labeled modeled liquidity tiers without anchoring your AI to our verdict.</p>
+          <div class="font-bold text-white">Copy Upgraded Blind Telemetry</div>
+          <p class="text-[11px] text-zinc-400">Exports closed-4H structure, CVD, OI, and modeled pools + your watermarks—without leaking Method 2's verdict.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-cyan-500/35 space-y-1">
           <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 2</span>
           <div class="font-bold text-white">Paste into Any Major LLM</div>
-          <p class="text-[11px] text-zinc-400">Works seamlessly with Claude, ChatGPT, Grok, or Google Gemini.</p>
+          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with DIBSE dual-sleeve context built in.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1">
           <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Step 3</span>
-          <div class="font-bold text-white">Compare Independent Votes</div>
-          <p class="text-[11px] text-zinc-400">Cross-check your AI's regime call and invalidation levels against Method 2 below.</p>
+          <div class="font-bold text-white">Cross-Check Loop A &amp; Loop B</div>
+          <p class="text-[11px] text-zinc-400">Compare your AI's independent Loop A (buy washout) &amp; Loop B (sell squeeze) levels against Method 2 below.</p>
         </div>
       </div>
 
       <!-- Collapsible Blind Prompt Preview -->
       <details class="rounded-xl border border-sky-500/35 bg-zinc-950/70 p-4 text-xs text-zinc-400">
         <summary class="font-semibold text-sky-200 cursor-pointer hover:text-white flex items-center justify-between">
-          <span>🧪 Preview Blind Metrics-Only Prompt — No Engine Verdict ({len(blind_prompt)} chars)</span>
+          <span>🧪 Preview Upgraded Blind Telemetry Prompt (<span id="blind-char-count">{len(blind_prompt)}</span> chars)</span>
           <span class="text-[11px] text-sky-400">Click to expand</span>
         </summary>
-        <div class="mt-3 pt-3 border-t border-zinc-800 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto bg-zinc-950 p-4 rounded-lg border border-sky-500/25">
+        <div id="blind-preview-pre" style="overflow-wrap: anywhere;" class="mt-3 pt-3 border-t border-zinc-800 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto overflow-x-auto max-w-full bg-zinc-950 p-4 rounded-lg border border-sky-500/25">
 {blind_prompt_escaped}
         </div>
       </details>
 
-      <!-- Collapsible Full Audit Prompt Preview -->
-      <details class="rounded-xl border border-cyan-500/35 bg-zinc-950/70 p-4 text-xs text-zinc-400">
-        <summary class="font-semibold text-zinc-300 cursor-pointer hover:text-white flex items-center justify-between">
-          <span>🔍 Preview Complete Telemetry &amp; Full Audit Prompt ({len(llm_prompt)} characters)</span>
-          <span class="text-[11px] text-cyan-400">Click to expand</span>
-        </summary>
-        <div class="mt-3 pt-3 border-t border-zinc-800 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto bg-zinc-950 p-4 rounded-lg border border-cyan-500/25">
-{llm_prompt_escaped}
-        </div>
-      </details>
-
-      <!-- Hidden Pre-Formatted Prompts for Copying -->
+      <!-- Hidden Pre-Formatted Prompts for Copying & Live Watermark Merge -->
+      <textarea id="blind-prompt-base" class="hidden" readonly>{blind_prompt_escaped}</textarea>
       <textarea id="blind-prompt-data" class="hidden" readonly>{blind_prompt_escaped}</textarea>
-      <textarea id="llm-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
     </div>
 
     <!-- ============================================================ -->
-    <!-- METHOD 2: OUR SYSTEM VERDICT • FULL-ON VIEW                  -->
+    <!-- METHOD 2: OUR SYSTEM VERDICT • DIBSE BIDIRECTIONAL ENGINE    -->
     <!-- ============================================================ -->
     <div id="method-2" class="rounded-2xl border-2 border-purple-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(168,85,247,0.12)] space-y-6">
       
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-500/25 pb-4">
         <div>
-          <div class="flex items-center gap-2 mb-1">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Method 2: Our System Verdict (Full-On View)</span>
+              <span>Method 2: Our Bidirectional DIBSE System Verdict</span>
             </span>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border {action_bg}">{action_pill}</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Our System Verdict
           </h2>
           <p class="text-xs text-zinc-400 mt-0.5">
-            Full-on view of our quantitative regime diagnosis, 3 empirical drivers, LSCE sweep status, 10x-100x modeled heatmap, and 6-factor decision hierarchy.
+            Closed-4H deterministic regime call, Loop A &amp; Loop B swing zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and zero-stop self-healing inventory rules.
           </p>
         </div>
         <div class="px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-medium self-start sm:self-auto">
@@ -1301,15 +1249,26 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         </div>
       </div>
 
-      <!-- Plain English Bottom Line Breakdown (For 95% Beginners) -->
+      <!-- Reminder Banner: Method 2 is Deterministic Second Opinion; Always Compare with Method 1 AI -->
+      <div id="method2-ai-reminder" class="p-3.5 sm:p-4 rounded-xl bg-sky-500/10 border border-sky-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div class="text-xs text-sky-100 leading-relaxed">
+          <strong class="text-sky-300 uppercase tracking-wider">Always Compare with Method 1 AI:</strong>
+          Method 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate DIBSE entries/exits, always copy <strong>Method 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
+        </div>
+        <a href="#method-1" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
+          &uarr; Compare via Method 1
+        </a>
+      </div>
+
+      <!-- Plain English Bottom Line Breakdown + DIBSE Bidirectional Playbook -->
       <div class="p-5 sm:p-6 rounded-2xl bg-zinc-950/90 border border-emerald-500/40 space-y-4">
         <div>
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Plain English</span>
-            <span class="text-xs text-zinc-500 font-medium">(No Jargon Required)</span>
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; DIBSE Spot Engine</span>
+            <span class="text-xs text-zinc-500 font-medium">({sleeve_alloc})</span>
           </div>
           <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
-            Why This Recommendation?
+            Why This Bidirectional Call?
           </h3>
           <div class="mt-3 p-4 rounded-xl bg-zinc-900/60 border border-emerald-500/35 flex items-start gap-3">
             <span class="text-2xl">💡</span>
@@ -1319,7 +1278,19 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           </div>
         </div>
 
-        <!-- 3 Driving Market Factors & Sizing Breakdown -->
+        <!-- Loop A / Loop B Playbook Zones -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/40 space-y-1">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Loop A (10% USDT &rarr; BTC &rarr; USDT)</div>
+            <div class="font-mono text-zinc-200 leading-relaxed">{loop_a_zone}</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-sky-950/20 border border-sky-500/40 space-y-1">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Loop B (10% BTC &rarr; USDT &rarr; BTC)</div>
+            <div class="font-mono text-zinc-200 leading-relaxed">{loop_b_zone}</div>
+          </div>
+        </div>
+
+        <!-- 3 Driving Market Factors & DIBSE Self-Healing Rules -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
           <div class="lg:col-span-2 space-y-2.5">
             <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">The 3 Key Market Factors Driving This Call</div>
@@ -1330,14 +1301,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
           <div class="space-y-3">
             <div class="bg-zinc-900/60 p-4 rounded-xl border border-amber-500/40 space-y-1">
-              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Why This Exact Sizing?</div>
+              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Dual-Sleeve Sandbox Allocation</div>
               <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
               <div class="pt-1.5 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">{risk.get('risk_advisory', '')}</div>
             </div>
-            <div class="bg-zinc-900/60 p-4 rounded-xl border border-rose-500/40 space-y-1">
-              <div class="text-xs font-bold uppercase tracking-wider text-rose-400">Where Is Your Safety Net?</div>
+            <div class="bg-zinc-900/60 p-4 rounded-xl border border-indigo-500/40 space-y-1">
+              <div class="text-xs font-bold uppercase tracking-wider text-indigo-300">Asymmetric Self-Healing Protocol</div>
               <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_stop}</p>
-              <p class="text-[11px] text-amber-300/90 leading-relaxed pt-1 border-t border-zinc-800/80 {'hidden' if not stop_note else ''}">{stop_note}</p>
+              <p class="text-[11px] text-emerald-300/90 leading-relaxed pt-1 border-t border-zinc-800/80">{stop_rule}</p>
             </div>
           </div>
         </div>
@@ -1348,7 +1319,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <div class="flex items-center gap-3">
           <span class="text-2xl">{lsce_badge_icon}</span>
           <div>
-            <div class="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Liquidation Sweep Confirmation Engine (LSCE)</div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Bidirectional Liquidation Sweep Engine (LSCE &bull; Closed 4H)</div>
             <div class="text-sm font-extrabold">{lsce_badge_title}</div>
           </div>
         </div>
@@ -1362,9 +1333,9 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <!-- Upper Short Pool -->
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-rose-500/45 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-rose-400 uppercase tracking-wide">Upper Short Liquidity Pool</span>
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wide">Upper Short Pool (Loop B Target)</span>
             <span class="text-xs mono font-medium bg-zinc-800 text-zinc-200 px-2.5 py-0.5 rounded-full">
-              +{upper_c.get('distance_pct', 0.0):.2f}% (+{upper_c.get('distance_atr', 0.0):.2f} ATR)
+              +{upper_c.get('distance_pct', 0.0):.2f}%
             </span>
           </div>
           <div class="text-2xl sm:text-3xl font-extrabold mono text-white">
@@ -1381,9 +1352,9 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         <!-- Lower Long Pool -->
         <div class="bg-zinc-950/80 p-5 rounded-xl border border-emerald-500/45 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Lower Long Liquidity Pool</span>
+            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Lower Long Pool (Loop A Target)</span>
             <span class="text-xs mono font-medium bg-zinc-800 text-zinc-200 px-2.5 py-0.5 rounded-full">
-              -{lower_c.get('distance_pct', 0.0):.2f}% (-{lower_c.get('distance_atr', 0.0):.2f} ATR)
+              -{lower_c.get('distance_pct', 0.0):.2f}%
             </span>
           </div>
           <div class="text-2xl sm:text-3xl font-extrabold mono text-white">
@@ -1451,7 +1422,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             </div>
           </div>
           <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-2 pt-1">
-            <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Modeled clusters scale proportionally to tracked exchange OI &amp; positioning skew (see 5 Regimes Guide for math).</div>
+            <div><strong class="text-zinc-200">How the Heatmap Works:</strong> Modeled clusters scale proportionally to tracked exchange OI &amp; closed-4H swing levels (see 5 Regimes Guide for math).</div>
             <div class="text-emerald-400 font-bold shrink-0">Dominant Gravitational Pull: {dom_magnet}</div>
           </div>
         </div>
@@ -1461,7 +1432,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div class="border border-teal-500/45 rounded-xl p-5 bg-zinc-950/90 space-y-3.5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-teal-500/25 pb-3 gap-1">
           <span class="text-xs font-bold text-teal-300 uppercase tracking-wider">Magnet Decision Analysis (Six-Factor Evaluation)</span>
-          <span class="text-xs text-zinc-400">Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; ATR</span>
+          <span class="text-xs text-zinc-400">Hierarchy: Pool Size &gt; Spot CVD &gt; Crowding &gt; Regime &gt; Distance &gt; 4H Width</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-zinc-300">
           <div class="p-3 rounded-lg bg-zinc-900/60 border border-rose-500/35">
@@ -1477,7 +1448,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             <span class="text-zinc-200 leading-relaxed">{f3}</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-900/60 border border-indigo-500/35">
-            <strong class="text-indigo-300 block mb-1">4. Higher-Timeframe Market Structure:</strong>
+            <strong class="text-indigo-300 block mb-1">4. Closed-4H Market Structure:</strong>
             <span class="text-zinc-200 leading-relaxed">{f4}</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-900/60 border border-emerald-500/35">
@@ -1485,7 +1456,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             <span class="text-zinc-200 leading-relaxed">{f5}</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-900/60 border border-violet-500/35">
-            <strong class="text-violet-300 block mb-1">6. Volatility Regime (ATR):</strong>
+            <strong class="text-violet-300 block mb-1">6. Closed 4H Range Compression:</strong>
             <span class="text-zinc-200 leading-relaxed">{f6}</span>
           </div>
         </div>
@@ -1532,7 +1503,90 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     let currentScanTs = Date.parse(rootAtLoad ? rootAtLoad.getAttribute('data-scan-ts') : '') || 0;
     let lastFetchOk = null;
 
+    const WB_KEY_BUY = 'dibse_wb_buy';
+    const WB_KEY_SELL = 'dibse_wb_sell';
+
+    function lsGetSafe(k) {{
+      try {{ return (window.localStorage && localStorage.getItem(k)) || ''; }} catch (e) {{ return ''; }}
+    }}
+    function lsSetSafe(k, v) {{
+      try {{
+        if (!window.localStorage) return;
+        if (v) localStorage.setItem(k, v);
+        else localStorage.removeItem(k);
+      }} catch (e) {{}}
+    }}
+
+    function formatWatermarkSummary(pBuy, pSell) {{
+      const parts = [];
+      const bNum = parseFloat(pBuy);
+      const sNum = parseFloat(pSell);
+      if (!isNaN(bNum) && bNum > 0) {{
+        const fmtB = '$' + bNum.toLocaleString('en-US', {{ maximumFractionDigits: 2 }});
+        parts.push('Loop A Holding Spot BTC from P_buy=' + fmtB + ' (Need P_exit > ' + fmtB + '; Zero Stop-Loss)');
+      }}
+      if (!isNaN(sNum) && sNum > 0) {{
+        const fmtS = '$' + sNum.toLocaleString('en-US', {{ maximumFractionDigits: 2 }});
+        parts.push('Loop B Holding Spot USDT from BTC sold at P_sell=' + fmtS + ' (Seek Rebuy P_rebuy < ' + fmtS + ')');
+      }}
+      return parts.length ? parts.join(' | ') : '';
+    }}
+
+    function syncWatermarksToDom(loadFromStorage) {{
+      const buyEl = document.getElementById('wb-buy');
+      const sellEl = document.getElementById('wb-sell');
+      if (loadFromStorage) {{
+        if (buyEl) buyEl.value = lsGetSafe(WB_KEY_BUY);
+        if (sellEl) sellEl.value = lsGetSafe(WB_KEY_SELL);
+      }}
+      const pBuy = buyEl ? buyEl.value.trim() : lsGetSafe(WB_KEY_BUY);
+      const pSell = sellEl ? sellEl.value.trim() : lsGetSafe(WB_KEY_SELL);
+      const customLine = formatWatermarkSummary(pBuy, pSell);
+
+      const baseEl = document.getElementById('blind-prompt-base');
+      const dataEl = document.getElementById('blind-prompt-data');
+      const prevEl = document.getElementById('blind-preview-pre');
+      const cntEl = document.getElementById('blind-char-count');
+      const statusEl = document.getElementById('wb-status');
+
+      if (baseEl && dataEl) {{
+        const baseText = baseEl.value || '';
+        const merged = customLine
+          ? baseText.replace(/^\\[ACTIVE INVENTORY WATERMARKS\\]:.*$/m, '[ACTIVE INVENTORY WATERMARKS]: ' + customLine)
+          : baseText;
+        dataEl.value = merged;
+        if (prevEl) prevEl.textContent = merged;
+        if (cntEl) cntEl.textContent = String(merged.length);
+      }}
+      if (statusEl) {{
+        statusEl.textContent = customLine
+          ? 'Active watermark: ' + customLine
+          : 'Baseline: 10% USDT + 10% BTC sleeves ready (local only)';
+      }}
+    }}
+
+    document.addEventListener('input', function (e) {{
+      const t = e.target;
+      if (!t || (t.id !== 'wb-buy' && t.id !== 'wb-sell')) return;
+      if (t.id === 'wb-buy') lsSetSafe(WB_KEY_BUY, t.value.trim());
+      if (t.id === 'wb-sell') lsSetSafe(WB_KEY_SELL, t.value.trim());
+      syncWatermarksToDom(false);
+    }});
+
+    document.addEventListener('click', function (e) {{
+      const btn = e.target && e.target.closest ? e.target.closest('#wb-clear') : null;
+      if (!btn) return;
+      lsSetSafe(WB_KEY_BUY, '');
+      lsSetSafe(WB_KEY_SELL, '');
+      const buyEl = document.getElementById('wb-buy');
+      const sellEl = document.getElementById('wb-sell');
+      if (buyEl) buyEl.value = '';
+      if (sellEl) sellEl.value = '';
+      syncWatermarksToDom(false);
+    }});
+
     function copyElementText(elemId, btnId, iconId, textId, origLabel, origIcon, origBg, origHover, toastText) {{
+      syncWatermarksToDom(false);
       const promptEl = document.getElementById(elemId);
       if (!promptEl) return;
       const textToCopy = promptEl.value;
@@ -1594,33 +1648,20 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       }}
     }}
 
-    function copyTelemetryPrompt() {{
-      copyElementText(
-        'llm-prompt-data',
-        'copy-prompt-btn',
-        'copy-btn-icon',
-        'copy-btn-text',
-        'Copy Full Audit Prompt',
-        '📋',
-        'bg-cyan-500',
-        'hover:bg-cyan-400',
-        'Copied Full Audit Prompt to Clipboard!'
-      );
-    }}
-
     function copyBlindPrompt() {{
       copyElementText(
         'blind-prompt-data',
         'copy-blind-btn',
         'copy-blind-icon',
         'copy-blind-text',
-        'Copy Blind Telemetry (Unanchored)',
+        'Copy Blind Telemetry for AI',
         '🧪',
         'bg-sky-500',
         'hover:bg-sky-400',
-        'Copied Blind Telemetry (No Verdict) to Clipboard!'
+        'Copied Upgraded Blind Telemetry to Clipboard!'
       );
     }}
+    syncWatermarksToDom(true);
 
     // Live Clocks, Next Scheduled Update Countdown, and Market Session Tracker
     function updateClocksAndSession() {{
@@ -1849,7 +1890,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           const name = a.name.toLowerCase();
           const val = (a.value || '').trim().toLowerCase();
           const trimmedVal = (a.value || '').trim();
-          if (name.indexOf('on') === 0 && !(name === 'onclick' && (trimmedVal === 'copyTelemetryPrompt()' || trimmedVal === 'copyBlindPrompt()'))) {{
+          if (name.indexOf('on') === 0 && !(name === 'onclick' && trimmedVal === 'copyBlindPrompt()')) {{
             n.removeAttribute(a.name);
           }} else if ((name === 'href' || name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0) {{
             n.removeAttribute(a.name);
@@ -1881,6 +1922,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             currentScanTs = newTs;
             const livePx = Number(data.metrics && data.metrics.price);
             if (livePx > 0) scanPrice = livePx;
+            syncWatermarksToDom(true);
             updateClocksAndSession();
             updateLivePriceTicker();
           }}
@@ -1969,7 +2011,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   <!-- Top Header -->
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <a href="index.html" class="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl hover:border-emerald-500/50 transition-colors">
           🧲
@@ -2133,20 +2175,18 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
 
     def _render_regimes_subpage(self, data: Dict[str, Any]) -> str:
-        """Renders the comprehensive educational reference subpage explaining all 5 regimes."""
+        """Renders the educational reference subpage explaining the 5 regimes & DIBSE math."""
         regime = data.get("regime", {})
-        metrics = data.get("metrics", {})
-        current_regime_id = regime.get("regime_id", "RANGE_LIQUIDATION_MAGNET")
         current_name = regime.get("name", "Range / Liquidation Magnet")
-        llm_prompt = self._build_llm_prompt(data)
-        llm_prompt_escaped = llm_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        blind_prompt = self._build_blind_llm_prompt(data)
+        blind_prompt_escaped = blind_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The 5 Market Regimes — BTC Magnet Monitor Reference Guide</title>
+  <title>The 5 Market Regimes &amp; DIBSE Math — BTC Magnet Monitor Reference Guide</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2166,14 +2206,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
   <!-- Header -->
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
           <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-          <span class="text-xs text-zinc-400 block">The 5-Regime Radar Reference Guide</span>
+          <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; DIBSE Reference Guide</span>
         </div>
       </div>
       <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
@@ -2187,13 +2227,13 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
     <!-- Hero Title -->
     <div class="space-y-3">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-        System Architecture &bull; Observable Positioning Mechanics
+        DIBSE Architecture &bull; Observable Positioning Mechanics
       </div>
       <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-        The Simplified 5-Regime Radar
+        5-Regime Radar &amp; DIBSE Spot Protocol
       </h1>
       <p class="text-base sm:text-lg text-zinc-300 leading-relaxed">
-        Why trading edge is strictly regime-dependent, how the majority-voting calculation engine works, and why liquidation magnets only apply inside Range regimes.
+        How the Dual-Inventory Bidirectional Swing Engine pairs a <strong>10% USDT Sleeve</strong> and a <strong>10% BTC Sleeve</strong> (80% Core untouched, zero leverage, zero stop-losses) with closed-4H microstructure regimes.
       </p>
     </div>
 
@@ -2202,59 +2242,54 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div>
         <div class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
         <div class="text-xl font-bold text-white mt-0.5">{current_name}</div>
-        <div class="text-xs text-zinc-400 mt-1">Diagnosed by empirical on-exchange order flow &bull; Updates every 30m (:02/:32 UTC).</div>
+        <div class="text-xs text-zinc-400 mt-1">Evaluated on completed 4H bars (klines[:-1]) &bull; Updates every 30m (:02/:32 UTC).</div>
       </div>
       <div class="flex items-center gap-2.5">
-        <button onclick="copySubpagePrompt()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer">
-          <span>📋</span>
-          <span id="sub-copy-text">Copy Telemetry for LLM</span>
+        <button onclick="copySubpagePrompt()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-bold text-xs shadow-lg shadow-sky-500/20 transition-all cursor-pointer">
+          <span>🧪</span>
+          <span id="sub-copy-text">Copy Blind Telemetry for AI</span>
         </button>
         <a href="index.html" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs border border-zinc-700 transition-all">
           Live Monitor &rarr;
         </a>
       </div>
     </div>
-    <textarea id="subpage-prompt-data" class="hidden" readonly>{llm_prompt_escaped}</textarea>
+    <textarea id="subpage-prompt-data" class="hidden" readonly>{blind_prompt_escaped}</textarea>
 
-    <!-- Section 1: Philosophy -->
+    <!-- Section 1: DIBSE Philosophy -->
     <div class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-sky-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
-        <span>1. Core Philosophy: Regime First, Magnet Second</span>
+        <span>1. Core Philosophy: Bidirectional Spot Swings (Zero Forced Stops)</span>
       </h2>
       <div class="prose prose-invert text-sm text-zinc-300 space-y-3 leading-relaxed">
         <p>
-          In quantitative crypto swing trading, <strong>strategy edge is regime-dependent</strong>. Applying a valid trading playbook in the wrong regime is the single most consistent way retail traders lose capital:
+          Rather than making leveraged all-in directional bets with forced stop-losses, <strong>DIBSE</strong> keeps <strong>10% in USDT</strong> and <strong>10% in Spot BTC</strong> (while 80% sits untouched in core reserve) to harvest two-way volatility:
         </p>
         <ul class="space-y-2 list-disc list-inside text-zinc-300">
-          <li><strong>The Trend Playbook</strong> (buying breakouts above VWAP) succeeds in <em>Spot-Led Expansion</em>, but gets chopped to pieces in a <em>Range</em>.</li>
-          <li><strong>The Liquidation Magnet Playbook</strong> (buying at support to target trapped shorts above) has high mathematical edge in a <em>Range</em>, but has <strong>fatal negative expectancy inside an active Liquidation Cascade</strong>.</li>
+          <li><strong>Swing Loop A (USDT &rarr; BTC &rarr; USDT):</strong> Deploys the 10% USDT Sleeve into discounted Spot BTC on lower-band washout sweeps &amp; reclaims, then harvests back into USDT above cost basis (<em>P_exit &gt; P_buy</em>).</li>
+          <li><strong>Swing Loop B (BTC &rarr; USDT &rarr; BTC):</strong> Rotates the 10% BTC Sleeve into USDT during upper short-squeeze distribution rallies, then repurchases more BTC after retracement (<em>P_rebuy &lt; P_sell</em>).</li>
+          <li><strong>Asymmetric Self-Healing Inventory:</strong> Zero borrowed leverage and zero stop-losses. Early entries remain productive spot inventory (Spot BTC held for recovery &gt; P_buy, or Spot USDT held until retrace &lt; P_sell). Zero lagged oscillators (no MA/EMA/RSI/MACD/ATR).</li>
         </ul>
-        <p>
-          Therefore, the monitor always diagnoses the <strong>Macro Regime first</strong>. Only if the market is diagnosed as a <em>Range / Liquidation Magnet</em> does the engine activate the 6-factor Liquidation Magnet target calculator.
-        </p>
       </div>
     </div>
 
     <!-- Section 2: How the Majority Voting Works -->
     <div class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-indigo-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
-        <span>2. How the Majority-Voting Engine Works</span>
+        <span>2. How the Closed-4H Majority-Voting Engine Works</span>
       </h2>
       <div class="space-y-3 text-sm text-zinc-300 leading-relaxed">
         <p>
-          Traditional trading algorithms fail because of <strong>fragile multi-AND rules</strong> (requiring 5 or 6 indicators to be simultaneously true). If one obscure metric misses by 0.1%, the system breaks or jumps erratically.
-        </p>
-        <p>
-          The 5-Regime Radar uses a <strong>robust majority-vote model</strong>:
+          All structural range boundaries, Weekly VWAP, and modeled liquidation tiers are computed strictly from <strong>closed (completed) 4H bars (<span class="mono">klines[:-1]</span>)</strong> so open-candle wicks never cause intrabar repainting.
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-emerald-500/40">
             <strong class="text-emerald-400 block text-xs uppercase font-bold mb-1">Majority Rule (&ge;3 of 4)</strong>
-            <p class="text-xs text-zinc-400">Each regime defines 4 observable facts. If 3 or 4 are confirmed on-exchange, the regime is verified.</p>
+            <p class="text-xs text-zinc-400">Each regime defines 4 observable orderflow/positioning facts. If 3 or 4 clear simultaneously, the regime activates.</p>
           </div>
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-amber-500/40">
-            <strong class="text-amber-400 block text-xs uppercase font-bold mb-1">Default Fallback (Transition / Mixed)</strong>
-            <p class="text-xs text-zinc-400">If no regime achieves 3/4 matches, or conflict gates fire, the system cleanly defaults to Cash (0.0x) until clarity returns.</p>
+            <strong class="text-amber-400 block text-xs uppercase font-bold mb-1">Hold Both Sleeves Fallback</strong>
+            <p class="text-xs text-zinc-400">If signals conflict mid-range or feeds drop out (<span class="mono">DATA UNAVAILABLE</span>), both 10% USDT and 10% BTC sleeves hold intact.</p>
           </div>
         </div>
       </div>
@@ -2262,7 +2297,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     <!-- Section 3: Deep Dive into the 5 Regimes -->
     <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 Regimes</h2>
+      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 DIBSE Regimes</h2>
 
       <!-- Regime 1 -->
       <div id="regime-1" class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-emerald-500/50 space-y-4">
@@ -2270,27 +2305,27 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             Regime 1 &bull; Spot-Led Expansion
           </span>
-          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Buy Spot (0.75x–1.0x)</span>
+          <span class="text-xs font-mono text-emerald-300 font-bold">Loop A: Accumulate Dips | Hold BTC Sleeve</span>
         </div>
-        <h3 class="text-lg font-bold text-white">Genuine spot demand supporting upward trend</h3>
+        <h3 class="text-lg font-bold text-white">Genuine spot demand supporting upward structure</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          The healthiest market state in crypto. Real institutional cash is buying physical Bitcoin and withdrawing from exchanges. Price consistently holds above daily and weekly volume benchmarks (VWAP).
+          Real institutional bids absorb supply above Daily &amp; Weekly VWAP without excessive perp leverage. Loop A deploys on VWAP pullbacks; Loop B holds the 10% BTC sleeve for expansion instead of selling prematurely.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-emerald-500/30">
           <div class="font-bold text-emerald-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
-          <div class="text-zinc-300">1. Price holding above Daily and Weekly VWAP or rising with structure.</div>
+          <div class="text-zinc-300">1. Price holding above Daily VWAP and closed-4H Weekly VWAP.</div>
           <div class="text-zinc-300">2. Spot CVD ratio clearly positive (&ge;1.15) or 7-day slope upward.</div>
-          <div class="text-zinc-300">3. Spot trading volume expanding (&ge;1.10x 20-day moving average).</div>
-          <div class="text-zinc-300">4. Futures funding rates healthy (&le;0.012%) and Open Interest not surging parabolically.</div>
+          <div class="text-zinc-300">3. Spot trading volume expanding (&ge;1.10x 20-day baseline).</div>
+          <div class="text-zinc-300">4. Funding rates contained (&le;0.012%) and OI not overheating parabolically.</div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-emerald-500/25">
-            <strong class="text-emerald-300 block text-[11px] uppercase">Execution Protocol:</strong>
-            <span class="text-zinc-200">60% breakout confirmation / 40% limit at Daily VWAP retest.</span>
+            <strong class="text-emerald-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <span class="text-zinc-200">Deploy Loop A (10% USDT &rarr; BTC) at Daily/Weekly VWAP pullbacks; keep BTC sleeve riding trend.</span>
           </div>
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">Safety Stop-Loss:</strong>
-            <span class="text-zinc-200">Anchored under recent 4-hour swing low (-0.6%).</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
+            <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
+            <span class="text-zinc-200">Zero stop-losses. Any early BTC fill remains productive spot inventory (wait for P_exit &gt; P_buy).</span>
           </div>
         </div>
       </div>
@@ -2301,27 +2336,27 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/30">
             Regime 2 &bull; Leveraged / Fragile Upside
           </span>
-          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Trim / Stand Aside (0.0x)</span>
+          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate 10% BTC &rarr; USDT (Harvest Squeeze)</span>
         </div>
-        <h3 class="text-lg font-bold text-white">Upside driven mainly by speculative futures debt</h3>
+        <h3 class="text-lg font-bold text-white">Upside driven by stretched perp leverage while Spot CVD lags</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          A dangerous bull trap. Price moves upward, but the rally is artificially propped up by retail futures leverage while spot buyers are passive or selling. High probability of a sharp long-squeeze.
+          Price pushes higher on surging OI and elevated funding while spot taker buyers step back. Ideal environment for <strong>Swing Loop B (BTC &rarr; USDT)</strong> to harvest the 10% BTC sleeve into retail euphoria—with strictly zero chase buying.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-orange-500/30">
           <div class="font-bold text-orange-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
-          <div class="text-zinc-300">1. Price rising but Spot CVD is flat or declining (bearish divergence).</div>
-          <div class="text-zinc-300">2. Perpetual futures CVD and/or Open Interest rising sharply (&gt;+4% in 24h).</div>
+          <div class="text-zinc-300">1. Price rising but Spot CVD is flat or negative (bearish spot divergence).</div>
+          <div class="text-zinc-300">2. Perp CVD and/or Open Interest rising sharply (&gt;+4% in 24h).</div>
           <div class="text-zinc-300">3. Funding rates elevated (&gt;0.015% per 8h) or basis contango stretched.</div>
-          <div class="text-zinc-300">4. Spot volume failing to confirm the move (below 20D average).</div>
+          <div class="text-zinc-300">4. Spot volume lagging (&lt;1.0x baseline) inside upper squeeze band.</div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-orange-500/25">
-            <strong class="text-orange-300 block text-[11px] uppercase">Execution Protocol:</strong>
-            <span class="text-zinc-200">Strictly zero new buying. Harvest 33% profit directly into perp pumps.</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-sky-500/25">
+            <strong class="text-sky-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <span class="text-zinc-200">Zero upside stop-buys. Rotate 10% BTC &rarr; USDT near upper short pool; rebuy on retrace &lt; P_sell.</span>
           </div>
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">Safety Stop-Loss:</strong>
-            <span class="text-zinc-200">Move protective stops tight to 4H swing low to lock in profits.</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
+            <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
+            <span class="text-zinc-200">Zero forced rebuy stops. If price rallies further after sale, keep Spot USDT until pullback &lt; P_sell.</span>
           </div>
         </div>
       </div>
@@ -2330,29 +2365,29 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       <div id="regime-3" class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-cyan-500/50 space-y-4">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-            Regime 3 &bull; Range / Liquidation Magnet (Core Operating Zone)
+            Regime 3 &bull; Range / Liquidation Magnet (Two-Way Core)
           </span>
-          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Trade the Magnet (0.50x–0.75x)</span>
+          <span class="text-xs font-mono text-cyan-300 font-bold">Loop A at Floor Sweep &harr; Loop B at Ceiling Squeeze</span>
         </div>
-        <h3 class="text-lg font-bold text-white">Positioning imbalance &amp; liquidation pools dominate</h3>
+        <h3 class="text-lg font-bold text-white">Closed-4H horizontal channel where extremes trigger two-way swings</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          The natural habitat for the Liquidation Magnet Monitor. Price is oscillating inside a horizontal channel. Trend-following fails here, but fading the range edges toward dense liquidation pools has a massive statistical edge.
+          Price oscillates inside a defined closed-4H channel bounded by upper short pools and lower long pools. DIBSE waits patiently in mid-range, buying swept lower floors (<strong>Loop A</strong>) and trimming swept upper ceilings (<strong>Loop B</strong>).
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-cyan-500/30">
           <div class="font-bold text-cyan-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
-          <div class="text-zinc-300">1. Price oscillating in a defined range (width &le;4.5%) with ATR compressed &gt;30%.</div>
-          <div class="text-zinc-300">2. Spot CVD neutral or balanced (ratio between 0.90 and 1.15).</div>
-          <div class="text-zinc-300">3. Funding and OI showing positioning crowding on one side (L/S ratio &ge;1.60).</div>
-          <div class="text-zinc-300">4. Clear liquidation clusters active both above and below current price.</div>
+          <div class="text-zinc-300">1. Price oscillating inside closed-4H channel (width &le;4.5%).</div>
+          <div class="text-zinc-300">2. Spot CVD balanced in neutral zone (0.90 to 1.15).</div>
+          <div class="text-zinc-300">3. L/S account ratio or funding skewed across liquidation bands.</div>
+          <div class="text-zinc-300">4. Distinct upper short and lower long liquidation clusters flanking spot.</div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-cyan-500/25">
-            <strong class="text-cyan-300 block text-[11px] uppercase">Execution Protocol:</strong>
-            <span class="text-zinc-200">Trade toward dominant magnet: 50% on 1H range reclaim / 50% limit at support low.</span>
+            <strong class="text-cyan-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <span class="text-zinc-200">Wait mid-range; execute Loop A on lower LSCE reclaim or Loop B on upper LSCE rejection.</span>
           </div>
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">Safety Stop-Loss:</strong>
-            <span class="text-zinc-200">Anchored outside range floor (Lowest sweep wick - 0.5%, capped at 4.5% max distance).</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
+            <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
+            <span class="text-zinc-200">Zero forced stop-losses outside channel; inventory holds spot symmetrically across cycle flips.</span>
           </div>
         </div>
       </div>
@@ -2363,27 +2398,27 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/30">
             Regime 4 &bull; Cascade / Forced Deleveraging
           </span>
-          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Wait / 100% Cash (0.0x)</span>
+          <span class="text-xs font-mono text-amber-300 font-bold">Hold Both Sleeves (Do Not Catch Falling Knife)</span>
         </div>
-        <h3 class="text-lg font-bold text-white">Forced long unwind &amp; margin waterfall in progress</h3>
+        <h3 class="text-lg font-bold text-white">Forced long unwind &amp; OI liquidation waterfall in progress</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Emergency state. A domino chain of forced liquidations is collapsing the price. Bids disappear as exchange risk engines market-sell collateral. Never buy into an active waterfall.
+          Domino margin liquidations drive vertical drops as OI collapses. DIBSE keeps the 10% USDT sleeve strictly on standby until forced unwinding completes and a closed-4H washout stabilizes.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-rose-500/30">
           <div class="font-bold text-rose-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
           <div class="text-zinc-300">1. Sharp vertical price plunge (&le;-3.0% in 1h or &le;-6.0% in 24h).</div>
           <div class="text-zinc-300">2. Open Interest crashing violently (&le;-3.5% in 1h or &le;-7.0% in 4h).</div>
           <div class="text-zinc-300">3. Funding rate plunged deeply negative (&le;-0.005%).</div>
-          <div class="text-zinc-300">4. Severe basis discount / backwardation (&lt;1.0% annualized).</div>
+          <div class="text-zinc-300">4. Severe futures basis discount / backwardation (&lt;1.0% annualized).</div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">Execution Protocol:</strong>
-            <span class="text-zinc-200">100% Cash. Wait for Phase 3: 5m liquidations stop, OI flatlines, and 1H hammer forms.</span>
+            <strong class="text-rose-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <span class="text-zinc-200">Hold 10% USDT dry until closed 4H bar stabilizes above washout low &amp; OI flatlines.</span>
           </div>
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-zinc-700/60">
-            <strong class="text-zinc-300 block text-[11px] uppercase">Safety Stop-Loss:</strong>
-            <span class="text-zinc-200">N/A (Holding cash reserve).</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
+            <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
+            <span class="text-zinc-200">Zero panic stop-sells on your 10% BTC sleeve during forced margin cascades.</span>
           </div>
         </div>
       </div>
@@ -2394,27 +2429,27 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/30">
             Regime 5 &bull; Distribution / Bear Continuation
           </span>
-          <span class="text-xs font-mono text-zinc-400 font-bold">Action: Defensive Cash (0.0x)</span>
+          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate 10% BTC &rarr; USDT on Weak Bounces</span>
         </div>
-        <h3 class="text-lg font-bold text-white">Persistent seller control &amp; exit liquidity traps</h3>
+        <h3 class="text-lg font-bold text-white">Persistent seller control below Daily &amp; Weekly VWAP</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Smart money is actively selling down inventory into retail dip-buyers. Every minor bounce occurs on light volume and is sold off immediately.
+          Larger participants distribute into weak low-volume bounces below VWAP. Loop B converts the 10% BTC sleeve into Spot USDT to repurchase lower; Loop A pauses until deep structural support reclaims.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-red-500/30">
           <div class="font-bold text-red-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
-          <div class="text-zinc-300">1. Price trapped below Daily VWAP, 20D EMA, and 50D EMA.</div>
+          <div class="text-zinc-300">1. Price trapped below Daily VWAP and closed-4H Weekly VWAP.</div>
           <div class="text-zinc-300">2. Spot CVD persistently negative (7D/14D slope &lt;0).</div>
-          <div class="text-zinc-300">3. Bounces occur on light spot volume (&lt;0.95x 20D MA).</div>
-          <div class="text-zinc-300">4. Trapped longs paying positive funding with compressed futures basis.</div>
+          <div class="text-zinc-300">3. Rallies occur on fading spot volume (&lt;0.95x baseline).</div>
+          <div class="text-zinc-300">4. Long-heavy accounts trapped above resistance with soft basis.</div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-red-500/25">
-            <strong class="text-red-300 block text-[11px] uppercase">Execution Protocol:</strong>
-            <span class="text-zinc-200">Defensive 100% USDT cash. Treat bounces as exit liquidity.</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-sky-500/25">
+            <strong class="text-sky-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <span class="text-zinc-200">Loop B sells 10% BTC &rarr; USDT into VWAP resistance rejections; rebuy lower below P_sell.</span>
           </div>
-          <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">Safety Invalidation:</strong>
-            <span class="text-zinc-200">1D close &gt; 50D EMA backed by positive Spot CVD.</span>
+          <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
+            <strong class="text-indigo-300 block text-[11px] uppercase">Macro Shift Trigger:</strong>
+            <span class="text-zinc-200">Closed 4H reclaim above Weekly VWAP backed by Spot CVD &ge; 1.05.</span>
           </div>
         </div>
       </div>
@@ -2423,44 +2458,44 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     <!-- Section 4: Modeled Liquidation Pool & Tier Scaling Methodology -->
     <div id="methodology-pools" class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-purple-500/50 space-y-4">
-      <h2 class="text-2xl font-bold text-white">4. Modeled Liquidation Pool &amp; Tier Scaling Methodology</h2>
+      <h2 class="text-2xl font-bold text-white">4. Modeled Liquidation Pool &amp; Closed-4H Scaling Methodology</h2>
       <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
         No public REST API exposes individual traders' private margin prices or cross-exchange liquidation ledgers in real time. All liquidity dollar sizes in this monitor are <strong>Modeled Estimates</strong> derived transparently from observable exchange inputs:
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div class="p-4 rounded-xl bg-zinc-950/80 border border-purple-500/35 space-y-1.5">
           <div class="font-bold text-purple-300 uppercase text-[11px]">OI Scope &amp; Venue Disclosure</div>
-          <p class="text-zinc-300 leading-relaxed">Tracked Open Interest reflects the active perpetual venue subset reported in Panel 2 (for example OKX/Deribit perpetuals when US runner restrictions block Binance Futures), never claimed as total global BTC futures OI.</p>
+          <p class="text-zinc-300 leading-relaxed">Tracked Open Interest reflects the active perpetual venue subset reported in Panel 2 (e.g. OKX/Deribit perpetuals when US runner restrictions block Binance Futures), never claimed as total global BTC futures OI.</p>
         </div>
         <div class="p-4 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1.5">
-          <div class="font-bold text-indigo-300 uppercase text-[11px]">Leverage Projection Grid</div>
-          <p class="text-zinc-300 leading-relaxed">Projects standard 100x (0.8%), 50x (1.8%), 25x (3.8%), and 10x (9.5%) offsets from the last 40 4H swing extremes into adaptive ATR bins (<span class="mono">max($100, ATR*0.25)</span>), scaled proportionally by <span class="mono">OI &times; Spot Price</span> and L/S crowding skew.</p>
+          <div class="font-bold text-indigo-300 uppercase text-[11px]">Closed-4H Leverage Projection Grid</div>
+          <p class="text-zinc-300 leading-relaxed">Projects 100x (0.8%), 50x (1.8%), 25x (3.8%), and 10x (9.5%) tiers strictly from completed closed 4H swing extremes (<span class="mono">klines[:-1]</span>) into price-proportional bins (<span class="mono">max($100, round(price*0.0015,-1))</span>), scaled by <span class="mono">OI &times; Spot Price</span> and L/S skew (zero ATR).</p>
         </div>
       </div>
     </div>
 
-    <!-- Section 5: LSCE Deterministic State Machine -->
+    <!-- Section 5: Bidirectional LSCE State Machine -->
     <div id="methodology-lsce" class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-teal-500/50 space-y-4">
-      <h2 class="text-2xl font-bold text-white">5. LSCE Deterministic State Machine &amp; Reclaim Rules</h2>
+      <h2 class="text-2xl font-bold text-white">5. Bidirectional LSCE State Machine &amp; Gate Rules</h2>
       <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-        The <strong>Liquidation Sweep Confirmation Engine (LSCE)</strong> uses live spot price against the nearest modeled lower liquidation shelf to prevent front-running active waterfalls:
+        The <strong>Bidirectional Liquidation Sweep Confirmation Engine (LSCE)</strong> evaluates live spot against both the nearest lower long shelf (<strong>Loop A</strong>) and nearest upper short shelf (<strong>Loop B</strong>):
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-700/60">
           <strong class="text-zinc-300 block uppercase text-[11px] mb-1">UNTESTED</strong>
-          <p class="text-zinc-400">Spot remains more than +0.20% above the nearest lower shelf. Waiting for test or trend setup.</p>
+          <p class="text-zinc-400">Spot sits cleanly between lower and upper modeled shelves (&gt;0.20% inside channel). Holding both 10% USDT and 10% BTC sleeves.</p>
         </div>
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-amber-500/40">
-          <strong class="text-amber-300 block uppercase text-[11px] mb-1">SWEEP_IN_PROGRESS (&plusmn;0.20% Zone)</strong>
-          <p class="text-zinc-300">Spot enters within &plusmn;0.20% of the modeled shelf without verified absorption. Hard entry lock until reclaim gates clear.</p>
+          <strong class="text-amber-300 block uppercase text-[11px] mb-1">SWEEP_IN_PROGRESS / UPPER_SWEEP_IN_PROGRESS</strong>
+          <p class="text-zinc-300">Spot tests within &plusmn;0.20% of a shelf without confirmed absorption or rejection yet. Holding until closed confirmation clears.</p>
         </div>
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-emerald-500/40">
-          <strong class="text-emerald-300 block uppercase text-[11px] mb-1">SWEEP_AND_RECLAIM_CONFIRMED</strong>
-          <p class="text-zinc-300">Requires spot &gt; shelf AND <strong>Spot CVD Ratio &ge; 1.05</strong> AND <strong>Orderbook Depth Ratio &ge; 0.50</strong>. Only authorizes buys when the Macro Regime allows risk-on positioning (blocked during Cascade / Distribution / Transition).</p>
+          <strong class="text-emerald-300 block uppercase text-[11px] mb-1">SWEEP_AND_RECLAIM_CONFIRMED (Loop A)</strong>
+          <p class="text-zinc-300">Spot reclaims lower shelf with <strong>Spot CVD &ge; 1.05</strong> &amp; <strong>Depth &ge; 0.50</strong>. Rotates 10% USDT &rarr; Spot BTC (target P_exit &gt; P_buy; zero stop-loss).</p>
         </div>
-        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-rose-500/40">
-          <strong class="text-rose-300 block uppercase text-[11px] mb-1">SWEEP_FAILED_BREAKDOWN</strong>
-          <p class="text-zinc-300">Spot breaks &gt;0.30% below the shelf without spot bid absorption or amid negative CVD (&lt; 0.90) / deep depth deficit. Hard 100% cash lock.</p>
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-sky-500/40">
+          <strong class="text-sky-300 block uppercase text-[11px] mb-1">UPPER_SWEEP_REJECTION_CONFIRMED (Loop B)</strong>
+          <p class="text-zinc-300">Upper short-squeeze wick stalls with exhausted Spot CVD (&le;1.02) or overhead ask wall (Depth &lt; 0.90). Rotates 10% BTC &rarr; USDT (rebuy &lt; P_sell).</p>
         </div>
       </div>
     </div>
@@ -2483,8 +2518,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       navigator.clipboard.writeText(textToCopy).then(() => {{
         const btnText = document.getElementById('sub-copy-text');
         if (btnText) {{
-          btnText.innerText = '✓ Prompt Copied!';
-          setTimeout(() => {{ btnText.innerText = 'Copy Telemetry for LLM'; }}, 3000);
+          btnText.innerText = '✓ Blind Telemetry Copied!';
+          setTimeout(() => {{ btnText.innerText = 'Copy Blind Telemetry for AI'; }}, 3000);
         }}
       }});
     }}
@@ -2519,11 +2554,11 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
 
     def _verify_text_telemetry(self, data: Dict[str, Any]) -> None:
-        """Verification linter before rendering text.html:
+        """DIBSE verification linter before rendering text.html:
           - Asserts immediate_imbalance_ratio matches lower_pool / upper_pool (within tolerance).
-          - Confirms portfolio_risk_pct & effective_risk_budget_pct respect strict 1% risk budget.
-          - Checks prose fields (`why_points`, `plain_english_verdict`, `lsce_detail`) against scan metrics
-            to catch stale hardcoded numbers (`$74,963`, `-1.3%`, `0.19`, `Over 70%`).
+          - Enforces zero stop-loss portfolio risk under DIBSE (20% active sandbox = 10% USDT + 10% BTC).
+          - Checks prose fields against scan metrics to catch stale hardcoded numbers.
+          - Verifies blind prompt contains zero banned lagged oscillators (20D EMA/50D EMA/200D SMA/1H ATR).
         """
         regime = data.get("regime", {})
         metrics = data.get("metrics", {})
@@ -2545,8 +2580,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
         portfolio_risk = float(risk.get("portfolio_risk_pct", 0.0))
         effective_risk = float(risk.get("effective_risk_budget_pct", portfolio_risk))
-        assert portfolio_risk <= 1.05, f"Linter assertion failed: portfolio_risk_pct ({portfolio_risk}%) > 1.0%"
-        assert effective_risk <= 1.05, f"Linter assertion failed: effective_risk_budget_pct ({effective_risk}%) > 1.0%"
+        assert portfolio_risk <= 0.01, f"Linter assertion failed: DIBSE prohibits stop-loss risk ({portfolio_risk}% != 0)"
+        assert effective_risk <= 0.01, f"Linter assertion failed: effective_risk_budget_pct ({effective_risk}% != 0)"
         assert risk.get("risk_budget_ok", True) is True, "Linter assertion failed: risk_budget_ok is False"
 
         # Narrative vs Scan Consistency Check (T1)
@@ -2571,17 +2606,22 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
                 "Linter assertion failed: stale hardcoded depth 0.19 found in prose"
             )
 
+        # Ensure zero legacy lagged oscillators leak into blind prompt
+        blind_txt = self._build_blind_llm_prompt(data)
+        for banned_osc in ("20D EMA", "50D EMA", "200D SMA", "1H ATR", "ATR Compression"):
+            assert banned_osc not in blind_txt, f"Linter assertion failed: banned oscillator {banned_osc!r} in blind prompt"
+
     def _render_text_page(self, data: Dict[str, Any]) -> str:
         """Renders the Mobile Text/Data Terminal (text.html).
         Strictly starts with Panel 1 and preserves zero-framework vanilla HTML/CSS/JS:
           - 2-Line Monospace Header + Session/Cadence/Mandate Metadata Line
-          - 44px Touch-Friendly Top View Switcher ([HUD], [JSON], [DELTA], [PROMPT])
-          - Telemetry Stale >30M Warning Banner
+          - Telemetry Stale >40M Warning Banner
           - Panel 1 • Real-Time BTC Spot Price (Live), Clocks, Next Update & Market Session
-          - Panel 2 • On-Exchange Telemetry (Raw Feeds vs Modeled Scope)
+          - Panel 2 • On-Exchange Telemetry (Raw Closed-4H Feeds vs Modeled Scope)
           - Panel 3 • Macro Market Regime Diagnosis & 5-Regime + Transition Matrix
-          - Method 1: Blind Telemetry Copy + Full Audit Prompt Copy
-          - Method 2: Our System Verdict (Full-On View & Canonical Liquidation Ladder)
+          - Bridge  • How to Get Your DIBSE Trading Verdict (Method 1 vs Method 2)
+          - Method 1: ONE Clean Copy Button (DIBSE Blind Telemetry) + Local Watermarks
+          - Method 2: Our System Verdict (DIBSE Bidirectional Playbook & Liquidation Ladder)
           - Institutional Footer & Platform Links
         """
         import json as _json
@@ -2593,7 +2633,6 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         risk = data.get("risk", {})
         ts_iso = str(data.get("timestamp", ""))
         scan_id = self._compute_scan_id(data)
-        raw_prompt = self._build_llm_prompt(data)
         blind_prompt = self._build_blind_llm_prompt(data)
 
         # Linter check before rendering
@@ -2641,82 +2680,88 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             regime_txt_cls = "c-amber"
 
         price = float(metrics.get("price", 0.0))
-        d_vwap = float(metrics.get("daily_vwap", 0.0))
-        w_vwap = float(metrics.get("weekly_vwap", 0.0))
-        e_20 = float(metrics.get("ema_20d", 0.0))
-        e_50 = float(metrics.get("ema_50d", 0.0))
-        m_200 = float(metrics.get("ma_200d", 0.0))
-        sw_h = float(metrics.get("swing_high_4h", 0.0))
-        sw_l = float(metrics.get("swing_low_4h", 0.0))
-        floor = float(metrics.get("base_floor", 0.0))
+        d_vwap = float(metrics.get("daily_vwap", 0.0) or 0.0)
+        w_vwap = float(metrics.get("weekly_vwap", 0.0) or 0.0)
+        sw_h = float(metrics.get("swing_high_4h", 0.0) or 0.0)
+        sw_l = float(metrics.get("swing_low_4h", 0.0) or 0.0)
+        floor = float(metrics.get("base_floor", 0.0) or 0.0)
+        ceil_lvl = float(metrics.get("base_ceiling", 0.0) or sw_h or 0.0)
+        cap_wick = float(metrics.get("capitulation_wick_low", 0.0) or 0.0)
+        euph_wick = float(metrics.get("euphoria_wick_high", 0.0) or 0.0)
+        raw_cutoff_t = str(metrics.get("closed_4h_bar_close_time", "") or "")
+        closed_4h_cutoff = (raw_cutoff_t[:16].replace("T", " ") + " UTC") if ("T" in raw_cutoff_t and len(raw_cutoff_t) >= 16) else (raw_cutoff_t or "Closed-4H Cutoff")
 
         d_vwap_diff = ((price - d_vwap) / d_vwap * 100) if d_vwap > 0 else 0.0
         w_vwap_diff = ((price - w_vwap) / w_vwap * 100) if w_vwap > 0 else 0.0
-        e_20_diff = ((price - e_20) / e_20 * 100) if e_20 > 0 else 0.0
-        e_50_diff = ((price - e_50) / e_50 * 100) if e_50 > 0 else 0.0
-        m_200_diff = ((price - m_200) / m_200 * 100) if m_200 > 0 else 0.0
 
-        spot_vol = float(metrics.get("spot_vol_24h", 0.0))
-        vol_ratio = float(metrics.get("spot_vol_ratio", 1.0))
-        cvd_ratio = float(metrics.get("spot_cvd_ratio", 1.0))
-        cvd_7d = float(metrics.get("spot_cvd_slope_7d", 0.0))
-        cvd_14d = float(metrics.get("spot_cvd_slope_14d", 0.0))
-        perp_trend = str(metrics.get("perp_cvd_trend", "neutral"))
-        perp_slope = float(metrics.get("perp_cvd_slope_24h", 0.0))
-        depth = float(metrics.get("bids_asks_depth_ratio", 1.0))
+        spot_vol = float(metrics.get("spot_vol_24h", 0.0) or 0.0)
+        vol_ratio = float(metrics.get("spot_vol_ratio", 1.0) or 1.0)
+        cvd_ratio = float(metrics.get("spot_cvd_ratio", 1.0) or 1.0)
+        cvd_7d = float(metrics.get("spot_cvd_slope_7d", 0.0) or 0.0)
+        cvd_14d = float(metrics.get("spot_cvd_slope_14d", 0.0) or 0.0)
+        perp_trend = str(metrics.get("perp_cvd_trend", "neutral") or "neutral")
+        perp_slope = float(metrics.get("perp_cvd_slope_24h", 0.0) or 0.0)
+        depth = float(metrics.get("bids_asks_depth_ratio", 1.0) or 1.0)
 
-        oi = float(metrics.get("open_interest", 0.0))
-        oi_1h = float(metrics.get("oi_change_1h_pct", 0.0))
-        oi_4h = float(metrics.get("oi_change_4h_pct", 0.0))
-        oi_24h = float(metrics.get("oi_change_24h_pct", 0.0))
-        oi_3d = float(metrics.get("oi_change_3d_pct", 0.0))
+        oi = float(metrics.get("open_interest", 0.0) or 0.0)
+        oi_1h = float(metrics.get("oi_change_1h_pct", 0.0) or 0.0)
+        oi_4h = float(metrics.get("oi_change_4h_pct", 0.0) or 0.0)
+        oi_24h = float(metrics.get("oi_change_24h_pct", 0.0) or 0.0)
+        oi_3d = float(metrics.get("oi_change_3d_pct", 0.0) or 0.0)
         oi_hist_ok = bool(metrics.get("oi_history_available", True))
-        funding = float(metrics.get("funding_rate", 0.0)) * 100
-        funding_ann = float(metrics.get("funding_rate_annualized", 0.0))
-        basis = float(metrics.get("futures_basis_annualized", 0.0))
-        ls_ratio = float(metrics.get("long_short_account_ratio", 1.0))
+        funding = float(metrics.get("funding_rate", 0.0) or 0.0) * 100
+        funding_ann = float(metrics.get("funding_rate_annualized", 0.0) or 0.0)
+        basis = float(metrics.get("futures_basis_annualized", 0.0) or 0.0)
+        ls_ratio = float(metrics.get("long_short_account_ratio", 1.0) or 1.0)
         ls_avail = bool(metrics.get("ls_ratio_available", True))
         ls_pct_72h = metrics.get("ls_ratio_percentile_72h")
-        atr_pct_72h = metrics.get("atr_percentile_72h")
         long_pct = (ls_ratio / (1.0 + ls_ratio) * 100) if (1.0 + ls_ratio) > 0 else 50.0
         spot_source = str(metrics.get("spot_data_source", "Binance Public Market-Data REST"))
         futures_source = str(metrics.get("futures_data_source", "Perp Public REST"))
         oi_scope = str(metrics.get("oi_scope", "Tracked venue perpetual subset"))
 
-        atr = float(metrics.get("atr", 0.0))
-        atr_comp = float(metrics.get("atr_compression_pct", 0.0))
-        ch_width = ((sw_h - sw_l) / max(price, 1.0) * 100) if sw_h > 0 else 0.0
-        chg_24h = float(metrics.get("price_change_24h_pct", 0.0))
+        ch_width = ((sw_h - sw_l) / max(price, 1.0) * 100) if (sw_h > 0 and sw_l > 0 and price > 0) else 0.0
+        chg_24h = float(metrics.get("price_change_24h_pct", 0.0) or 0.0)
+        wick_span_pct = ((euph_wick - cap_wick) / cap_wick * 100) if (euph_wick > 0 and cap_wick > 0) else 0.0
 
-        oi_24h_disp = f"{oi_24h:+.2f}%" if oi_hist_ok else "N/A (Fallback)"
-        oi_1h_4h_disp = f"{oi_1h:+.2f}% / {oi_4h:+.2f}%" if oi_hist_ok else "N/A / N/A"
-        oi_3d_disp = f"{oi_3d:+.2f}%" if oi_hist_ok else "N/A"
+        d_vwap_disp = f"${d_vwap:,.2f} ({d_vwap_diff:+.2f}%)" if d_vwap > 0 else "DATA UNAVAILABLE"
+        w_vwap_disp = f"${w_vwap:,.2f} ({w_vwap_diff:+.2f}%)" if w_vwap > 0 else "DATA UNAVAILABLE"
+        sw_lh_disp = f"${sw_l:,.0f} / ${sw_h:,.0f}" if (sw_l > 0 and sw_h > 0) else "DATA UNAVAILABLE"
+        ceil_floor_disp = f"${floor:,.0f} / ${ceil_lvl:,.0f}" if (floor > 0 or ceil_lvl > 0) else "DATA UNAVAILABLE"
+        wicks_disp = f"${cap_wick:,.0f} / ${euph_wick:,.0f}" if (cap_wick > 0 and euph_wick > 0) else "DATA UNAVAILABLE"
+        wick_span_disp = f"{wick_span_pct:.2f}%" if wick_span_pct > 0 else "DATA UNAVAILABLE"
+        spot_vol_disp = f"{spot_vol:,.0f} BTC ({vol_ratio:.2f}x)" if spot_vol > 0 else "DATA UNAVAILABLE"
+        cvd_disp = f"{cvd_ratio:.2f}" if spot_vol > 0 else "DATA UNAVAILABLE"
+        oi_disp = f"{oi:,.1f} BTC" if oi > 0 else "DATA UNAVAILABLE"
+        oi_24h_disp = f"{oi_24h:+.2f}%" if (oi > 0 and oi_hist_ok) else "DATA UNAVAILABLE"
+        oi_1h_4h_disp = f"{oi_1h:+.2f}% / {oi_4h:+.2f}%" if (oi > 0 and oi_hist_ok) else "DATA UNAVAILABLE"
+        oi_3d_disp = f"{oi_3d:+.2f}%" if (oi > 0 and oi_hist_ok) else "DATA UNAVAILABLE"
         ls_disp = (
             f"{ls_ratio:.2f} ({long_pct:.1f}% L"
             + (f", p{ls_pct_72h:.0f} 72h" if ls_pct_72h is not None else "")
             + ")"
-        ) if ls_avail else "Unavailable (Fallback)"
-        atr_comp_disp = f"{atr_comp:.1f}%" + (f" (p{atr_pct_72h:.0f} 72h)" if atr_pct_72h is not None else "")
+        ) if ls_avail else "DATA UNAVAILABLE"
 
         regime_name = str(regime.get("name", "Transition / Mixed"))
         diagnosis = wrap36(str(regime.get("diagnosis", "")))
         tagline = wrap36(tagline_src)
-        action = wrap36(str(regime.get("action", "Wait / Hold 100% USDT (0.0x)")))
-        rotation = str(regime.get("rotation", "Remain USDT"))
-        stop_p = float(regime.get("stop_price", 0.0))
-        stop_dist = float(regime.get("stop_distance_pct", 0.0))
-        struct_low = float(regime.get("structural_invalidation_level", sw_l or 0.0))
-        stop_rule = wrap36(str(regime.get("stop_rule", "")))
-        stop_note = wrap36(str(regime.get("stop_placement_note", ""))) if regime.get("stop_placement_note") else ""
+        dibse_signal = str(regime.get("dibse_signal", "HOLD BOTH SLEEVES"))
+        dibse_headline = wrap36(str(regime.get("dibse_action_headline", str(regime.get("action", "HOLD BOTH SLEEVES")))))
+        rotation = str(regime.get("rotation", dibse_signal))
+        loop_a_zone = wrap36(str(regime.get("loop_a_zone", "WAIT FOR SUPPORT SWEEP")))
+        loop_b_zone = wrap36(str(regime.get("loop_b_zone", "WAIT FOR SQUEEZE EXHAUSTION")))
+        sleeve_alloc = str(regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core)"))
+        failure_protocol = wrap36(str(regime.get("failure_protocol", "Zero stop-losses. Asymmetric self-healing spot hold.")))
         entry_inst = wrap36(str(regime.get("entry_instruction", "")))
         rule_score = str(regime.get("majority_score", "0/4 observations confirmed"))
         dom_magnet = str(regime.get("dominant_magnet", "Neutral"))
-        imm_ratio = float(regime.get("immediate_imbalance_ratio", 1.0))
+        imm_ratio = float(regime.get("immediate_imbalance_ratio", 1.0) or 1.0)
         imm_disp = f"~{round(imm_ratio):.0f}x" if imm_ratio >= 10 else f"{imm_ratio:.1f}x"
-        tot_ratio = float(regime.get("total_ladder_imbalance_ratio", 1.0))
-        tot_lower = float(regime.get("total_ladder_lower_vol", 0.0))
-        tot_upper = float(regime.get("total_ladder_upper_vol", 0.0))
+        tot_ratio = float(regime.get("total_ladder_imbalance_ratio", 1.0) or 1.0)
+        tot_lower = float(regime.get("total_ladder_lower_vol", 0.0) or 0.0)
+        tot_upper = float(regime.get("total_ladder_upper_vol", 0.0) or 0.0)
         lsce_status = str(regime.get("lsce_status", "UNTESTED"))
+        lsce_side = str(regime.get("lsce_side", "NONE"))
         lsce_detail = wrap36(str(regime.get("lsce_detail", "")))
 
         matched_crit = regime.get("matched_criteria", [])
@@ -2735,7 +2780,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         # Deliverable 2 + T3: Fixed-Column Liquidation Ladder using CANONICAL ladder
         ladder = self._get_canonical_ladder(data)
         lsce_up = lsce_status.upper()
-        is_sweep = ("IN_PROGRESS" in lsce_up) or ("FAILED" in lsce_up)
+        is_lower_sweep = (lsce_side.upper() == "LOWER" and ("IN_PROGRESS" in lsce_up or "FAILED" in lsce_up)) or (lsce_up in ("SWEEP_IN_PROGRESS", "SWEEP_FAILED_BREAKDOWN"))
+        is_upper_sweep = ("UPPER_SWEEP" in lsce_up) or (lsce_side.upper() == "UPPER" and ("IN_PROGRESS" in lsce_up or "REJECTION" in lsce_up))
         upper_lines = []
         lower_lines = []
         for row in ladder:
@@ -2751,13 +2797,21 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
             dist_str = f"{row['distance_pct']:+.2f}%"
             vol_str = self._format_pool_m(row["estimated_vol_m"])
             if row["side"] == "upper":
-                upper_lines.append(f"{tier_short:<10} {px_str:>8} {dist_str:>7} {vol_str:>8}")
+                if is_upper_sweep and "50-100x" in tier_lbl:
+                    upper_lines.append(
+                        f"{tier_short:<10} {px_str:>8} {dist_str:>7} <span class=\"c-amber\">{vol_str:>8}</span> [⚡]"
+                    )
+                    upper_lines.append(
+                        '<span class="c-amber" style="font-weight: bold;">  └─► &lt;&lt;&lt; UPPER SQUEEZE WATCH &gt;&gt;&gt;</span>'
+                    )
+                else:
+                    upper_lines.append(f"{tier_short:<10} {px_str:>8} {dist_str:>7} {vol_str:>8}")
             else:
                 if row.get("is_nearest"):
                     lower_lines.append(
                         f"{tier_short:<10} {px_str:>8} {dist_str:>7} <span class=\"c-rose\">{vol_str:>8}</span> [🔥]"
                     )
-                    if is_sweep:
+                    if is_lower_sweep:
                         lower_lines.append(
                             '<span class="c-rose" style="font-weight: bold;">  └─► &lt;&lt;&lt; PIERCING / ACTIVE SWEEP &gt;&gt;&gt;</span>'
                         )
@@ -2784,7 +2838,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         why_2 = wrap36("2. " + why_pts[1]) if len(why_pts) > 1 else ""
         why_3 = wrap36("3. " + why_pts[2]) if len(why_pts) > 2 else ""
         why_sizing = wrap36(str(regime.get("why_sizing_reason", "")))
-        why_stop = wrap36(str(regime.get("why_stop_reason", "")))
+        why_stop = wrap36(str(regime.get("why_stop_reason", failure_protocol)))
         risk_summary_txt = wrap36(str(risk.get("risk_advisory", "")))
 
         mf = regime.get("magnet_factors", {})
@@ -2793,7 +2847,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
         f3_crowd = wrap36(str(mf.get("factor_3_crowding_fuel", "")))
         f4_struct = wrap36(str(mf.get("factor_4_regime_structure", "")))
         f5_asym = wrap36(str(mf.get("factor_5_asymmetry", "")))
-        f6_atr = wrap36(str(mf.get("factor_6_atr_volatility", "")))
+        f6_comp = wrap36(str(mf.get("factor_6_range_compression", mf.get("factor_6_atr_volatility", ""))))
         dom_reason = wrap36(str(regime.get("dominant_magnet_reason", dom_magnet)))
 
         # Build 6-state matrix strip for Panel 3 (T7)
@@ -2864,6 +2918,7 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       width: 100%;
       max-width: 390px;
       margin: 0 auto;
+      overflow-x: hidden;
     }
 
     .app-brand-header {
@@ -2955,6 +3010,10 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       border-radius: 8px;
       padding: 11px 10px 8px 10px;
       margin-bottom: 14px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
     }
     .panel-hdr {
       font-size: 11.5px;
@@ -3045,6 +3104,10 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       border-radius: 6px;
       padding: 8px 8px 6px 8px;
       margin-bottom: 8px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
     }
     .sub-card-emerald { border-color: rgba(16, 185, 129, 0.48); }
     .sub-card-cyan    { border-color: rgba(6, 182, 212, 0.48); }
@@ -3062,7 +3125,8 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       letter-spacing: -0.2px;
       white-space: pre-wrap !important;
       word-break: break-word !important;
-      overflow-wrap: break-word !important;
+      overflow-wrap: anywhere !important;
+      max-width: 100%;
       color: #d4d4d8;
       margin-bottom: 2px;
     }
@@ -3077,31 +3141,34 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
 
     .matrix-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 5px;
       margin-top: 6px;
+      width: 100%;
+    }
+    .matrix-grid > div {
+      min-width: 0;
+      overflow-wrap: break-word;
     }
 
     .btn-copy {
-      display: block;
       width: 100%;
-      background: #0284c7;
-      color: #ffffff;
-      padding: 11px 10px;
-      font-family: inherit;
-      font-size: 11.5px;
-      font-weight: 900;
-      border: 1.5px solid #38bdf8;
-      border-radius: 6px;
-      cursor: pointer;
-      text-align: center;
-      margin: 8px 0;
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+      padding: 12px 12px;
       min-height: 44px;
-    }
-    .btn-copy-blind {
       background: #0f766e;
-      border-color: #2dd4bf;
+      color: #ffffff;
+      border: 1px solid #2dd4bf;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 6px 0 8px 0;
       box-shadow: 0 4px 14px rgba(20, 184, 166, 0.25);
     }
     .btn-copy:active { opacity: 0.9; }
@@ -3109,6 +3176,87 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       background: #16a34a !important;
       border-color: #4ade80 !important;
       color: #ffffff !important;
+    }
+
+    .wb-box {
+      background: #0b0e14;
+      border: 1px dashed rgba(45, 212, 191, 0.45);
+      border-radius: 6px;
+      padding: 7px 8px;
+      margin: 6px 0 8px 0;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .wb-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #38bdf8;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+    .wb-summary::-webkit-details-marker { display: none; }
+    .wb-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 6px;
+      width: 100%;
+    }
+    .wb-grid > div {
+      min-width: 0;
+    }
+    .wb-lbl {
+      display: block;
+      font-size: 9px;
+      font-weight: 800;
+      color: #99f6e4;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+    .wb-input {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 7px 6px;
+      min-height: 36px;
+      border-radius: 5px;
+      border: 1px solid rgba(113, 113, 122, 0.6);
+      background: #11131a;
+      color: #f4f4f5;
+      font-family: inherit;
+      font-size: 11px;
+    }
+    .wb-input:focus {
+      outline: none;
+      border-color: #2dd4bf;
+    }
+    .wb-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 6px;
+      font-size: 9.5px;
+      color: #94a3b8;
+    }
+    .wb-clear {
+      padding: 4px 8px;
+      min-height: 28px;
+      border-radius: 4px;
+      border: 1px solid rgba(113, 113, 122, 0.55);
+      background: #18181b;
+      color: #e4e4e7;
+      font-family: inherit;
+      font-size: 9.5px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .prompt-box {
@@ -3122,9 +3270,10 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
       margin: 6px 0;
       font-size: 9.5px;
       color: #a1a1aa;
+      max-width: 100%;
       white-space: pre-wrap !important;
       word-break: break-word !important;
-      overflow-wrap: break-word !important;
+      overflow-wrap: anywhere !important;
     }
 
     footer {
@@ -3173,14 +3322,14 @@ PROVIDE YOUR PROFESSIONAL CRITIQUE IN THIS EXACT 5-PART FORMAT:
           <img src="./assets/app-logo.png?v=7" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
         </div>
         <div class="brand-title-group">
-          <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME ENGINE</div>
-          <div class="header-line-2">Microstructure Positioning &amp; Liquidation Telemetry</div>
+          <div class="header-line-1">BTC MAGNET MONITOR :: DIBSE ENGINE</div>
+          <div class="header-line-2">Dual-Inventory Bidirectional Spot Terminal</div>
         </div>
       </div>
       <div class="header-meta-sep">
-        MANDATE: SPOT ONLY (0.0x) &bull; SESSION: <span class="c-green" id="hdr-session">ACTIVE</span><br>
-        SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; EVERY 30M (:02/:32)<br>
-        NEXT UPDATE: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
+        MANDATE: DIBSE (10% USDT + 10% BTC | ZERO STOPS)<br>
+        SESSION: <span class="c-green" id="hdr-session">ACTIVE</span> &bull; CADENCE: EVERY 30M (:02/:32)<br>
+        SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; NEXT: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
@@ -3251,22 +3400,20 @@ OI Scope: __OI_SCOPE__
         </div>
 
         <div class="sub-card sub-card-sky">
-          <pre class="ascii"><span class="c-cyan">Feed 1 &bull; Trend &amp; Moving Averages:</span>
+          <pre class="ascii"><span class="c-cyan">Feed 1 &bull; Closed-4H Structure &amp; VWAP:</span>
 Spot Price:     $__PRICE__
-Daily VWAP:     $__DAILY_VWAP__ (__DAILY_VWAP_DIFF__%)
-Weekly VWAP:    $__WEEKLY_VWAP__ (__WEEKLY_VWAP_DIFF__%)
-20D EMA:        $__EMA_20D__ (__EMA_20D_DIFF__%)
-50D EMA:        $__EMA_50D__ (__EMA_50D_DIFF__%)
-200D SMA:       $__MA_200D__ (__MA_200D_DIFF__%)
-4H Swing L/H:   $__SWING_LOW__ / $__SWING_HIGH__
+Daily VWAP:     __D_VWAP_DISP__
+Weekly VWAP:    __W_VWAP_DISP__
+4H Swing L/H:   __SW_LH_DISP__
 4H Range Width: __RANGE_WIDTH__%
-Base Floor:     $__BASE_FLOOR__</pre>
+Floor / Ceil:   __CEIL_FLOOR_DISP__
+Closed Cutoff:  __CLOSED_4H_CUTOFF__</pre>
         </div>
 
         <div class="sub-card sub-card-emerald">
           <pre class="ascii"><span class="c-green">Feed 2 &bull; Spot CVD &amp; Order Book:</span>
-24h Spot Vol:   __SPOT_VOL__ BTC (__SPOT_VOL_RATIO__x)
-Spot CVD Ratio: __SPOT_CVD_RATIO__
+24h Spot Vol:   __SPOT_VOL_DISP__
+Spot CVD Ratio: __SPOT_CVD_DISP__
 7D / 14D Slope: __SPOT_CVD_7D__ / __SPOT_CVD_14D__
 Perp CVD Trend: __PERP_TREND__ (__PERP_SLOPE__)
 Book Depth:     __DEPTH_RATIO__ (Bids/Asks)</pre>
@@ -3274,7 +3421,7 @@ Book Depth:     __DEPTH_RATIO__ (Bids/Asks)</pre>
 
         <div class="sub-card sub-card-amber">
           <pre class="ascii"><span class="c-amber">Feed 3 &bull; Derivatives Positioning:</span>
-Open Interest:  __OI__ BTC
+Open Interest:  __OI_DISP__
 OI 24h Delta:   __OI_24H__
 OI 1h / 4h:     __OI_1H_4H__
 OI 3D Delta:    __OI_3D__
@@ -3284,9 +3431,11 @@ L/S Ratio:      __LS_RATIO_DISP__</pre>
         </div>
 
         <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
-          <pre class="ascii"><span class="c-purple">Feed 4 &bull; Volatility &amp; Exhaustion:</span>
-Daily ATR:      $__ATR__
-ATR Compress:   __ATR_COMP_DISP__</pre>
+          <pre class="ascii"><span class="c-purple">Feed 4 &bull; Channel Swings &amp; Wicks:</span>
+24h Wicks L/H:  __WICKS_24H__
+Wick Span (24h):__WICK_SPAN__
+Book Liquidity: __DEPTH_RATIO__ (Bids/Asks)
+Indicators:     Zero MA/EMA/RSI/ATR</pre>
         </div>
       </div>
 
@@ -3328,62 +3477,87 @@ __MATCHED_CRITERIA_ASCII__</pre>
 
         <div class="sub-card sub-card-indigo">
           <pre class="ascii"><span class="c-indigo">Panels 1-3 = Observable Facts Only.</span>
-To get an actionable verdict, use Method 1
-or Method 2 below (or compare both):</pre>
+Compare Method 1 (Blind AI Prompt) against
+Method 2 (Built-In DIBSE Engine) below:</pre>
         </div>
 
         <div class="sub-card sub-card-sky">
-          <pre class="ascii"><span class="c-cyan">Method 1 &bull; Use Your Own AI (Unbiased)</span>
-1. Scroll to Method 1 &amp; tap <span class="c-green">COPY BLIND
-   TELEMETRY</span> (raw metrics, no verdict shown)
-   or <span class="c-cyan">COPY FULL AUDIT PROMPT</span>.
-2. Paste into ChatGPT, Claude, Grok, or
-   Gemini for an independent verdict &amp; levels.</pre>
+          <pre class="ascii"><span class="c-cyan">Method 1 &bull; Independent AI (Zero Bias)</span>
+1. Optional: enter Loop A Buy / Loop B Sale
+   watermarks (saved locally on device).
+2. Tap the single <span class="c-green">COPY BLIND TELEMETRY</span> button
+   and paste into ChatGPT, Claude, or Gemini.</pre>
           <a href="#method-1" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#38bdf8;text-decoration:none;">&darr; Go to Method 1</a>
         </div>
 
         <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
-          <pre class="ascii"><span class="c-purple">Method 2 &bull; Our System Verdict (Built-In)</span>
-1. Scroll to Method 2 for our system's
-   plain-English call &amp; 3 empirical drivers.
-2. Verify LSCE gate, 10x-100x ladder, and
-   1% risk-budget stop before acting.
+          <pre class="ascii"><span class="c-purple">Method 2 &bull; Built-In DIBSE Verdict</span>
+1. View Loop A (USDT&rarr;BTC) &amp; Loop B (BTC&rarr;USDT)
+   trigger zones, LSCE side, &amp; self-healing rule.
+2. Zero leverage. Zero forced stop-losses.
 Tip: Highest conviction when Method 1
-(Blind AI) and Method 2 agree.</pre>
+(Blind AI) and Method 2 align.</pre>
           <a href="#method-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Method 2</a>
         </div>
       </div>
 
-      <!-- METHOD 1: VERDICT BY COPY DATA & PROMPT TO AI -->
+      <!-- METHOD 1: ONE CLEAN COPY BUTTON (UPGRADED BLIND TELEMETRY) -->
       <div id="method-1" class="panel-box panel-box-sky">
-        <div class="panel-hdr">Method 1 &bull; Copy Data &amp; Prompt to AI</div>
+        <div class="panel-hdr">Method 1 &bull; Copy Blind Telemetry to AI</div>
 
-        <div class="sub-card sub-card-teal">
-          <pre class="ascii"><span class="c-cyan">Zero-Black-Box Audit Modes:</span>
-Choose <span class="c-green">Blind Telemetry</span> (metrics only, no
-system verdict revealed) for an unbiased
-LLM vote, or <span class="c-cyan">Full Audit Prompt</span> below.</pre>
-          <button class="btn-copy btn-copy-blind" id="copy-blind-btn" onclick="copyBlindPrompt()">
-            🧪 COPY BLIND TELEMETRY (NO VERDICT)
-          </button>
-        </div>
+        <div class="sub-card sub-card-teal" style="margin-bottom: 2px;">
+          <pre class="ascii"><span class="c-cyan">Unbiased Blind Telemetry + 5-Regime Audit:</span>
+Closed-4H facts, 5-Regime rules, &amp; Risk
+Officer checklist. Zero verdict leaked.</pre>
 
-        <div class="sub-card sub-card-sky" style="margin-bottom: 2px;">
-          <button class="btn-copy" id="copy-prompt-btn" onclick="copyTelemetryPrompt()">
-            📋 COPY FULL AUDIT PROMPT FOR AI
+          <button class="btn-copy" id="copy-blind-btn" onclick="copyBlindPrompt()">
+            🧪 COPY TELEMETRY FOR AI
           </button>
 
-          <pre class="ascii">[Full Telemetry &amp; Audit Prompt (__PROMPT_LEN__ chars)]</pre>
-          <pre class="prompt-box" id="prompt-box-pre">__RAW_PROMPT__</pre>
+          <details class="wb-box" id="wb-details">
+            <summary class="wb-summary">
+              <span>▸ Optional: P_buy / P_sell (Local)</span>
+              <span id="wb-status" style="color:#94a3b8;font-weight:600;">None</span>
+            </summary>
+            <div class="wb-grid">
+              <div>
+                <label class="wb-lbl" for="wb-buy">Loop A Cost ($P_buy)</label>
+                <input class="wb-input" id="wb-buy" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 71200">
+              </div>
+              <div>
+                <label class="wb-lbl" for="wb-sell">Loop B Sale ($P_sell)</label>
+                <input class="wb-input" id="wb-sell" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 76500">
+              </div>
+            </div>
+            <div class="wb-foot">
+              <span>Saved only in browser localStorage</span>
+              <button type="button" class="wb-clear" id="wb-clear">Clear</button>
+            </div>
+          </details>
+
+          <pre class="ascii">[Blind Telemetry Prompt (<span id="blind-char-count">__BLIND_LEN__</span> chars)]</pre>
+          <pre class="prompt-box" id="prompt-box-pre">__BLIND_PROMPT_HTML__</pre>
         </div>
       </div>
 
       <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW) -->
       <div id="method-2" class="panel-box panel-box-purple">
-        <div class="panel-hdr">Method 2 &bull; Our System Verdict (Full-On View)</div>
+        <div class="panel-hdr">Method 2 &bull; Built-In DIBSE Verdict</div>
+
+        <div id="method2-ai-reminder" class="sub-card sub-card-sky">
+          <pre class="ascii"><span class="c-cyan">Always Use Method 1 AI &amp; Compare:</span>
+Method 2 is a fixed rule baseline only.
+Copy <span class="c-green">Method 1</span> into your AI for deeper
+context &amp; higher-accuracy DIBSE calls.</pre>
+          <a href="#method-1" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Method 1 (Copy to AI)</a>
+        </div>
 
         <div class="sub-card sub-card-emerald">
-          <pre class="ascii">Dominant Magnet:
+          <pre class="ascii">DIBSE Signal: <span class="c-cyan" style="font-weight:800;">__DIBSE_SIGNAL__</span>
+Action Headline:
+<span class="c-gold">__DIBSE_HEADLINE__</span>
+
+Dominant Magnet:
 <span class="c-rose">__DOM_REASON__</span>
 
 Plain English Bottom Line:
@@ -3396,19 +3570,28 @@ __WHY_3__</pre>
         </div>
 
         <div class="sub-card sub-card-amber">
-          <pre class="ascii"><span class="c-amber">Why This Exact Sizing &amp; Risk:</span>
+          <pre class="ascii"><span class="c-amber">Dual-Sleeve Bidirectional Playbook:</span>
+Allocation: <span class="c-green">__SLEEVE_ALLOC__</span>
+
+Loop A (USDT &rarr; BTC &bull; Buy Support):
+__LOOP_A_ZONE__
+
+Loop B (BTC &rarr; USDT &bull; Sell Resistance):
+__LOOP_B_ZONE__
+
+Sizing Note:
 __WHY_SIZING__
 __RISK_SUMMARY__</pre>
         </div>
 
         <div class="sub-card sub-card-rose">
-          <pre class="ascii"><span class="c-rose">Where Is Your Safety Net?</span>
-__WHY_STOP__
-__STOP_NOTE__</pre>
+          <pre class="ascii"><span class="c-rose">Asymmetric Self-Healing Protocol:</span>
+__FAILURE_PROTOCOL__</pre>
         </div>
 
         <div class="sub-card __LSCE_CARD_CLS__">
-          <pre class="ascii"><span class="c-amber">LSCE State Machine Gate:</span>
+          <pre class="ascii"><span class="c-amber">LSCE Bidirectional State Machine:</span>
+Side:   __LSCE_SIDE__
 Status: <span class="c-rose">__LSCE_STATUS__</span>
 Detail:
 __LSCE_DETAIL__</pre>
@@ -3439,8 +3622,8 @@ __F3_CROWDING__
 __F4_STRUCTURE__
 5. Distance:
 __F5_ASYMMETRY__
-6. Volatility:
-__F6_ATR__
+6. 4H Width Comp:
+__F6_COMP__
 Decisive Call:
 <span class="c-rose">__DOM_REASON__</span></pre>
         </div>
@@ -3474,8 +3657,78 @@ Decisive Call:
   <script>
     let SCAN_PRICE = __PRICE_RAW__;
     let SCAN_TS = '__SCAN_TS__';
-    let PROMPT_TEXT = _RAW_PROMPT_JSON_;
-    let BLIND_PROMPT_TEXT = _BLIND_PROMPT_JSON_;
+    let BLIND_PROMPT_BASE = _BLIND_PROMPT_JSON_;
+    let BLIND_PROMPT_TEXT = BLIND_PROMPT_BASE;
+
+    const WB_KEY_BUY = 'dibse_wb_buy';
+    const WB_KEY_SELL = 'dibse_wb_sell';
+
+    function lsGetSafe(k) {
+      try { return (window.localStorage && localStorage.getItem(k)) || ''; } catch (e) { return ''; }
+    }
+    function lsSetSafe(k, v) {
+      try {
+        if (!window.localStorage) return;
+        if (v) localStorage.setItem(k, v);
+        else localStorage.removeItem(k);
+      } catch (e) {}
+    }
+
+    function buildWatermarksLine(buyRaw, sellRaw) {
+      const b = parseFloat(buyRaw);
+      const s = parseFloat(sellRaw);
+      const parts = [];
+      if (!isNaN(b) && b > 0) parts.push('Loop A BTC Entry Watermark P_buy = $' + b.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' (sell target P_exit > P_buy; otherwise self-heal hold)');
+      if (!isNaN(s) && s > 0) parts.push('Loop B BTC Sale Watermark P_sell = $' + s.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' (rebuy target P_rebuy < P_sell; otherwise hold USDT)');
+      return parts.join(' | ');
+    }
+
+    function syncWatermarksToDom(loadFromStorage) {
+      const buyEl = document.getElementById('wb-buy');
+      const sellEl = document.getElementById('wb-sell');
+      const preEl = document.getElementById('prompt-box-pre');
+      const cntEl = document.getElementById('blind-char-count');
+      const stEl = document.getElementById('wb-status');
+      if (loadFromStorage) {
+        if (buyEl) buyEl.value = lsGetSafe(WB_KEY_BUY);
+        if (sellEl) sellEl.value = lsGetSafe(WB_KEY_SELL);
+      }
+      const buyVal = buyEl ? buyEl.value.trim() : lsGetSafe(WB_KEY_BUY);
+      const sellVal = sellEl ? sellEl.value.trim() : lsGetSafe(WB_KEY_SELL);
+      const customLine = buildWatermarksLine(buyVal, sellVal);
+      BLIND_PROMPT_TEXT = customLine
+        ? BLIND_PROMPT_BASE.replace(/^\[ACTIVE INVENTORY WATERMARKS\]:.*$/m, '[ACTIVE INVENTORY WATERMARKS]: ' + customLine)
+        : BLIND_PROMPT_BASE;
+      if (preEl) preEl.textContent = BLIND_PROMPT_TEXT;
+      if (cntEl) cntEl.textContent = String(BLIND_PROMPT_TEXT.length);
+      if (stEl) {
+        const flags = [];
+        if (buyVal && !isNaN(parseFloat(buyVal)) && parseFloat(buyVal) > 0) flags.push('P_buy=$' + parseFloat(buyVal).toLocaleString('en-US'));
+        if (sellVal && !isNaN(parseFloat(sellVal)) && parseFloat(sellVal) > 0) flags.push('P_sell=$' + parseFloat(sellVal).toLocaleString('en-US'));
+        stEl.textContent = flags.length ? flags.join(' • ') : 'None';
+        stEl.style.color = flags.length ? '#34d399' : '#94a3b8';
+      }
+    }
+
+    document.addEventListener('input', function (e) {
+      const t = e.target;
+      if (!t || (t.id !== 'wb-buy' && t.id !== 'wb-sell')) return;
+      if (t.id === 'wb-buy') lsSetSafe(WB_KEY_BUY, t.value.trim());
+      if (t.id === 'wb-sell') lsSetSafe(WB_KEY_SELL, t.value.trim());
+      syncWatermarksToDom(false);
+    });
+    document.addEventListener('click', function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest('#wb-clear') : null;
+      if (!btn) return;
+      lsSetSafe(WB_KEY_BUY, '');
+      lsSetSafe(WB_KEY_SELL, '');
+      const buyEl = document.getElementById('wb-buy');
+      const sellEl = document.getElementById('wb-sell');
+      if (buyEl) buyEl.value = '';
+      if (sellEl) sellEl.value = '';
+      syncWatermarksToDom(false);
+      showToast('✓ Local watermarks cleared');
+    });
 
     function copyTextPayload(txt, msg, btnId) {
       function markBtn() {
@@ -3493,13 +3746,11 @@ Decisive Call:
       }
     }
 
-    function copyTelemetryPrompt() {
-      copyTextPayload(PROMPT_TEXT, '✓ Copied Full Audit Prompt!', 'copy-prompt-btn');
-    }
-    function copyPrompt() { copyTelemetryPrompt(); }
     function copyBlindPrompt() {
-      copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied Blind Telemetry (No Verdict)!', 'copy-blind-btn');
+      syncWatermarksToDom(false);
+      copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied DIBSE Blind Telemetry!', 'copy-blind-btn');
     }
+    syncWatermarksToDom(true);
 
     function fallbackCopy(text, onOk) {
       try {
@@ -3638,7 +3889,6 @@ Decisive Call:
     function sanitizeTextNode(root) {
       root.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(function (n) { n.remove(); });
       const allowedClicks = new Set([
-        "copyTelemetryPrompt()",
         "copyBlindPrompt()",
         "refreshLiveScan(true)"
       ]);
@@ -3681,8 +3931,10 @@ Decisive Call:
                 scanMs = parsedNewTs;
                 const livePx = Number(payload.scan_price);
                 if (livePx > 0) SCAN_PRICE = livePx;
-                if (typeof payload.prompt_text === 'string') PROMPT_TEXT = payload.prompt_text;
-                if (typeof payload.blind_prompt_text === 'string') BLIND_PROMPT_TEXT = payload.blind_prompt_text;
+                if (typeof payload.blind_prompt_text === 'string') {
+                  BLIND_PROMPT_BASE = payload.blind_prompt_text;
+                  syncWatermarksToDom(true);
+                }
                 updateClocks();
                 updateLivePrice();
                 updated = true;
@@ -3768,8 +4020,6 @@ Decisive Call:
         html = html.replace("__SCAN_TS__", ts_iso)
         html = html.replace("__SCAN_ID__", scan_id)
         html = html.replace("__CHANGE_24H__", f"{chg_24h:+.2f}")
-        html = html.replace("__ROTATION__", rotation)
-        html = html.replace("__PLAYBOOK__", action)
         html = html.replace("__REGIME_CSS_CLS__", regime_css_cls)
         html = html.replace("__REGIME_TXT_CLS__", regime_txt_cls)
         html = html.replace("__REGIME_MATRIX_HTML__", regime_matrix_html)
@@ -3779,11 +4029,13 @@ Decisive Call:
         html = html.replace("__TAGLINE__", tagline)
         html = html.replace("__RULE_SCORE__", rule_score)
         html = html.replace("__MATCHED_CRITERIA_ASCII__", matched_crit_ascii)
-        html = html.replace("__STOP_PRICE__", f"{stop_p:,.2f}")
-        html = html.replace("__STOP_DIST__", f"{stop_dist:.2f}")
-        html = html.replace("__STRUCT_LOW__", f"{struct_low:,.2f}")
-        html = html.replace("__STOP_RULE__", stop_rule)
-        html = html.replace("__STOP_NOTE__", stop_note)
+        html = html.replace("__DIBSE_SIGNAL__", dibse_signal)
+        html = html.replace("__DIBSE_HEADLINE__", dibse_headline)
+        html = html.replace("__SLEEVE_ALLOC__", sleeve_alloc)
+        html = html.replace("__LOOP_A_ZONE__", loop_a_zone)
+        html = html.replace("__LOOP_B_ZONE__", loop_b_zone)
+        html = html.replace("__FAILURE_PROTOCOL__", failure_protocol)
+        html = html.replace("__LSCE_SIDE__", lsce_side)
         html = html.replace("__ENTRY_INST__", entry_inst)
         html = html.replace("__RISK_SUMMARY__", risk_summary_txt)
 
@@ -3808,31 +4060,24 @@ Decisive Call:
         html = html.replace("__FUTURES_SOURCE__", futures_source)
         html = html.replace("__OI_SCOPE__", oi_scope)
 
-        html = html.replace("__DAILY_VWAP__", f"{d_vwap:,.2f}")
-        html = html.replace("__DAILY_VWAP_DIFF__", f"{d_vwap_diff:+.2f}")
-        html = html.replace("__WEEKLY_VWAP__", f"{w_vwap:,.2f}")
-        html = html.replace("__WEEKLY_VWAP_DIFF__", f"{w_vwap_diff:+.2f}")
-        html = html.replace("__EMA_20D__", f"{e_20:,.2f}")
-        html = html.replace("__EMA_20D_DIFF__", f"{e_20_diff:+.2f}")
-        html = html.replace("__EMA_50D__", f"{e_50:,.2f}")
-        html = html.replace("__EMA_50D_DIFF__", f"{e_50_diff:+.2f}")
-        html = html.replace("__MA_200D__", f"{m_200:,.2f}")
-        html = html.replace("__MA_200D_DIFF__", f"{m_200_diff:+.2f}")
-        html = html.replace("__SWING_LOW__", f"{sw_l:,.0f}")
-        html = html.replace("__SWING_HIGH__", f"{sw_h:,.0f}")
+        html = html.replace("__D_VWAP_DISP__", d_vwap_disp)
+        html = html.replace("__W_VWAP_DISP__", w_vwap_disp)
+        html = html.replace("__SW_LH_DISP__", sw_lh_disp)
         html = html.replace("__RANGE_WIDTH__", f"{ch_width:.2f}")
-        html = html.replace("__BASE_FLOOR__", f"{floor:,.2f}")
+        html = html.replace("__CEIL_FLOOR_DISP__", ceil_floor_disp)
+        html = html.replace("__CLOSED_4H_CUTOFF__", closed_4h_cutoff[:22])
+        html = html.replace("__WICKS_24H__", wicks_disp)
+        html = html.replace("__WICK_SPAN__", wick_span_disp)
 
-        html = html.replace("__SPOT_VOL__", f"{spot_vol:,.0f}")
-        html = html.replace("__SPOT_VOL_RATIO__", f"{vol_ratio:.2f}")
-        html = html.replace("__SPOT_CVD_RATIO__", f"{cvd_ratio:.2f}")
+        html = html.replace("__SPOT_VOL_DISP__", spot_vol_disp)
+        html = html.replace("__SPOT_CVD_DISP__", cvd_disp)
         html = html.replace("__SPOT_CVD_7D__", f"{cvd_7d:+.0f}")
         html = html.replace("__SPOT_CVD_14D__", f"{cvd_14d:+.0f}")
         html = html.replace("__PERP_TREND__", perp_trend)
         html = html.replace("__PERP_SLOPE__", f"{perp_slope:+.0f}")
         html = html.replace("__DEPTH_RATIO__", f"{depth:.2f}")
 
-        html = html.replace("__OI__", f"{oi:,.1f}")
+        html = html.replace("__OI_DISP__", oi_disp)
         html = html.replace("__OI_24H__", oi_24h_disp)
         html = html.replace("__OI_1H_4H__", oi_1h_4h_disp)
         html = html.replace("__OI_3D__", oi_3d_disp)
@@ -3840,21 +4085,21 @@ Decisive Call:
         html = html.replace("__FUNDING_ANN__", f"{funding_ann:+.2f}")
         html = html.replace("__BASIS__", f"{basis:+.2f}")
 
-        html = html.replace("__ATR__", f"{atr:,.2f}")
-        html = html.replace("__ATR_COMP_DISP__", atr_comp_disp)
-
         live_payload_json = _json.dumps({
             "scan_ts": ts_iso,
             "scan_price": round(float(price), 2),
-            "prompt_text": raw_prompt,
             "blind_prompt_text": blind_prompt,
         }).replace("</", "<\\/")
 
-        html = html.replace("__PROMPT_LEN__", f"{len(raw_prompt)}")
-        html = html.replace("__RAW_PROMPT__", raw_prompt)
+        blind_prompt_html = (
+            blind_prompt.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+        html = html.replace("__BLIND_LEN__", f"{len(blind_prompt)}")
+        html = html.replace("__BLIND_PROMPT_HTML__", blind_prompt_html)
         html = html.replace("_TEXT_LIVE_PAYLOAD_JSON_", live_payload_json)
-        html = html.replace("_RAW_PROMPT_JSON_", _json.dumps(raw_prompt))
-        html = html.replace("_BLIND_PROMPT_JSON_", _json.dumps(blind_prompt))
+        html = html.replace("_BLIND_PROMPT_JSON_", _json.dumps(blind_prompt).replace("</", "<\\/"))
         html = html.replace("__STATIC_STALE_STYLE__", "display: block;" if is_stale_telemetry else "display: none;")
 
         html = html.replace("__PLAIN_VERDICT__", plain_verdict)
@@ -3862,14 +4107,13 @@ Decisive Call:
         html = html.replace("__WHY_2__", why_2)
         html = html.replace("__WHY_3__", why_3)
         html = html.replace("__WHY_SIZING__", why_sizing)
-        html = html.replace("__WHY_STOP__", why_stop)
 
         html = html.replace("__F1_SIZE__", f1_size)
         html = html.replace("__F2_LEADERSHIP__", f2_lead)
         html = html.replace("__F3_CROWDING__", f3_crowd)
         html = html.replace("__F4_STRUCTURE__", f4_struct)
         html = html.replace("__F5_ASYMMETRY__", f5_asym)
-        html = html.replace("__F6_ATR__", f6_atr)
+        html = html.replace("__F6_COMP__", f6_comp)
         html = html.replace("__DOM_REASON__", dom_reason)
 
         html = html.replace("__TIME_UTC__", utc_time_str)
