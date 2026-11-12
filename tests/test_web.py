@@ -240,13 +240,21 @@ class TestBrandingAndAndroidIcons(unittest.TestCase):
         from scripts.generate_android_assets import apply_android_resources
         work = tempfile.mkdtemp()
         try:
-            anydpi24 = os.path.join(work, "drawable-anydpi-v24")
-            os.makedirs(anydpi24, exist_ok=True)
-            stale_xml = os.path.join(anydpi24, "ic_launcher_foreground.xml")
-            with open(stale_xml, "w", encoding="utf-8") as fh:
-                fh.write("<vector/>")
+            stale_files = []
+            for rel in (
+                os.path.join("drawable-anydpi-v24", "ic_launcher_foreground.xml"),
+                os.path.join("drawable-v24", "ic_launcher_foreground.xml"),
+                os.path.join("drawable-v24", "$ic_launcher_foreground__0.xml"),
+                os.path.join("drawable", "ic_launcher_background.xml"),
+            ):
+                stale_path = os.path.join(work, rel)
+                os.makedirs(os.path.dirname(stale_path), exist_ok=True)
+                with open(stale_path, "w", encoding="utf-8") as fh:
+                    fh.write("<vector/>")
+                stale_files.append(stale_path)
             apply_android_resources(ROOT, res_dir=work)
-            self.assertFalse(os.path.exists(stale_xml))
+            for stale_path in stale_files:
+                self.assertFalse(os.path.exists(stale_path), stale_path)
             self.assertTrue(os.path.exists(os.path.join(work, "mipmap-anydpi-v26", "ic_launcher.xml")))
             self.assertTrue(os.path.exists(os.path.join(work, "mipmap-xxxhdpi", "ic_launcher.png")))
             self.assertTrue(os.path.exists(os.path.join(work, "mipmap-xxxhdpi", "ic_launcher_foreground.png")))

@@ -6,6 +6,7 @@ Usage:
 """
 import argparse
 import base64
+import glob
 import io
 import os
 import sys
@@ -179,10 +180,12 @@ def apply_android_resources(root_dir: str, res_dir: str | None = None) -> None:
     target_res = res_dir or os.path.join(root_dir, "android", "app", "src", "main", "res")
     src = Image.open(master_path).convert("RGBA")
 
-    # Remove default Capacitor vector X drawables so Android 8+ adaptive mipmaps take effect cleanly
-    for rel in STALE_CAPACITOR_DRAWABLES:
-        stale = os.path.join(target_res, rel)
-        if os.path.exists(stale):
+    # Remove default Capacitor vector X drawables across all drawable* qualifiers
+    # (e.g., drawable-v24 compiled by AAPT2 into drawable-anydpi-v24 inside the APK)
+    stale_paths = {os.path.join(target_res, rel) for rel in STALE_CAPACITOR_DRAWABLES}
+    stale_paths.update(glob.glob(os.path.join(target_res, "drawable*", "*ic_launcher*")))
+    for stale in sorted(stale_paths):
+        if os.path.isfile(stale):
             os.remove(stale)
 
     values_dir = os.path.join(target_res, "values")
