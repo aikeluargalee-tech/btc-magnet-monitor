@@ -59,6 +59,7 @@ class TestGeneratedSite(unittest.TestCase):
             sw = fh.read()
         self.assertIn("res.ok && res.status === 200", sw)
         self.assertIn("pwa-v8", sw)
+        self.assertIn("'./entry.html'", sw)
         self.assertIn("'./text.html'", sw)
 
     def test_text_terminal_page_generated_and_clean(self):
@@ -91,10 +92,28 @@ class TestGeneratedSite(unittest.TestCase):
             self.assertIn(token, text_html)
 
         self.assertIn("Verdict 2 &bull; Built-In Spot Engine", self.index)
-        self.assertIn("window.location.replace('./text.html'", self.index)
+        self.assertIn("window.location.replace('./entry.html'", self.index)
         self.assertIn("p.get('desktop') === '1'", self.index)
         self.assertIn('src="./assets/app-logo.png?v=9"', text_html)
         self.assertIn('src="./assets/app-logo.png?v=9"', self.index)
+        self.assertIn('href="entry.html"', text_html)
+
+        entry_path = os.path.join(self.tmp, "entry.html")
+        self.assertTrue(os.path.exists(entry_path), "entry.html was not generated")
+        with open(entry_path, "r", encoding="utf-8") as fh:
+            entry_html = fh.read()
+        for token in (
+            'id="entry-hero-video"',
+            'src="./assets/media/entry-hero.mp4"',
+            'id="enter-monitor-btn"',
+            'href="text.html"',
+            'id="entry-data-slot"',
+            "hideMonitorOverlaysOnEntry",
+        ):
+            self.assertIn(token, entry_html, f"Missing {token} in entry.html")
+        self.assertNotIn("cdn.tailwindcss.com", entry_html)
+        self.assertNotIn("fonts.googleapis.com", entry_html)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "assets", "media", "entry-hero.mp4")))
 
         def _strip_prompt_payloads(doc: str) -> str:
             cleaned = re.sub(r"<textarea[^>]*>.*?</textarea>", "", doc, flags=re.DOTALL | re.IGNORECASE)
@@ -105,6 +124,7 @@ class TestGeneratedSite(unittest.TestCase):
 
         for surface_name, html_doc in (
             ("index.html", self.index),
+            ("entry.html", entry_html),
             ("text.html", text_html),
             ("app.html", app_html),
             ("regimes.html", regimes_html),
@@ -166,7 +186,7 @@ class TestGeneratedSite(unittest.TestCase):
     def test_manifest_includes_maskable_and_icons(self):
         with open(os.path.join(self.tmp, "manifest.json"), "r", encoding="utf-8") as fh:
             manifest = json.load(fh)
-        self.assertEqual(manifest.get("start_url"), "./text.html")
+        self.assertEqual(manifest.get("start_url"), "./entry.html")
         purposes = [i.get("purpose") for i in manifest.get("icons", [])]
         self.assertIn("maskable", purposes)
         self.assertIn("any", purposes)
@@ -187,12 +207,12 @@ class TestOfflineBundler(unittest.TestCase):
                 cwd=work, capture_output=True, text=True,
             )
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-            for name in ("index.html", "text.html", "app.html", "regimes.html", "privacy.html"):
+            for name in ("index.html", "entry.html", "text.html", "app.html", "regimes.html", "privacy.html"):
                 with open(os.path.join(dist, name), "r", encoding="utf-8") as fh:
                     html = fh.read()
                 for needle in ("src=\"https://cdn.tailwindcss.com", "href=\"https://fonts.googleapis.com", "href=\"https://fonts.gstatic.com"):
                     self.assertNotIn(needle, html, f"{name} still loads {needle}")
-                if name not in ("text.html", "app.html"):
+                if name not in ("entry.html", "text.html", "app.html"):
                     self.assertIn('href="tailwind.css"', html)
             self.assertTrue(os.path.exists(os.path.join(dist, "fonts", "fonts.css")))
         finally:

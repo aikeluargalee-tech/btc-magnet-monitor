@@ -46,6 +46,12 @@ class WebGenerator:
         with open(text_path, "w", encoding="utf-8") as f:
             f.write(text_content)
 
+        # 3d. Render App Entry Landing Page (entry.html — video hero + content slot before Monitor)
+        entry_content = self._render_entry_page(payload)
+        entry_path = os.path.join(self.output_dir, "entry.html")
+        with open(entry_path, "w", encoding="utf-8") as f:
+            f.write(entry_content)
+
         # 4. Render Mobile App Entry (app.html) using the verified mobile terminal (text.html = vA)
         app_path = os.path.join(self.output_dir, "app.html")
         with open(app_path, "w", encoding="utf-8") as f:
@@ -784,7 +790,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         var isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
         var isMobile = (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) || (window.innerWidth > 0 && window.innerWidth < 768);
         if (isNative || isMobile) {{
-          window.location.replace('./text.html' + window.location.search + window.location.hash);
+          window.location.replace('./entry.html' + window.location.search + window.location.hash);
         }}
       }} catch (e) {{}}
     }})();
@@ -2047,13 +2053,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         }});
       }});
     }}
-    // Fallback Native Capacitor -> vA (text.html) router if Capacitor bridge attaches after <head>
+    // Fallback Native Capacitor -> entry.html router if Capacitor bridge attaches after <head>
     document.addEventListener('DOMContentLoaded', function () {{
       try {{
         var p = new URLSearchParams(window.location.search);
         if (p.get('desktop') === '1' || window.location.protocol === 'file:') return;
         if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {{
-          window.location.replace('./text.html' + window.location.search + window.location.hash);
+          window.location.replace('./entry.html' + window.location.search + window.location.hash);
         }}
       }} catch (e) {{}}
     }});
@@ -2707,6 +2713,419 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         blind_txt = self._build_blind_llm_prompt(data)
         for banned_osc in ("20D EMA", "50D EMA", "200D SMA", "1H ATR", "ATR Compression"):
             assert banned_osc not in blind_txt, f"Linter assertion failed: banned oscillator {banned_osc!r} in blind prompt"
+
+    def _render_entry_page(self, data: Dict[str, Any]) -> str:
+        """Renders the every-launch App Entry Landing Page (entry.html).
+        Displays the full hero bull-vs-bear video, primary Enter CTA button, and
+        expandable data slot below the video before routing users into text.html.
+        """
+        import html as _html
+
+        regime = data.get("regime", {})
+        metrics = data.get("metrics", {})
+        ts_iso = str(data.get("timestamp", ""))
+        scan_id = self._compute_scan_id(data)
+        utc_time_str, _, date_str = self._format_utc_sgt(ts_iso)
+        price = float(metrics.get("price", 0.0) or 0.0)
+        regime_name = self._public_copy(str(regime.get("name", "Transition / Mixed")))
+        dom_magnet = str(regime.get("dominant_magnet", "Neutral"))
+
+        tpl = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>BTC Magnet Monitor &bull; Entry Brief</title>
+  <meta name="theme-color" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BTC Magnet">
+  <link rel="manifest" href="manifest.json?v=8">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=8">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=8">
+  <link rel="apple-touch-icon" href="icon-192.png?v=8">
+  <link rel="shortcut icon" href="icon-192.png?v=8">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background-color: #09090b;
+      color: #e4e4e7;
+      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      padding: max(12px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    }
+    .entry-wrapper {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .brand-bar {
+      background: linear-gradient(180deg, #131622 0%, #09090b 100%);
+      border: 1.5px solid rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.12);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      border: 1px solid #3f3f46;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+    .brand-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #f4f4f5;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: #38bdf8;
+      margin-top: 2px;
+    }
+    .mandate-pill {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: #4ade80;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .video-card {
+      position: relative;
+      width: 100%;
+      background: #000000;
+      border: 1.5px solid rgba(16, 185, 129, 0.5);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 22px rgba(16, 185, 129, 0.16);
+      margin-bottom: 12px;
+    }
+    .video-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      background: #050608;
+    }
+    #entry-hero-video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #050608;
+    }
+    .video-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      background: #0b0e14;
+      border-top: 1px solid #27272a;
+    }
+    .video-caption {
+      font-size: 9px;
+      font-weight: 700;
+      color: #a1a1aa;
+      letter-spacing: 0.4px;
+    }
+    .sound-btn {
+      background: #18181b;
+      color: #f4f4f5;
+      border: 1px solid #3f3f46;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-family: inherit;
+      font-size: 9px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .cta-wrap {
+      margin-bottom: 14px;
+    }
+    .enter-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: 1.5px solid #6ee7b7;
+      color: #04120c;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      text-decoration: none;
+      text-transform: uppercase;
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.35);
+    }
+    .enter-sub {
+      text-align: center;
+      color: #a1a1aa;
+      font-size: 9px;
+      margin-top: 6px;
+    }
+    .data-card {
+      background: #101218;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 11px;
+      margin-bottom: 10px;
+    }
+    .data-card-cyan {
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+    .data-hdr {
+      font-size: 11px;
+      font-weight: 800;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+      border-bottom: 1px dashed #27272a;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .stat-tile {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .stat-lbl {
+      font-size: 9px;
+      color: #a1a1aa;
+      text-transform: uppercase;
+    }
+    .stat-val {
+      font-size: 12px;
+      font-weight: 800;
+      color: #f4f4f5;
+      margin-top: 2px;
+    }
+    .c-green { color: #4ade80; }
+    .c-amber { color: #facc15; }
+    .c-cyan { color: #38bdf8; }
+    .brief-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: #d4d4d8;
+      font-size: 10px;
+    }
+    .brief-item {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: 7px 9px;
+    }
+    footer {
+      text-align: center;
+      padding: 14px 4px 6px 4px;
+      border-top: 1px solid #27272a;
+      color: #71717a;
+      font-size: 9px;
+      margin-top: 6px;
+    }
+    footer a {
+      color: #38bdf8;
+      text-decoration: none;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="entry-wrapper">
+    <div class="brand-bar">
+      <div class="brand-row">
+        <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor" class="brand-logo">
+        <div>
+          <div class="brand-title">BTC Magnet Monitor</div>
+          <div class="brand-sub">Spot Liquidity &bull; 5-Regime Radar</div>
+        </div>
+      </div>
+      <div class="mandate-pill">SPOT-ONLY TERMINAL &bull; NO LEVERAGE &bull; READ-ONLY TELEMETRY</div>
+    </div>
+
+    <div class="video-card">
+      <div class="video-stage">
+        <video id="entry-hero-video" autoplay muted loop playsinline preload="auto" controlsList="nodownload" disablePictureInPicture>
+          <source src="./assets/media/entry-hero.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="video-bar">
+        <span class="video-caption">BULL vs BEAR &bull; SPOT ORDER-BOOK</span>
+        <button id="entry-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio()">🔇 SOUND OFF</button>
+      </div>
+    </div>
+
+    <div class="cta-wrap">
+      <a id="enter-monitor-btn" href="text.html" class="enter-btn">
+        <span>Enter BTC Magnet Monitor &rarr;</span>
+      </a>
+      <div class="enter-sub">Live BTC Spot Price &bull; Order-Book Magnet Ladder &bull; Verdict 1 vs Verdict 2</div>
+    </div>
+
+    <section id="entry-data-slot" aria-label="Entry Market Data">
+      <div class="data-card data-card-cyan">
+        <div class="data-hdr">Live Telemetry Snapshot (Pre-Entry Brief)</div>
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-lbl">BTC Spot Price</div>
+            <div id="entry-live-price" class="stat-val c-green">$__ENTRY_PRICE__</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-lbl">Dominant Magnet</div>
+            <div class="stat-val c-amber">__ENTRY_MAGNET__</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-lbl">Active Macro Regime</div>
+            <div class="stat-val c-cyan">__ENTRY_REGIME__</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-lbl">Latest Radar Scan</div>
+            <div class="stat-val">__ENTRY_UTC__</div>
+          </div>
+        </div>
+        <div id="entry-custom-data-slot" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #27272a; color: #a1a1aa; font-size: 9px;">
+          Scan ID: <span class="c-cyan">__ENTRY_SCAN_ID__</span> &bull; Cadence: Every 30m (:02/:32 UTC) &bull; __ENTRY_DATE__
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="data-hdr">Before You Enter &bull; What This Terminal Shows</div>
+        <ul class="brief-list">
+          <li class="brief-item"><strong class="c-green">Panels 1–2:</strong> Live spot price + observable closed-4H VWAP, volume, OI &amp; funding facts.</li>
+          <li class="brief-item"><strong class="c-cyan">Panel 3:</strong> 5-Regime + Transition classifier mapping where spot &amp; liquidity pressure sit.</li>
+          <li class="brief-item"><strong class="c-amber">Verdict 1 vs Verdict 2:</strong> Copy blind telemetry to your own AI, or inspect the built-in spot playbook.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      <div style="margin-bottom: 6px;">
+        <a href="text.html">Monitor Terminal</a> &bull;
+        <a href="regimes.html">5 Regimes &amp; Math</a> &bull;
+        <a href="privacy.html">Privacy Policy</a>
+      </div>
+      <div>Informational market telemetry only. Not financial advice.</div>
+    </footer>
+  </div>
+
+  <script>
+    function toggleEntryAudio() {
+      const vid = document.getElementById('entry-hero-video');
+      const btn = document.getElementById('entry-sound-btn');
+      if (!vid || !btn) return;
+      vid.muted = !vid.muted;
+      if (!vid.muted) {
+        vid.play().catch(function () {});
+        btn.innerText = '🔊 SOUND ON';
+      } else {
+        btn.innerText = '🔇 SOUND OFF';
+      }
+    }
+
+    function ensureEntryVideoPlays() {
+      const vid = document.getElementById('entry-hero-video');
+      if (!vid) return;
+      if (vid.paused) {
+        vid.muted = true;
+        vid.play().catch(function () {});
+      }
+    }
+
+    function hideMonitorOverlaysOnEntry() {
+      try {
+        const plugins = window.Capacitor && window.Capacitor.Plugins;
+        if (plugins && plugins.MagnetNativeAd && typeof plugins.MagnetNativeAd.setVisible === 'function') {
+          plugins.MagnetNativeAd.setVisible({ visible: false }).catch(function () {});
+        }
+        if (plugins && plugins.AdMob && typeof plugins.AdMob.hideBanner === 'function') {
+          plugins.AdMob.hideBanner().catch(function () {});
+        }
+      } catch (e) {}
+    }
+
+    async function refreshEntryPrice() {
+      const el = document.getElementById('entry-live-price');
+      if (!el) return;
+      const feeds = [
+        async function () {
+          const r = await fetch('https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT', { cache: 'no-store' });
+          const j = await r.json();
+          return parseFloat(j && j.price);
+        },
+        async function () {
+          const r = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', { cache: 'no-store' });
+          const j = await r.json();
+          return parseFloat(j && j.data && j.data.amount);
+        }
+      ];
+      for (const fn of feeds) {
+        try {
+          const p = await fn();
+          if (Number.isFinite(p) && p > 0) {
+            el.innerText = '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return;
+          }
+        } catch (e) {}
+      }
+    }
+
+    window.addEventListener('load', function () {
+      hideMonitorOverlaysOnEntry();
+      ensureEntryVideoPlays();
+      refreshEntryPrice();
+    });
+    window.addEventListener('pageshow', function () {
+      hideMonitorOverlaysOnEntry();
+      ensureEntryVideoPlays();
+    });
+    setInterval(refreshEntryPrice, 10000);
+  </script>
+</body>
+</html>"""
+
+        html_out = tpl.replace("__ENTRY_PRICE__", f"{price:,.2f}")
+        html_out = html_out.replace("__ENTRY_MAGNET__", _html.escape(dom_magnet))
+        html_out = html_out.replace("__ENTRY_REGIME__", _html.escape(regime_name))
+        html_out = html_out.replace("__ENTRY_UTC__", _html.escape(utc_time_str))
+        html_out = html_out.replace("__ENTRY_DATE__", _html.escape(date_str))
+        html_out = html_out.replace("__ENTRY_SCAN_ID__", _html.escape(scan_id))
+        return html_out
 
     def _render_text_page(self, data: Dict[str, Any]) -> str:
         """Renders the Mobile Text/Data Terminal (text.html).
@@ -3795,6 +4214,7 @@ Decisive Call:
         BTC Magnet Monitor &bull; 5-Regime Radar
       </div>
       <div>
+        <a href="entry.html">Entry Screen</a> &bull;
         <a href="index.html?desktop=1">Desktop View</a> &bull;
         <a href="regimes.html">5 Regimes &amp; Math</a> &bull;
         <a href="privacy.html">Privacy Policy</a>
@@ -4341,6 +4761,12 @@ Decisive Call:
             });
             window.addEventListener('load', function () {
               if (nativeAdHeightCss > 0) syncNativeAdSlot();
+            });
+            window.addEventListener('pageshow', function () {
+              if (nativeAdHeightCss > 0) syncNativeAdSlot();
+            });
+            window.addEventListener('pagehide', function () {
+              nativePlugin.setVisible({ visible: false }).catch(function () {});
             });
             let nativeRetries = 0;
             const requestNativeAd = function () {

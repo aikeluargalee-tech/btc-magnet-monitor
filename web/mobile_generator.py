@@ -12,7 +12,7 @@ class MobileWebGenerator:
             "name": "BTC Magnet Monitor",
             "short_name": "BTC Magnet",
             "description": "Observable 5-Regime Radar & Spot Liquidity Mobile Terminal",
-            "start_url": "./text.html",
+            "start_url": "./entry.html",
             "display": "standalone",
             "background_color": "#09090b",
             "theme_color": "#10b981",
@@ -43,6 +43,7 @@ class MobileWebGenerator:
     def render_service_worker(self) -> str:
         return """const CACHE_NAME = 'btc-magnet-pwa-v8';
 const STATIC_ASSETS = [
+  './entry.html',
   './text.html',
   './index.html',
   './app.html',
