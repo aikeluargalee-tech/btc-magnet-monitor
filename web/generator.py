@@ -517,7 +517,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         tot_ratio = regime.get("total_ladder_imbalance_ratio", 1.0)
         lsce_status = regime.get("lsce_status", "UNTESTED")
         lsce_side = regime.get("lsce_side", "NONE")
-        lsce_detail = regime.get("lsce_detail", "")
+        lsce_detail = self._public_copy(regime.get("lsce_detail", ""))
 
         if lsce_status == "SWEEP_AND_RECLAIM_CONFIRMED":
             if sizing > 0 and "USDT -> BTC" in rotation:
@@ -609,7 +609,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         evidence_cards_html = "".join([
             f"""<div class='flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/75 border {ev_border}'>
                  <span class='text-emerald-400 font-bold mt-0.5 text-xs'>✓</span>
-                 <span class='text-xs text-zinc-200 leading-relaxed'>{item}</span>
+                 <span class='text-xs text-zinc-200 leading-relaxed'>{self._public_copy(item)}</span>
                </div>"""
             for item in regime.get("matched_criteria", [])
         ])
@@ -3980,10 +3980,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         tot_upper = float(regime.get("total_ladder_upper_vol", 0.0) or 0.0)
         lsce_status = str(regime.get("lsce_status", "UNTESTED"))
         lsce_side = str(regime.get("lsce_side", "NONE"))
-        lsce_detail = wrap36(str(regime.get("lsce_detail", "")))
+        lsce_detail = wrap36(self._public_copy(str(regime.get("lsce_detail", ""))))
 
         matched_crit = regime.get("matched_criteria", [])
-        criteria_lines = [f"✓ {wrap36(c)}" for c in matched_crit] if matched_crit else ["(No rule criteria matched)"]
+        criteria_lines = [f"✓ {wrap36(self._public_copy(c))}" for c in matched_crit] if matched_crit else ["(No rule criteria matched)"]
         matched_crit_ascii = "\n".join(criteria_lines)
 
         upper_c = regime.get("nearest_upper_cluster") or {}
