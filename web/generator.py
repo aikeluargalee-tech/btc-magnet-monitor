@@ -57,6 +57,12 @@ class WebGenerator:
         with open(app_path, "w", encoding="utf-8") as f:
             f.write(text_content)
 
+        # 4b. Emit offline multi-language bundle (i18n.js)
+        from web.i18n import render_i18n_js
+        i18n_path = os.path.join(self.output_dir, "i18n.js")
+        with open(i18n_path, "w", encoding="utf-8") as f:
+            f.write(render_i18n_js())
+
         # 5. Render manifest.json and sw.js for PWA installation
         try:
             import shutil
@@ -802,7 +808,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {{
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans KR', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #09090b;
       color: #f4f4f5;
     }}
@@ -838,16 +844,17 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
+            <span data-i18n="brand_badge_radar" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">5-Regime Radar</span>
           </div>
-          <p class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
+          <p data-i18n="brand_sub_desktop" class="text-xs text-zinc-400 hidden sm:block">Observable Positioning Mechanics &amp; Regime Intelligence</p>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 sm:gap-6">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+        <div data-i18n-switcher></div>
         {top_switch_button}
         <div class="text-right">
-          <div class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
+          <div data-i18n="hdr_btc_price" class="text-[11px] font-medium text-zinc-400">Bitcoin Price</div>
           <div class="text-base font-bold mono text-white">${price:,.2f}</div>
         </div>
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if data_quality == 'LIVE' else 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
@@ -879,7 +886,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div class="space-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span class="text-xs font-bold tracking-wider uppercase text-emerald-400 mono">Panel 1 &bull; Real-Time BTC Spot Price (Live)</span>
+              <span data-i18n="p1_title" class="text-xs font-bold tracking-wider uppercase text-emerald-400 mono">Panel 1 &bull; Real-Time BTC Spot Price (Live)</span>
             </div>
             <div class="flex items-baseline gap-3 flex-wrap">
               <div id="live-btc-price" class="text-3xl sm:text-5xl font-extrabold mono text-white tracking-tight">
@@ -987,10 +994,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cyan-500/30 pb-3">
         <div>
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry &amp; Modeled Pools</span>
+            <span data-i18n="p2_title_index" class="text-xs font-bold uppercase tracking-widest text-cyan-400">Panel 2 &bull; On-Exchange Telemetry &amp; Modeled Pools</span>
             <span class="text-[11px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 mono">Closed 4H Bars (1-3) + Modeled Pools (4)</span>
           </div>
-          <h3 class="text-lg sm:text-xl font-bold text-white mt-0.5">Real-Time Market Microstructure Feeds</h3>
+          <h3 data-i18n="p2_sub_index" class="text-lg sm:text-xl font-bold text-white mt-0.5">Real-Time Market Microstructure Feeds</h3>
         </div>
         <div class="text-xs text-zinc-400">
           Sources: <span class="text-zinc-200 mono">{spot_source} &bull; {futures_source}</span>
@@ -1003,7 +1010,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Category 1: Price & Closed 4H Structure -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-cyan-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/30 pb-1.5 flex items-center justify-between">
-            <span>1. Closed 4H Structure</span>
+            <span data-i18n="p2_cat1">1. Closed 4H Structure</span>
             <span class="text-[10px] text-cyan-300 font-mono">Zero Repaint</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
@@ -1020,7 +1027,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Category 2: Order Flow & CVD -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-emerald-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 border-b border-emerald-500/30 pb-1.5 flex items-center justify-between">
-            <span>2. Order Flow &amp; CVD</span>
+            <span data-i18n="p2_cat2">2. Order Flow &amp; CVD</span>
             <span class="text-[10px] text-emerald-300 font-mono">Raw Taker</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
@@ -1037,7 +1044,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Category 3: Derivatives Crowding -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-amber-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 border-b border-amber-500/30 pb-1.5 flex items-center justify-between">
-            <span>3. Derivatives Crowding</span>
+            <span data-i18n="p2_cat3">3. Derivatives Crowding</span>
             <span class="text-[10px] text-amber-300 font-mono">Venue OI</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
@@ -1054,7 +1061,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Category 4: Range Compression & Magnets -->
         <div class="p-4 rounded-xl bg-zinc-950/90 border border-rose-500/45 space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-rose-400 border-b border-rose-500/30 pb-1.5 flex items-center justify-between">
-            <span>4. Range &amp; Magnets</span>
+            <span data-i18n="p2_cat4">4. Range &amp; Magnets</span>
             <span class="text-[10px] text-rose-300 font-mono">Modeled Est.</span>
           </div>
           <div class="space-y-1.5 text-zinc-300">
@@ -1080,19 +1087,19 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-amber-500/25">
         <div>
           <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Panel 3 &bull; Macro Market Regime Diagnosis</span>
+            <span data-i18n="p3_title" class="text-xs font-bold uppercase tracking-wider text-cyan-400">Panel 3 &bull; Macro Market Regime Diagnosis</span>
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700/60 mono">{majority_score}</span>
           </div>
-          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          <h2 data-i18n="p3_question" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             What market environment is Bitcoin currently in?
           </h2>
-          <p class="text-xs text-zinc-400 mt-0.5">
+          <p data-i18n="p3_sub" class="text-xs text-zinc-400 mt-0.5">
             Bitcoin is classified strictly into 1 of 5 deterministic regimes (or Transition / Mixed when conflicted).
           </p>
         </div>
 
         <a href="regimes.html" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-xs font-medium text-cyan-300 border border-cyan-500/40 transition-all self-start sm:self-auto">
-          <span>Learn About the 5 Regimes &amp; Math</span>
+          <span data-i18n="p3_learn_btn">Learn About the 5 Regimes &amp; Math</span>
           <span>&rarr;</span>
         </a>
       </div>
@@ -1105,7 +1112,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           </div>
           <div class="space-y-1">
             <div class="flex items-center gap-2.5 flex-wrap">
-              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full {regime_badge_bg}">
+              <span data-i18n="p3_active_badge" class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full {regime_badge_bg}">
                 Active Market Regime
               </span>
               <span class="text-xs text-zinc-400 mono">Diagnostic Engine Call</span>
@@ -1123,7 +1130,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
 
         <div class="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-l border-zinc-800/80 pt-3 md:pt-0 md:pl-6">
-          <div class="text-xs text-zinc-400">Rule Match Confirmation:</div>
+          <div data-i18n="p3_rule_confirm" class="text-xs text-zinc-400">Rule Match Confirmation:</div>
           <div class="text-sm font-bold {'text-amber-300' if regime_id == 'TRANSITION_MIXED' else 'text-emerald-400'} flex items-center gap-1.5">
             <span>{'⚠️' if regime_id == 'TRANSITION_MIXED' else '✓'}</span> {majority_score}
           </div>
@@ -1144,7 +1151,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
       <!-- 5-Regime Radar Framework Matrix + Transition Overlay -->
       <div class="pt-4 border-t border-zinc-800/80 space-y-2">
-        <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-400">5-Regime Radar Framework Matrix</div>
+        <div data-i18n="p3_matrix_hdr" class="text-[11px] font-bold uppercase tracking-wider text-zinc-400">5-Regime Radar Framework Matrix</div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
           <a href="regimes.html#regime-1" class="p-2.5 rounded-xl border {'border-emerald-400 bg-emerald-500/15 text-emerald-300 font-bold shadow-sm' if regime_id == 'SPOT_LED_EXPANSION' else 'border-emerald-500/30 bg-zinc-950/60 text-zinc-400 hover:border-emerald-500/60'} transition-all">
             1. Spot Expansion
@@ -1174,12 +1181,12 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- ============================================================ -->
     <div id="verdict-guide" class="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-[0_0_25px_rgba(139,92,246,0.12)] text-center space-y-3">
       <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/40 text-violet-300 text-xs font-extrabold uppercase tracking-wider">
-        <span>⚖️ Bridge &bull; Two Independent Verdicts</span>
+        <span data-i18n="bridge_badge_index">⚖️ Bridge &bull; Two Independent Verdicts</span>
       </div>
-      <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">
+      <h3 data-i18n="bridge_h3_index" class="text-xl sm:text-2xl font-black text-white tracking-tight">
         Verdict 1 (Your Own AI) vs Verdict 2 (Built-In Engine)
       </h3>
-      <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
+      <p data-i18n="bridge_desc_index" class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
         Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (USDT &rarr; BTC)</strong>, <strong>Loop B (BTC &rarr; USDT)</strong>, or <strong>Hold Both Sides</strong>, generate <strong>Verdict 1</strong> in your AI and cross-check it against <strong>Verdict 2</strong> below.
       </p>
 
@@ -1214,13 +1221,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
               <span>🧪</span>
-              <span>Verdict 1 &bull; Your Own AI (Zero System Bias)</span>
+              <span data-i18n="v1_tag_index">Verdict 1 &bull; Your Own AI (Zero System Bias)</span>
             </span>
           </div>
-          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          <h2 data-i18n="v1_h2_index" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Generate Verdict 1 with Your Own AI
           </h2>
-          <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+          <p data-i18n="v1_desc_index" class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
             One clean export containing closed-4H market facts, modeled liquidation bands, and your optional inventory watermarks—with <strong>Verdict 2 hidden</strong> so your AI stays 100% objective.
           </p>
         </div>
@@ -1229,7 +1236,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <div class="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <button id="copy-blind-btn" onclick="copyBlindPrompt()" class="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs sm:text-sm shadow-lg shadow-sky-500/25 transition-all cursor-pointer">
             <span id="copy-blind-icon" class="text-base">🧪</span>
-            <span id="copy-blind-text">Copy Blind Telemetry for AI</span>
+            <span id="copy-blind-text" data-i18n="v1_btn_index">Copy Blind Telemetry for AI</span>
           </button>
         </div>
       </div>
@@ -1237,20 +1244,20 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <!-- Optional Local-Only Inventory Watermarks (Collapsed for 1-Button Simplicity) -->
       <details id="wb-details" class="rounded-xl bg-zinc-950/90 border border-sky-500/35 px-4 py-3">
         <summary class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 cursor-pointer select-none">
-          <span class="text-xs font-bold uppercase tracking-wider text-sky-300">▸ Optional: Add P_buy / P_sell Inventory Watermarks (Local Only)</span>
+          <span data-i18n="v1_wb_summary_index" class="text-xs font-bold uppercase tracking-wider text-sky-300">▸ Optional: Add P_buy / P_sell Inventory Watermarks (Local Only)</span>
           <span id="wb-status" class="text-[11px] font-mono text-zinc-400">Baseline: Spot reserves ready</span>
         </summary>
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-3 mt-3 border-t border-zinc-800/80">
           <div class="sm:col-span-5">
-            <label for="wb-buy" class="block text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-1">Loop A Spot BTC Cost ($P_buy)</label>
+            <label for="wb-buy" data-i18n="v1_wb_buy_lbl" class="block text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-1">Loop A Spot BTC Cost ($P_buy)</label>
             <input id="wb-buy" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 71200 (if holding Loop A BTC)" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-400">
           </div>
           <div class="sm:col-span-5">
-            <label for="wb-sell" class="block text-[10px] font-bold uppercase tracking-wider text-sky-300 mb-1">Loop B BTC Sale Price ($P_sell)</label>
+            <label for="wb-sell" data-i18n="v1_wb_sell_lbl" class="block text-[10px] font-bold uppercase tracking-wider text-sky-300 mb-1">Loop B BTC Sale Price ($P_sell)</label>
             <input id="wb-sell" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 75800 (if waiting to rebuy BTC)" class="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-sky-400">
           </div>
           <div class="sm:col-span-2">
-            <button id="wb-clear" type="button" class="w-full px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-[11px] font-bold text-zinc-200 cursor-pointer">Clear</button>
+            <button id="wb-clear" type="button" data-i18n="v1_wb_clear" class="w-full px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-[11px] font-bold text-zinc-200 cursor-pointer">Clear</button>
           </div>
         </div>
       </details>
@@ -1259,20 +1266,20 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-sky-500/35 space-y-1">
           <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Step 1</span>
-          <div class="font-bold text-white">Copy Upgraded Blind Telemetry</div>
-          <p class="text-[11px] text-zinc-400">Exports closed-4H structure, CVD, OI, and modeled pools + your watermarks—without leaking Verdict 2.</p>
+          <div data-i18n="v1_step1_title" class="font-bold text-white">Copy Upgraded Blind Telemetry</div>
+          <p data-i18n="v1_step1_desc" class="text-[11px] text-zinc-400">Exports closed-4H structure, CVD, OI, and modeled pools + your watermarks—without leaking Verdict 2.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-cyan-500/35 space-y-1">
           <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 2</span>
-          <div class="font-bold text-white">Paste into Any Major LLM</div>
-          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with bidirectional market telemetry built in.</p>
+          <div data-i18n="v1_step2_title" class="font-bold text-white">Paste into Any Major LLM</div>
+          <p data-i18n="v1_step2_desc" class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with bidirectional market telemetry built in.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1">
           <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Step 3</span>
-          <div class="font-bold text-white">Cross-Check Verdict 1 vs Verdict 2</div>
-          <p class="text-[11px] text-zinc-400">Compare your AI's independent Loop A (buy washout) &amp; Loop B (sell squeeze) levels against Verdict 2 below.</p>
+          <div data-i18n="v1_step3_title" class="font-bold text-white">Cross-Check Verdict 1 vs Verdict 2</div>
+          <p data-i18n="v1_step3_desc" class="text-[11px] text-zinc-400">Compare your AI's independent Loop A (buy washout) &amp; Loop B (sell squeeze) levels against Verdict 2 below.</p>
         </div>
       </div>
 
@@ -1302,14 +1309,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Verdict 2 &bull; Built-In Radar Engine</span>
+              <span data-i18n="v2_tag_index">Verdict 2 &bull; Built-In Radar Engine</span>
             </span>
             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border {action_bg}">{action_pill}</span>
           </div>
-          <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          <h2 data-i18n="v2_h2_index" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Built-In System Verdict
           </h2>
-          <p class="text-xs text-zinc-400 mt-0.5">
+          <p data-i18n="v2_desc_index" class="text-xs text-zinc-400 mt-0.5">
             Closed-4H deterministic regime call, Loop A &amp; Loop B magnet zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and bidirectional swing hold rules.
           </p>
         </div>
@@ -1321,10 +1328,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <!-- Reminder Banner: Verdict 2 is Deterministic Baseline; Always Generate Verdict 1 AI -->
       <div id="verdict2-ai-reminder" class="p-3.5 sm:p-4 rounded-xl bg-sky-500/10 border border-sky-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div class="text-xs text-sky-100 leading-relaxed">
-          <strong class="text-sky-300 uppercase tracking-wider">Always Generate Verdict 1 (Your AI) &amp; Compare:</strong>
-          Verdict 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate swing entries/exits, always copy <strong>Verdict 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
+          <strong data-i18n="v2_reminder_title" class="text-sky-300 uppercase tracking-wider">Always Generate Verdict 1 (Your AI) &amp; Compare:</strong>
+          <span data-i18n="v2_reminder_desc">Verdict 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate swing entries/exits, always copy Verdict 1 (Blind Telemetry) into your own AI and compare both verdicts.</span>
         </div>
-        <a href="#verdict-1" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
+        <a href="#verdict-1" data-i18n="v2_reminder_link" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
           &uarr; Compare via Verdict 1
         </a>
       </div>
@@ -1336,7 +1343,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Radar Engine</span>
             <span class="text-xs text-zinc-500 font-medium">({sleeve_alloc})</span>
           </div>
-          <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+          <h3 data-i18n="v2_why_title" class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
             Why This Bidirectional Call?
           </h3>
           <div class="mt-3 p-4 rounded-xl bg-zinc-900/60 border border-emerald-500/35 flex items-start gap-3">
@@ -1555,14 +1562,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <div class="flex items-center justify-center gap-3">
       <span class="text-white font-bold">BTC Magnet Monitor</span>
       <span>&bull;</span>
-      <a href="text.html" class="text-emerald-400 hover:underline font-semibold">📱 Text Terminal</a>
+      <a href="text.html" data-i18n="nav_mobile_btn" class="text-emerald-400 hover:underline font-semibold">📱 Text Terminal</a>
       <span>&bull;</span>
-      <a href="regimes.html" class="text-cyan-400 hover:underline">5 Regimes Guide</a>
+      <a href="regimes.html" data-i18n="footer_regimes_guide" class="text-cyan-400 hover:underline">5 Regimes Guide</a>
       <span>&bull;</span>
-      <a href="privacy.html" class="text-cyan-400 hover:underline">Privacy Policy</a>
+      <a href="privacy.html" data-i18n="footer_privacy" class="text-cyan-400 hover:underline">Privacy Policy</a>
     </div>
     <p>Scan ID: <span class="mono text-zinc-300">{scan_id}</span> &bull; Updates Every 30m (:02/:32 UTC) &bull; {spot_source} &bull; {futures_source}</p>
-    <p class="text-[11px] text-zinc-400">Strictly for informational and risk research purposes. Not financial advice.</p>
+    <p data-i18n="footer_research_disclaimer" class="text-[11px] text-zinc-400">Strictly for informational and risk research purposes. Not financial advice.</p>
   </footer>
 
   <script>
@@ -1658,7 +1665,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       syncWatermarksToDom(false);
       const promptEl = document.getElementById(elemId);
       if (!promptEl) return;
-      const textToCopy = promptEl.value;
+      const rawText = promptEl.value;
+      const textToCopy = (window.BtcMagnetI18n && elemId === 'blind-prompt-data')
+        ? window.BtcMagnetI18n.localizeBlindPrompt(rawText)
+        : rawText;
 
       function fallbackCopy() {{
         const ta = document.createElement('textarea');
@@ -1700,7 +1710,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           setTimeout(() => {{
             toast.classList.remove('opacity-100', 'translate-y-0');
             toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-            if (btnText) btnText.innerText = origLabel;
+            if (btnText) btnText.innerText = (window.BtcMagnetI18n && textId === 'copy-blind-text') ? window.BtcMagnetI18n.t('v1_btn_index', origLabel) : origLabel;
             if (btnIcon) btnIcon.innerText = origIcon;
             if (btn) {{
               btn.classList.remove('bg-emerald-500');
@@ -1727,7 +1737,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         '🧪',
         'bg-sky-500',
         'hover:bg-sky-400',
-        'Copied Upgraded Blind Telemetry to Clipboard!'
+        (window.BtcMagnetI18n && window.BtcMagnetI18n.t('toast_copied_v1')) || 'Copied Upgraded Blind Telemetry to Clipboard!'
       );
     }}
     syncWatermarksToDom(true);
@@ -1908,13 +1918,21 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       const el = document.getElementById('data-age-banner');
       const confTag = document.getElementById('confidence-freshness-tag');
       if (!el) return;
+      const setDyn = function (node, val) {{
+        if (!node) return;
+        if (window.BtcMagnetI18n && typeof window.BtcMagnetI18n.setDynText === 'function') {{
+          window.BtcMagnetI18n.setDynText(node, val);
+        }} else {{
+          node.textContent = val;
+        }}
+      }};
       const base = 'px-4 py-2 text-center text-xs font-semibold border-b ';
       if (currentScanTs <= 0) {{
         el.className = base + 'border-amber-500/40 bg-amber-500/10 text-amber-300';
-        el.textContent = '⚠ Scan time unknown - verify the data before acting on it.';
+        setDyn(el, '⚠ Scan time unknown - verify the data before acting on it.');
         if (confTag) {{
           confTag.className = 'text-[11px] text-amber-300 font-semibold';
-          confTag.textContent = '⚠ Timestamp unknown — verify freshness';
+          setDyn(confTag, '⚠ Timestamp unknown — verify freshness');
         }}
         return;
       }}
@@ -1922,31 +1940,31 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       const age = formatAge(ageMin);
       if (ageMin > 180) {{
         el.className = base + 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200';
-        el.textContent = 'LIVE SPOT FEED ACTIVE • Snapshot recorded ' + age + ' ago' + (lastFetchOk === false ? ' (refresh pending)' : ' • Live price & pressure streaming above.');
+        setDyn(el, 'LIVE SPOT FEED ACTIVE • Snapshot recorded ' + age + ' ago' + (lastFetchOk === false ? ' (refresh pending)' : ' • Live price & pressure streaming above.'));
         if (confTag) {{
           confTag.className = 'text-[11px] text-cyan-300 font-semibold';
-          confTag.textContent = 'Live Price Stream • Structural Snapshot ' + age + ' ago';
+          setDyn(confTag, 'Live Price Stream • Structural Snapshot ' + age + ' ago');
         }}
       }} else if (lastFetchOk === false) {{
         el.className = base + 'border-zinc-700 bg-zinc-900/80 text-zinc-300';
-        el.textContent = 'Showing last cached structural snapshot (' + age + ' ago) • Auto-reconnecting live feed.';
+        setDyn(el, 'Showing last cached structural snapshot (' + age + ' ago) • Auto-reconnecting live feed.');
         if (confTag) {{
           confTag.className = 'text-[11px] text-zinc-400 font-semibold';
-          confTag.textContent = 'Cached Snapshot (' + age + ' ago) • Auto-reconnecting';
+          setDyn(confTag, 'Cached Snapshot (' + age + ' ago) • Auto-reconnecting');
         }}
       }} else if (ageMin > 40) {{
         el.className = base + 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200';
-        el.textContent = 'LIVE SPOT FEED ACTIVE • Structural scan ' + age + ' ago (next scheduled snapshot queued).';
+        setDyn(el, 'LIVE SPOT FEED ACTIVE • Structural scan ' + age + ' ago (next scheduled snapshot queued).');
         if (confTag) {{
           confTag.className = 'text-[11px] text-cyan-300 font-semibold';
-          confTag.textContent = 'Live Price Stream • Structural Snapshot ' + age + ' ago';
+          setDyn(confTag, 'Live Price Stream • Structural Snapshot ' + age + ' ago');
         }}
       }} else {{
         el.className = base + 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-        el.textContent = '● Scan data is ' + age + ' old - updates every 30m (:02/:32 UTC); checking feed every minute.';
+        setDyn(el, '● Scan data is ' + age + ' old - updates every 30m (:02/:32 UTC); checking feed every minute.');
         if (confTag) {{
           confTag.className = 'text-[11px] text-zinc-400';
-          confTag.textContent = 'Deterministic Rule Gate Status (Fresh)';
+          setDyn(confTag, 'Deterministic Rule Gate Status (Fresh)');
         }}
       }}
     }}
@@ -2013,6 +2031,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             syncWatermarksToDom(true);
             updateClocksAndSession();
             updateLivePriceTicker();
+            if (window.BtcMagnetI18n) window.BtcMagnetI18n.apply();
           }}
         }}
       }} catch (e) {{
@@ -2082,6 +2101,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }} catch (e) {{}}
     }}
   </script>
+  <script src="./i18n.js"></script>
 
 </body>
 </html>"""
@@ -2296,7 +2316,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {{
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans KR', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #09090b;
       color: #f4f4f5;
     }}
@@ -2319,9 +2339,12 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; Bidirectional Liquidity Reference Guide</span>
         </div>
       </div>
-      <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
-        <span>&larr; Back to Live Monitor</span>
-      </a>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div data-i18n-switcher></div>
+        <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
+          <span data-i18n="reg_back_live">&larr; Back to Live Monitor</span>
+        </a>
+      </div>
     </div>
   </header>
 
@@ -2329,13 +2352,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <!-- Hero Title -->
     <div class="space-y-3">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+      <div data-i18n="reg_badge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
         Bidirectional Radar Architecture &bull; Observable Positioning Mechanics
       </div>
-      <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+      <h1 data-i18n="reg_h1" class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
         5-Regime Radar &amp; Bidirectional Liquidity Protocol
       </h1>
-      <p class="text-base sm:text-lg text-zinc-300 leading-relaxed">
+      <p data-i18n="reg_intro" class="text-base sm:text-lg text-zinc-300 leading-relaxed">
         How the Bidirectional Protocol maps closed-4H liquidity magnets, positioning skew, and two-sided liquidity reserves across all five market regimes.
       </p>
     </div>
@@ -2343,14 +2366,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Active State Banner with Copy Prompt -->
     <div class="p-5 rounded-2xl border-2 border-cyan-500/60 bg-cyan-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_0_20px_rgba(6,182,212,0.12)]">
       <div>
-        <div class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
+        <div data-i18n="p3_active_badge" class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Current Live Market State</div>
         <div class="text-xl font-bold text-white mt-0.5">{current_name}</div>
         <div class="text-xs text-zinc-400 mt-1">Evaluated on completed 4H bars (klines[:-1]) &bull; Updates every 30m (:02/:32 UTC).</div>
       </div>
       <div class="flex items-center gap-2.5">
         <button onclick="copySubpagePrompt()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-bold text-xs shadow-lg shadow-sky-500/20 transition-all cursor-pointer">
           <span>🧪</span>
-          <span id="sub-copy-text">Copy Blind Telemetry for AI</span>
+          <span id="sub-copy-text" data-i18n="v1_btn_index">Copy Blind Telemetry for AI</span>
         </button>
         <a href="index.html" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs border border-zinc-700 transition-all">
           Live Monitor &rarr;
@@ -2362,7 +2385,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Section 1: Bidirectional Protocol Philosophy -->
     <div class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-sky-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
-        <span>1. Core Philosophy: Bidirectional Liquidity &amp; Risk Gates</span>
+        <span data-i18n="reg_sec1_h2">1. Core Philosophy: Bidirectional Liquidity &amp; Risk Gates</span>
       </h2>
       <div class="prose prose-invert text-sm text-zinc-300 space-y-3 leading-relaxed">
         <p>
@@ -2379,7 +2402,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Section 2: How the Majority Voting Works -->
     <div class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-indigo-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
-        <span>2. How the Closed-4H Majority-Voting Engine Works</span>
+        <span data-i18n="reg_sec2_h2">2. How the Closed-4H Majority-Voting Engine Works</span>
       </h2>
       <div class="space-y-3 text-sm text-zinc-300 leading-relaxed">
         <p>
@@ -2400,7 +2423,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <!-- Section 3: Deep Dive into the 5 Regimes -->
     <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 Radar Regimes</h2>
+      <h2 data-i18n="reg_sec3_h2" class="text-2xl font-bold text-white">3. Complete Specification of the 5 Radar Regimes</h2>
 
       <!-- Regime 1 -->
       <div id="regime-1" class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-emerald-500/50 space-y-4">
@@ -2561,7 +2584,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <!-- Section 4: Modeled Liquidation Pool & Tier Scaling Methodology -->
     <div id="methodology-pools" class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-purple-500/50 space-y-4">
-      <h2 class="text-2xl font-bold text-white">4. Modeled Liquidation Pool &amp; Closed-4H Scaling Methodology</h2>
+      <h2 data-i18n="reg_sec4_h2" class="text-2xl font-bold text-white">4. Modeled Liquidation Pool &amp; Closed-4H Scaling Methodology</h2>
       <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
         No public REST API exposes individual traders' private margin prices or cross-exchange liquidation ledgers in real time. All liquidity dollar sizes in this monitor are <strong>Modeled Estimates</strong> derived transparently from observable exchange inputs:
       </p>
@@ -2579,7 +2602,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <!-- Section 5: Bidirectional LSCE State Machine -->
     <div id="methodology-lsce" class="p-6 rounded-2xl bg-zinc-900/70 border-2 border-teal-500/50 space-y-4">
-      <h2 class="text-2xl font-bold text-white">5. Bidirectional LSCE State Machine &amp; Gate Rules</h2>
+      <h2 data-i18n="reg_sec5_h2" class="text-2xl font-bold text-white">5. Bidirectional LSCE State Machine &amp; Gate Rules</h2>
       <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
         The <strong>Bidirectional Liquidation Sweep Confirmation Engine (LSCE)</strong> evaluates live spot against both the nearest lower long shelf (<strong>Loop A</strong>) and nearest upper short shelf (<strong>Loop B</strong>):
       </p>
@@ -2606,7 +2629,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Bottom Return Button -->
     <div class="text-center pt-8 border-t border-zinc-800">
       <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-bold text-white border border-zinc-700 shadow-xl transition-all">
-        <span>&larr; Return to Live BTC Magnet Monitor</span>
+        <span data-i18n="reg_return_live">&larr; Return to Live BTC Magnet Monitor</span>
       </a>
     </div>
 
@@ -2616,13 +2639,16 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     function copySubpagePrompt() {{
       const promptEl = document.getElementById('subpage-prompt-data');
       if (!promptEl) return;
-      const textToCopy = promptEl.value;
+      const rawText = promptEl.value;
+      const textToCopy = window.BtcMagnetI18n ? window.BtcMagnetI18n.localizeBlindPrompt(rawText) : rawText;
 
       navigator.clipboard.writeText(textToCopy).then(() => {{
         const btnText = document.getElementById('sub-copy-text');
         if (btnText) {{
-          btnText.innerText = '✓ Blind Telemetry Copied!';
-          setTimeout(() => {{ btnText.innerText = 'Copy Blind Telemetry for AI'; }}, 3000);
+          btnText.innerText = (window.BtcMagnetI18n && window.BtcMagnetI18n.t('toast_copied_v1')) || '✓ Blind Telemetry Copied!';
+          setTimeout(() => {{
+            btnText.innerText = window.BtcMagnetI18n ? window.BtcMagnetI18n.t('v1_btn_index', 'Copy Blind Telemetry for AI') : 'Copy Blind Telemetry for AI';
+          }}, 3000);
         }}
       }});
     }}
@@ -2645,6 +2671,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }} catch (e) {{}}
     }}
   </script>
+  <script src="./i18n.js"></script>
 
 </body>
 </html>"""
@@ -2821,7 +2848,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       overflow-x: hidden;
       background-color: #09090b;
       color: #e4e4e7;
-      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", "PingFang SC", "Microsoft YaHei", "Noto Sans KR", "Noto Sans JP", monospace;
       font-size: 11px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
@@ -3168,10 +3195,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor" class="brand-logo">
         <div>
           <div class="brand-title">BTC Magnet Monitor</div>
-          <div class="brand-sub">Liquidity Magnets &bull; 5-Regime Radar</div>
+          <div data-i18n="brand_sub_entry" class="brand-sub">Liquidity Magnets &bull; 5-Regime Radar</div>
         </div>
       </div>
-      <div class="mandate-pill">BIDIRECTIONAL RADAR &bull; LIVE MAGNET LEVELS &bull; AI TELEMETRY</div>
+      <div data-i18n="brand_pill_entry" class="mandate-pill">BIDIRECTIONAL RADAR &bull; LIVE MAGNET LEVELS &bull; AI TELEMETRY</div>
+      <div data-i18n-switcher style="margin-top: 8px;"></div>
     </div>
 
     <div class="video-card">
@@ -3181,29 +3209,29 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </video>
       </div>
       <div class="video-bar">
-        <span class="video-caption">BULL vs BEAR &bull; ORDER-BOOK PRESSURE</span>
+        <span data-i18n="entry_video1_cap" class="video-caption">BULL vs BEAR &bull; ORDER-BOOK PRESSURE</span>
         <button id="entry-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio('entry-hero-video', 'entry-sound-btn')">🔇 SOUND OFF</button>
       </div>
     </div>
 
     <div class="cta-wrap">
       <a id="enter-monitor-btn" href="text.html" class="enter-btn">
-        <span>Enter BTC Magnet Monitor &rarr;</span>
+        <span data-i18n="entry_enter_btn">Enter BTC Magnet Monitor &rarr;</span>
       </a>
-      <div class="enter-sub">Live BTC Spot Price &bull; Order-Book Magnet Ladder &bull; Verdict 1 vs Verdict 2</div>
+      <div data-i18n="entry_enter_sub" class="enter-sub">Live BTC Spot Price &bull; Order-Book Magnet Ladder &bull; Verdict 1 vs Verdict 2</div>
     </div>
 
     <section id="entry-data-slot" aria-label="Entry Market Data">
       <div id="entry-pressure-meter" class="data-card data-card-clash">
         <div class="data-hdr">
-          <span class="c-green">Bull vs. Bear Pressure Meter</span>
+          <span data-i18n="entry_pm_title" class="c-green">Bull vs. Bear Pressure Meter</span>
           <span id="entry-depth-badge" class="live-badge">SCAN SNAPSHOT</span>
         </div>
 
         <!-- Bar 1: Order-Book Depth (±1.5% L2 Spot) -->
         <div class="tug-block">
           <div class="tug-title-row">
-            <span class="tug-title">1. Order-Book Depth (&plusmn;1.5%)</span>
+            <span data-i18n="entry_pm_bar1" class="tug-title">1. Order-Book Depth (&plusmn;1.5%)</span>
             <span id="depth-mid-lbl" class="tug-mid">__DEPTH_MID_LBL__</span>
           </div>
           <div class="tug-sides">
@@ -3220,7 +3248,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Bar 2: Aggressive Flow (Spot 24H CVD vs Perp Trend) -->
         <div class="tug-block">
           <div class="tug-title-row">
-            <span class="tug-title">2. Aggressive Flow (24H CVD)</span>
+            <span data-i18n="entry_pm_bar2" class="tug-title">2. Aggressive Flow (24H CVD)</span>
             <span id="flow-mid-lbl" class="tug-mid">__FLOW_MID_LBL__</span>
           </div>
           <div class="tug-sides">
@@ -3237,7 +3265,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Bar 3: Crowd Leverage Skew (L/S & Funding) -->
         <div class="tug-block">
           <div class="tug-title-row">
-            <span class="tug-title">3. Crowd Leverage Skew (L/S)</span>
+            <span data-i18n="entry_pm_bar3" class="tug-title">3. Crowd Leverage Skew (L/S)</span>
             <span id="ls-mid-lbl" class="tug-mid">__LS_MID_LBL__</span>
           </div>
           <div class="tug-sides">
@@ -3254,29 +3282,29 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
       <div class="data-card data-card-cyan">
         <div class="data-hdr">
-          <span>Live Telemetry Snapshot</span>
+          <span data-i18n="entry_snap_title">Live Telemetry Snapshot</span>
           <span id="entry-scan-id-lbl" class="live-badge">__ENTRY_DATE__</span>
         </div>
         <div class="stat-grid">
           <div class="stat-tile">
-            <div class="stat-lbl">BTC Spot Price</div>
+            <div data-i18n="entry_snap_price" class="stat-lbl">BTC Spot Price</div>
             <div id="entry-live-price" class="stat-val c-green">$__ENTRY_PRICE__</div>
           </div>
           <div class="stat-tile">
-            <div class="stat-lbl">Dominant Magnet</div>
+            <div data-i18n="entry_snap_magnet" class="stat-lbl">Dominant Magnet</div>
             <div id="entry-dom-magnet" class="stat-val c-amber">__ENTRY_MAGNET__</div>
           </div>
           <div class="stat-tile">
-            <div class="stat-lbl">Active Macro Regime</div>
+            <div data-i18n="entry_snap_regime" class="stat-lbl">Active Macro Regime</div>
             <div id="entry-regime-name" class="stat-val c-cyan">__ENTRY_REGIME__</div>
           </div>
           <div class="stat-tile">
-            <div class="stat-lbl">Latest Radar Scan</div>
+            <div data-i18n="entry_snap_scan" class="stat-lbl">Latest Radar Scan</div>
             <div id="entry-scan-utc" class="stat-val">__ENTRY_UTC__</div>
           </div>
         </div>
         <div id="entry-custom-data-slot" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #27272a; color: #a1a1aa; font-size: 9px;">
-          Scan ID: <span id="entry-scan-id" class="c-cyan">__ENTRY_SCAN_ID__</span> &bull; Cadence: Every 30m (:02/:32 UTC)
+          Scan ID: <span id="entry-scan-id" class="c-cyan">__ENTRY_SCAN_ID__</span> &bull; <span data-i18n="entry_snap_cadence">Cadence: Every 30m (:02/:32 UTC)</span>
         </div>
       </div>
 
@@ -3287,29 +3315,29 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           </video>
         </div>
         <div class="video-bar">
-          <span class="video-caption">LIQUIDITY DEPTH BREAKOUT &bull; BIDS vs ASKS</span>
+          <span data-i18n="entry_video2_cap" class="video-caption">LIQUIDITY DEPTH BREAKOUT &bull; BIDS vs ASKS</span>
           <button id="entry-badger-sound-btn" type="button" class="sound-btn" onclick="toggleEntryAudio('entry-badger-video', 'entry-badger-sound-btn')">🔇 SOUND OFF</button>
         </div>
       </div>
 
       <div id="verdict1-showcase" class="data-card data-card-amber">
         <div class="data-hdr">
-          <span style="color:#facc15;">Why &amp; How This App Helps You</span>
-          <span class="feature-badge">#1 FEATURE &bull; VERDICT 1</span>
+          <span data-i18n="entry_v1_title" style="color:#facc15;">Why &amp; How This App Helps You</span>
+          <span data-i18n="entry_v1_badge" class="feature-badge">#1 FEATURE &bull; VERDICT 1</span>
         </div>
-        <p style="font-size: 10px; color: #e4e4e7; line-height: 1.5; margin-bottom: 8px;">
+        <p data-i18n-html="entry_v1_intro_html" style="font-size: 10px; color: #e4e4e7; line-height: 1.5; margin-bottom: 8px;">
           Cut through emotional noise and lagging indicators. BTC Magnet Monitor gives you raw order-book gravity, liquidity magnets, and <strong class="c-amber">1-Tap AI Telemetry</strong> before you commit size:
         </p>
         <ul class="brief-list">
-          <li class="brief-item" style="border-color: rgba(245, 158, 11, 0.35);">
+          <li data-i18n-html="entry_v1_step1_html" class="brief-item" style="border-color: rgba(245, 158, 11, 0.35);">
             <span class="step-badge step-badge-amber">1</span>
             <strong class="c-amber">Verdict 1 &bull; Copy Telemetry for AI (#1 Feature):</strong> One tap copies clean, zero-bias market telemetry (closed-4H OHLCV, VWAP, OI, funding &amp; liquidity walls) into ChatGPT, Claude, Gemini, or Grok for an independent structural read.
           </li>
-          <li class="brief-item">
+          <li data-i18n-html="entry_v1_step2_html" class="brief-item">
             <span class="step-badge">2</span>
             <strong class="c-cyan">Compare With Verdict 2 (Built-In Engine):</strong> Cross-check your own AI&rsquo;s Verdict 1 side-by-side against our deterministic 5-Regime Radar, Loop A / Loop B magnet levels, and risk gates.
           </li>
-          <li class="brief-item">
+          <li data-i18n-html="entry_v1_step3_html" class="brief-item">
             <span class="step-badge">3</span>
             <strong class="c-green">Live Microstructure Advantage:</strong> Track real-time Bids vs. Asks pressure, Taker delta, and crowd skew across all strategies so you see where liquidity stops or squeezes before moving.
           </li>
@@ -3319,11 +3347,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <footer>
       <div style="margin-bottom: 6px;">
-        <a href="text.html">Monitor Terminal</a> &bull;
-        <a href="regimes.html">5 Regimes &amp; Math</a> &bull;
-        <a href="privacy.html">Privacy Policy</a>
+        <a href="text.html" data-i18n="footer_monitor_terminal">Monitor Terminal</a> &bull;
+        <a href="regimes.html" data-i18n="footer_regimes_math">5 Regimes &amp; Math</a> &bull;
+        <a href="privacy.html" data-i18n="footer_privacy">Privacy Policy</a>
       </div>
-      <div>Informational market telemetry only. Not financial advice.</div>
+      <div data-i18n="footer_disclaimer">Informational market telemetry only. Not financial advice.</div>
     </footer>
   </div>
 
@@ -3349,10 +3377,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         if (pair.vidId === activeId && willUnmute) {
           v.muted = false;
           v.play().catch(function () {});
-          b.innerText = '🔊 SOUND ON';
+          b.innerText = window.BtcMagnetI18n ? window.BtcMagnetI18n.t('sound_on', '🔊 SOUND ON') : '🔊 SOUND ON';
         } else {
           v.muted = true;
-          b.innerText = '🔇 SOUND OFF';
+          b.innerText = window.BtcMagnetI18n ? window.BtcMagnetI18n.t('sound_off', '🔇 SOUND OFF') : '🔇 SOUND OFF';
         }
       });
     }
@@ -3410,9 +3438,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       if (barEl) barEl.style.width = bullPct.toFixed(1) + '%';
       if (trackEl) trackEl.classList.remove('is-muted');
       if (isLiveFeed && bidsSum > 0 && asksSum > 0) {
-        if (subEl) subEl.innerText = 'Live ±1.5% Book: ' + bidsSum.toFixed(1) + ' BTC Bids vs ' + asksSum.toFixed(1) + ' BTC Asks';
+        const subText = 'Live ±1.5% Book: ' + bidsSum.toFixed(1) + ' BTC Bids vs ' + asksSum.toFixed(1) + ' BTC Asks';
+        if (subEl) {
+          if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(subEl, subText);
+          else subEl.innerText = subText;
+        }
         if (badgeEl) {
-          badgeEl.innerText = '● LIVE BOOK';
+          if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(badgeEl, '● LIVE BOOK');
+          else badgeEl.innerText = '● LIVE BOOK';
           badgeEl.classList.add('is-live');
         }
       }
@@ -3484,9 +3517,15 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       if (data.timestamp) ENTRY_SCAN_TS = data.timestamp;
 
       const domEl = document.getElementById('entry-dom-magnet');
-      if (domEl && reg.dominant_magnet) domEl.innerText = reg.dominant_magnet;
+      if (domEl && reg.dominant_magnet) {
+        if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(domEl, reg.dominant_magnet);
+        else domEl.innerText = reg.dominant_magnet;
+      }
       const regEl = document.getElementById('entry-regime-name');
-      if (regEl && reg.name) regEl.innerText = reg.name;
+      if (regEl && reg.name) {
+        if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(regEl, reg.name);
+        else regEl.innerText = reg.name;
+      }
       if (data.timestamp) {
         const dt = new Date(data.timestamp);
         if (!isNaN(dt.getTime())) {
@@ -3516,7 +3555,9 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         if (ftrk) ftrk.classList.remove('is-muted');
         if (fsub && m.perp_cvd_trend) {
           const slope = parseFloat(m.perp_cvd_slope_24h || 0);
-          fsub.innerText = 'Perp 24h Trend: ' + m.perp_cvd_trend + ' (' + (slope >= 0 ? '+' : '') + Math.round(slope) + ' BTC)';
+          const fsubText = 'Perp 24h Trend: ' + m.perp_cvd_trend + ' (' + (slope >= 0 ? '+' : '') + Math.round(slope) + ' BTC)';
+          if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(fsub, fsubText);
+          else fsub.innerText = fsubText;
         }
       }
 
@@ -3538,9 +3579,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         if (lbar) lbar.style.width = lbull.toFixed(1) + '%';
         if (ltrk) ltrk.classList.remove('is-muted');
         if (lsub) {
-          lsub.innerText = lbull >= 62.0
+          const lsubText = lbull >= 62.0
             ? 'Crowd leans long (downside liquidation fuel)'
             : (lbull <= 42.0 ? 'Crowd leans short (upper squeeze fuel)' : 'Balanced crowd L/S positioning');
+          if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(lsub, lsubText);
+          else lsub.innerText = lsubText;
         }
       }
     }
@@ -3581,6 +3624,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     setInterval(refreshEntryLiveData, 8000);
     setInterval(refreshEntryRegimeSnapshot, 30000);
   </script>
+  <script src="./i18n.js"></script>
 </body>
 </html>"""
 
@@ -3913,7 +3957,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       overflow-x: hidden;
       background-color: #09090b;
       color: #e4e4e7;
-      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+      font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", "PingFang SC", "Microsoft YaHei", "Noto Sans KR", "Noto Sans JP", monospace;
       font-size: 11px;
       line-height: 1.5;
       padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(84px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
@@ -4378,21 +4422,22 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="brand-title-group">
           <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME RADAR</div>
-          <div class="header-line-2">Bidirectional Liquidity Telemetry Terminal</div>
+          <div data-i18n="text_header_sub" class="header-line-2">Bidirectional Liquidity Telemetry Terminal</div>
         </div>
       </div>
       <div class="header-meta-sep">
-        MODE: 5-REGIME MAGNET RADAR (BIDIRECTIONAL)<br>
+        <span data-i18n="text_mode_label">MODE: 5-REGIME MAGNET RADAR (BIDIRECTIONAL)</span><br>
         SESSION: <span class="c-green" id="hdr-session">ACTIVE</span> &bull; CADENCE: EVERY 30M (:02/:32)<br>
         SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; NEXT: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
+      <div data-i18n-switcher style="margin: 6px 0 4px 0;"></div>
       <nav class="quick-nav" aria-label="Quick section navigation">
-        <a href="#panel-1" class="qpill">Spot</a>
-        <a href="#panel-2" class="qpill">Feeds</a>
-        <a href="#panel-3" class="qpill">Regime</a>
-        <a href="#verdict-1" class="qpill qpill-v1">V1 AI</a>
-        <a href="#verdict-2" class="qpill qpill-v2">V2 Engine</a>
-        <button type="button" id="hdr-check-btn" class="qpill qpill-check" onclick="refreshLiveScan(true)">&#8635; Check</button>
+        <a href="#panel-1" data-i18n="qnav_spot" class="qpill">Spot</a>
+        <a href="#panel-2" data-i18n="qnav_feeds" class="qpill">Feeds</a>
+        <a href="#panel-3" data-i18n="qnav_regime" class="qpill">Regime</a>
+        <a href="#verdict-1" data-i18n="qnav_v1" class="qpill qpill-v1">V1 AI</a>
+        <a href="#verdict-2" data-i18n="qnav_v2" class="qpill qpill-v2">V2 Engine</a>
+        <button type="button" id="hdr-check-btn" data-i18n="qnav_check" class="qpill qpill-check" onclick="refreshLiveScan(true)">&#8635; Check</button>
       </nav>
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
@@ -4406,7 +4451,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
       <!-- PANEL 1: REAL-TIME BTC SPOT PRICE (LIVE) -->
       <div id="panel-1" class="panel-box panel-box-hero">
-        <div class="panel-hdr">Panel 1 &bull; Real-Time BTC Spot Price (Live)</div>
+        <div data-i18n="p1_title" class="panel-hdr">Panel 1 &bull; Real-Time BTC Spot Price (Live)</div>
 
         <div class="sub-card sub-card-emerald">
           <pre class="ascii"><span class="c-gold" style="font-size: 19px; display: block; padding: 2px 0;" id="live-btc-price">$__PRICE__</span>
@@ -4442,7 +4487,7 @@ Countdown:   <span class="c-green" id="p1-countdown">in --m --s</span></pre>
 
       <!-- PANEL 2: ON-EXCHANGE TELEMETRY -->
       <div id="panel-2" class="panel-box panel-box-cyan">
-        <div class="panel-hdr">Panel 2 &bull; On-Exchange Telemetry (Raw vs Modeled)</div>
+        <div data-i18n="p2_title_text" class="panel-hdr">Panel 2 &bull; On-Exchange Telemetry (Raw vs Modeled)</div>
 
         <div class="sub-card sub-card-cyan">
           <pre class="ascii"><span class="c-cyan">Raw Feed Provenance:</span>
@@ -4494,7 +4539,7 @@ Indicators:     Zero MA/EMA/RSI/ATR</pre>
 
       <!-- PANEL 3: MACRO MARKET REGIME DIAGNOSIS -->
       <div id="panel-3" class="panel-box __REGIME_CSS_CLS__">
-        <div class="panel-hdr">Panel 3 &bull; Macro Market Regime Diagnosis</div>
+        <div data-i18n="p3_title" class="panel-hdr">Panel 3 &bull; Macro Market Regime Diagnosis</div>
 
         <div class="sub-card sub-card-amber">
           <pre class="ascii">Classified Market Regime:
@@ -4529,7 +4574,7 @@ __MATCHED_CRITERIA_ASCII__</pre>
 
       <!-- BRIDGE: TWO INDEPENDENT VERDICTS (VERDICT 1 VS VERDICT 2) -->
       <div id="verdict-guide" class="panel-box panel-box-violet">
-        <div class="panel-hdr">Bridge &bull; Verdict 1 vs Verdict 2</div>
+        <div data-i18n="bridge_title_text" class="panel-hdr">Bridge &bull; Verdict 1 vs Verdict 2</div>
 
         <div class="sub-card sub-card-indigo">
           <pre class="ascii"><span class="c-indigo">Panels 1-3 = Observable Facts Only.</span>
@@ -4559,35 +4604,34 @@ Tip: Highest conviction when Verdict 1
 
       <!-- VERDICT 1: ONE CLEAN COPY BUTTON (UPGRADED BLIND TELEMETRY) -->
       <div id="verdict-1" class="panel-box panel-box-sky">
-        <div class="panel-hdr">Verdict 1 &bull; Your Own AI (Copy)</div>
+        <div data-i18n="v1_hdr_text" class="panel-hdr">Verdict 1 &bull; Your Own AI (Copy)</div>
 
         <div class="sub-card sub-card-teal" style="margin-bottom: 2px;">
           <pre class="ascii"><span class="c-cyan">Unbiased Blind Telemetry + 5-Regime Audit:</span>
-Closed-4H facts, 5-Regime rules, &amp; Risk
-Officer checklist. Verdict 2 stays hidden.</pre>
+<span data-i18n="v1_desc_index">Closed-4H facts, 5-Regime rules, &amp; Risk Officer checklist. Verdict 2 stays hidden.</span></pre>
 
-          <button class="btn-copy" id="copy-blind-btn" onclick="copyBlindPrompt()">
+          <button class="btn-copy" id="copy-blind-btn" data-i18n="v1_btn_text" onclick="copyBlindPrompt()">
             🧪 COPY TELEMETRY FOR AI
           </button>
 
           <details class="wb-box" id="wb-details">
             <summary class="wb-summary">
-              <span>▸ Optional: P_buy / P_sell (Local)</span>
+              <span data-i18n="v1_wb_summary">▸ Optional: P_buy / P_sell (Local)</span>
               <span id="wb-status" style="color:#94a3b8;font-weight:600;">None</span>
             </summary>
             <div class="wb-grid">
               <div>
-                <label class="wb-lbl" for="wb-buy">Loop A Cost ($P_buy)</label>
+                <label class="wb-lbl" for="wb-buy" data-i18n="v1_wb_buy_lbl">Loop A Cost ($P_buy)</label>
                 <input class="wb-input" id="wb-buy" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 71200">
               </div>
               <div>
-                <label class="wb-lbl" for="wb-sell">Loop B Sale ($P_sell)</label>
+                <label class="wb-lbl" for="wb-sell" data-i18n="v1_wb_sell_lbl">Loop B Sale ($P_sell)</label>
                 <input class="wb-input" id="wb-sell" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 76500">
               </div>
             </div>
             <div class="wb-foot">
-              <span>Saved only in browser localStorage</span>
-              <button type="button" class="wb-clear" id="wb-clear">Clear</button>
+              <span data-i18n="v1_wb_storage">Saved only in browser localStorage</span>
+              <button type="button" class="wb-clear" id="wb-clear" data-i18n="v1_wb_clear">Clear</button>
             </div>
           </details>
 
@@ -4598,14 +4642,12 @@ Officer checklist. Verdict 2 stays hidden.</pre>
 
       <!-- VERDICT 2: BUILT-IN RADAR ENGINE (FULL-ON VIEW) -->
       <div id="verdict-2" class="panel-box panel-box-purple">
-        <div class="panel-hdr">Verdict 2 &bull; Built-In Radar Engine</div>
+        <div data-i18n="v2_hdr_text" class="panel-hdr">Verdict 2 &bull; Built-In Radar Engine</div>
 
         <div id="verdict2-ai-reminder" class="sub-card sub-card-sky">
-          <pre class="ascii"><span class="c-cyan">Always Generate Verdict 1 AI &amp; Compare:</span>
-Verdict 2 is a fixed rule baseline only.
-Copy <span class="c-green">Verdict 1</span> into your AI for deeper
-context &amp; higher-accuracy swing calls.</pre>
-          <a href="#verdict-1" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Verdict 1 (Copy to AI)</a>
+          <pre class="ascii"><span class="c-cyan" data-i18n="v2_reminder_title">Always Generate Verdict 1 AI &amp; Compare:</span>
+<span data-i18n="v2_reminder_desc">Verdict 2 is a fixed rule baseline only. Copy Verdict 1 into your AI for deeper context &amp; higher-accuracy swing calls.</span></pre>
+          <a href="#verdict-1" data-i18n="v2_reminder_link" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Verdict 1 (Copy to AI)</a>
         </div>
 
         <div class="sub-card sub-card-emerald">
@@ -4693,14 +4735,14 @@ Decisive Call:
       </div>
       <div>
         <a href="entry.html">Entry Screen</a> &bull;
-        <a href="index.html?desktop=1">Desktop View</a> &bull;
-        <a href="regimes.html">5 Regimes &amp; Math</a> &bull;
-        <a href="privacy.html">Privacy Policy</a>
+        <a href="index.html?desktop=1" data-i18n="nav_desktop_btn">Desktop View</a> &bull;
+        <a href="regimes.html" data-i18n="footer_regimes_math">5 Regimes &amp; Math</a> &bull;
+        <a href="privacy.html" data-i18n="footer_privacy">Privacy Policy</a>
       </div>
       <div style="margin-top: 8px; color: #71717a; font-size: 9px;">
         Scan ID: <span class="c-cyan">__SCAN_ID__</span> &bull; Updates Every 30m (:02/:32 UTC)<br>
         __SPOT_SOURCE__ &bull; __FUTURES_SOURCE__<br>
-        Strictly for informational and risk research purposes. Not financial advice.
+        <span data-i18n="footer_research_disclaimer">Strictly for informational and risk research purposes. Not financial advice.</span>
       </div>
     </footer>
 
@@ -4805,7 +4847,9 @@ Decisive Call:
 
     function copyBlindPrompt() {
       syncWatermarksToDom(false);
-      copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied Blind Telemetry for AI!', 'copy-blind-btn');
+      const txt = window.BtcMagnetI18n ? window.BtcMagnetI18n.localizeBlindPrompt(BLIND_PROMPT_TEXT) : BLIND_PROMPT_TEXT;
+      const toastMsg = (window.BtcMagnetI18n && window.BtcMagnetI18n.t('toast_copied_v1')) || '✓ Copied Blind Telemetry for AI!';
+      copyTextPayload(txt, toastMsg, 'copy-blind-btn');
     }
     syncWatermarksToDom(true);
 
@@ -4968,13 +5012,12 @@ Decisive Call:
         dynBanner.style.display = 'none';
       }
       if (confFresh) {
-        if (isAged) {
-          confFresh.className = 'c-muted';
-          confFresh.innerText = `Live Spot Active • Snapshot ${ageM}m ago`;
-        } else {
-          confFresh.className = 'c-muted';
-          confFresh.innerText = 'Freshness: Verified ≤40m Window';
-        }
+        const freshText = isAged
+          ? `Live Spot Active • Snapshot ${ageM}m ago`
+          : 'Freshness: Verified ≤40m Window';
+        confFresh.className = 'c-muted';
+        if (window.BtcMagnetI18n) window.BtcMagnetI18n.setDynText(confFresh, freshText);
+        else confFresh.innerText = freshText;
       }
       syncNativeAdSlot();
     }
@@ -5077,6 +5120,7 @@ Decisive Call:
                 updateClocks();
                 updateLivePrice();
                 syncNativeAdSlot();
+                if (window.BtcMagnetI18n) window.BtcMagnetI18n.apply();
                 updated = true;
                 showToast('✓ Live Scan Telemetry Updated');
               }
@@ -5093,7 +5137,7 @@ Decisive Call:
         const latestBtn = document.getElementById('hdr-check-btn');
         if (latestBtn) {
           latestBtn.disabled = false;
-          latestBtn.innerText = '↻ Check';
+          latestBtn.innerText = (window.BtcMagnetI18n && window.BtcMagnetI18n.t('qnav_check')) || '↻ Check';
         }
         scheduleNextTextPoll();
       }
@@ -5262,6 +5306,7 @@ Decisive Call:
       } catch (e) {}
     }
   </script>
+  <script src="./i18n.js"></script>
 </body>
 </html>"""
 

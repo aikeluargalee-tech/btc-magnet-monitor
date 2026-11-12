@@ -90,6 +90,7 @@ jobs:
             fi
           done
           unzip -l "$APK" | grep -q "assets/public/tailwind.css" || { echo "::error::tailwind.css missing from APK"; exit 1; }
+          unzip -l "$APK" | grep -q "assets/public/i18n.js" || { echo "::error::i18n.js missing from APK"; exit 1; }
           unzip -l "$APK" | grep -q "assets/public/fonts/inter-latin-wght-normal.woff2" || { echo "::error::Inter font missing from APK"; exit 1; }
           unzip -l "$APK" | grep -q "assets/public/assets/media/entry-hero.mp4" || { echo "::error::entry-hero.mp4 missing from APK"; exit 1; }
           unzip -l "$APK" | grep -q "assets/public/assets/media/entry-badger.mp4" || { echo "::error::entry-badger.mp4 missing from APK"; exit 1; }

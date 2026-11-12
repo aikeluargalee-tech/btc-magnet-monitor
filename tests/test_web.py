@@ -187,6 +187,36 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertNotIn("cdn.tailwindcss.com", text_html)
         self.assertNotIn("fonts.googleapis.com", text_html)
 
+    def test_multi_language_i18n_bundle_and_surfaces(self):
+        from web.i18n import AI_PROMPT_DIRECTIVES, SUPPORTED_LANGS, TRANSLATIONS
+
+        i18n_path = os.path.join(self.tmp, "i18n.js")
+        self.assertTrue(os.path.exists(i18n_path), "dist/i18n.js should be generated")
+        with open(i18n_path, "r", encoding="utf-8") as f:
+            i18n_js = f.read()
+
+        self.assertIn("window.BtcMagnetI18n", i18n_js)
+        self.assertIn("localizeBlindPrompt", i18n_js)
+        for lang in ("en", "zh", "id", "ko", "ja", "fr"):
+            self.assertIn(lang, SUPPORTED_LANGS)
+            if lang != "en":
+                self.assertIn(lang, AI_PROMPT_DIRECTIVES)
+                self.assertIn("[RESPONSE LANGUAGE DIRECTIVE]", AI_PROMPT_DIRECTIVES[lang])
+                self.assertIn(lang, i18n_js)
+                self.assertTrue(len(TRANSLATIONS.get(lang, {})) >= 20, f"Expected translations for {lang}")
+
+        with open(os.path.join(self.tmp, "sw.js"), "r", encoding="utf-8") as f:
+            sw_js = f.read()
+        self.assertIn("'./i18n.js'", sw_js)
+
+        for fname in ("entry.html", "text.html", "app.html", "index.html", "regimes.html"):
+            with open(os.path.join(self.tmp, fname), "r", encoding="utf-8") as f:
+                doc = f.read()
+            self.assertIn('src="./i18n.js"', doc, f"{fname} missing ./i18n.js script tag")
+            self.assertIn("data-i18n-switcher", doc, f"{fname} missing language switcher mount")
+            if fname in ("index.html", "text.html", "app.html"):
+                self.assertIn("localizeBlindPrompt", doc, f"{fname} missing localizeBlindPrompt hook")
+
     def test_text_telemetry_linter_and_stale_injection(self):
         import copy
         gen = WebGenerator(output_dir=self.tmp)
