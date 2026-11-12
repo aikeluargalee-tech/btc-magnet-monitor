@@ -71,8 +71,8 @@ class TestGeneratedSite(unittest.TestCase):
         # Text terminal & index share ONE clean Blind Telemetry button + optional local watermarks
         for token in (
             "panel-1", "copyBlindPrompt", "copy-blind-btn", "BLIND_PROMPT_TEXT",
-            "wb-buy", "wb-sell", "wb-clear", "panel-2", "panel-3", "verdict-guide", "method-1", "method-2",
-            "How to Get Your Trading Verdict",
+            "wb-buy", "wb-sell", "wb-clear", "panel-2", "panel-3", "verdict-guide", "verdict-1", "verdict-2",
+            "Verdict 1 vs Verdict 2",
             "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
             "BTC MAGNET MONITOR :: DIBSE ENGINE", "Dual-Inventory Bidirectional Spot Terminal",
             "MANDATE: DIBSE (10% USDT + 10% BTC | ZERO STOPS)", "min-height: 44px",
@@ -84,7 +84,15 @@ class TestGeneratedSite(unittest.TestCase):
             self.assertIn('id="copy-blind-btn"', html_doc, surface_name)
             self.assertIn('id="wb-buy"', html_doc, surface_name)
             self.assertIn('id="wb-sell"', html_doc, surface_name)
-            for removed_btn in ("copy-prompt-btn", "COPY FULL AUDIT PROMPT", "Copy Full Audit Prompt", "copyTelemetryPrompt", "llm-prompt-data", "let PROMPT_TEXT"):
+            self.assertIn('id="verdict-1"', html_doc, surface_name)
+            self.assertIn('id="verdict-2"', html_doc, surface_name)
+            self.assertIn("Verdict 1", html_doc, surface_name)
+            self.assertIn("Verdict 2", html_doc, surface_name)
+            for removed_btn in (
+                "copy-prompt-btn", "COPY FULL AUDIT PROMPT", "Copy Full Audit Prompt",
+                "copyTelemetryPrompt", "llm-prompt-data", "let PROMPT_TEXT",
+                "Method 1", "Method 2", "method-1", "method-2",
+            ):
                 self.assertNotIn(removed_btn, html_doc, f"{surface_name} retained {removed_btn}")
             for banned_ind in ("20D EMA", "50D EMA", "200D SMA", "Daily ATR", "1H ATR", "ATR Compress"):
                 self.assertNotIn(banned_ind, html_doc, f"{surface_name} retained lagged indicator {banned_ind}")

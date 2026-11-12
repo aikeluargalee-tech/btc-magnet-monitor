@@ -690,7 +690,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
         imm_disp = f"~{round(imm_ratio):.0f}x" if imm_ratio >= 10 else f"{imm_ratio:.1f}x"
 
-        # Build blind telemetry prompt (Method 1 uses single Upgraded Blind Telemetry workflow)
+        # Build blind telemetry prompt (Verdict 1 uses single Upgraded Blind Telemetry workflow)
         blind_prompt = self._build_blind_llm_prompt(data)
         blind_prompt_escaped = blind_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -1101,58 +1101,58 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
 
     <!-- ============================================================ -->
-    <!-- BRIDGE: TWO INDEPENDENT VERDICT METHODS                      -->
+    <!-- BRIDGE: TWO INDEPENDENT VERDICTS                           -->
     <!-- ============================================================ -->
     <div id="verdict-guide" class="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-cyan-950/40 via-zinc-900/90 to-emerald-950/40 p-6 backdrop-blur-md shadow-[0_0_25px_rgba(139,92,246,0.12)] text-center space-y-3">
       <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/40 text-violet-300 text-xs font-extrabold uppercase tracking-wider">
-        <span>⚖️ Bridge &bull; How to Get Your DIBSE Spot Verdict</span>
+        <span>⚖️ Bridge &bull; Two Independent Verdicts</span>
       </div>
       <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">
-        Choose Method 1 (Your Own AI) or Method 2 (Our Bidirectional Engine)
+        Verdict 1 (Your Own AI) vs Verdict 2 (Built-In Engine)
       </h3>
       <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-        Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (10% USDT &rarr; BTC)</strong>, <strong>Loop B (10% BTC &rarr; USDT)</strong>, or <strong>Hold Both Sleeves</strong>, use either method below—or pair both for an unanchored second opinion.
+        Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (10% USDT &rarr; BTC)</strong>, <strong>Loop B (10% BTC &rarr; USDT)</strong>, or <strong>Hold Both Sleeves</strong>, generate <strong>Verdict 1</strong> in your AI and cross-check it against <strong>Verdict 2</strong> below.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
-        <a href="#method-1" class="p-4 rounded-xl bg-zinc-950/85 border border-sky-500/50 hover:border-sky-400 transition-all flex items-start gap-3">
+        <a href="#verdict-1" class="p-4 rounded-xl bg-zinc-950/85 border border-sky-500/50 hover:border-sky-400 transition-all flex items-start gap-3">
           <span class="text-2xl">🧪</span>
           <div>
-            <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Method 1 &bull; Use Your Own AI</div>
+            <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Verdict 1 &bull; Your Own AI</div>
             <div class="text-sm font-extrabold text-white">Copy Blind Telemetry &rarr; ChatGPT / Claude / Gemini</div>
-            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 1, optionally fill your <strong>P_buy / P_sell</strong> watermarks, and tap <strong class="text-sky-300">Copy Blind Telemetry for AI</strong>.<br>2. Paste into your own AI for an unanchored Loop A / Loop B verdict.</p>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Verdict 1, optionally fill your <strong>P_buy / P_sell</strong> watermarks, and tap <strong class="text-sky-300">Copy Blind Telemetry for AI</strong>.<br>2. Paste into your own AI to generate Verdict 1 with zero system bias.</p>
           </div>
         </a>
 
-        <a href="#method-2" class="p-4 rounded-xl bg-zinc-950/85 border border-purple-500/50 hover:border-purple-400 transition-all flex items-start gap-3">
+        <a href="#verdict-2" class="p-4 rounded-xl bg-zinc-950/85 border border-purple-500/50 hover:border-purple-400 transition-all flex items-start gap-3">
           <span class="text-2xl">🧠</span>
           <div>
-            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Method 2 &bull; Built-In DIBSE Engine</div>
+            <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Verdict 2 &bull; Built-In Engine</div>
             <div class="text-sm font-extrabold text-white">Read Our Bidirectional System Verdict</div>
-            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Method 2 for our Loop A &amp; Loop B zones, symmetric LSCE sweep gate, and 10% + 10% sleeve call.<br>2. Review the zero-stop-loss self-healing rules and 10x–100x modeled liquidity map.</p>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Verdict 2 for our Loop A &amp; Loop B zones, symmetric LSCE sweep gate, and 10% + 10% sleeve call.<br>2. Review the zero-stop-loss self-healing rules and 10x–100x modeled liquidity map.</p>
           </div>
         </a>
       </div>
     </div>
 
     <!-- ============================================================ -->
-    <!-- METHOD 1: VERDICT BY BLIND TELEMETRY COPY TO AI              -->
+    <!-- VERDICT 1: YOUR OWN AI (UPGRADED BLIND TELEMETRY)            -->
     <!-- ============================================================ -->
-    <div id="method-1" class="rounded-2xl border-2 border-sky-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(14,165,233,0.12)] space-y-5">
+    <div id="verdict-1" class="rounded-2xl border-2 border-sky-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(14,165,233,0.12)] space-y-5">
       
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-sky-500/25 pb-4">
         <div>
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-extrabold uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
               <span>🧪</span>
-              <span>Method 1: Upgraded Blind Telemetry (Zero System Bias)</span>
+              <span>Verdict 1 &bull; Your Own AI (Zero System Bias)</span>
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Analyze Live DIBSE Telemetry with Your Own AI
+            Generate Verdict 1 with Your Own AI
           </h2>
           <p class="text-xs sm:text-sm text-zinc-300 mt-1 max-w-2xl leading-relaxed">
-            One clean export containing closed-4H market facts, modeled liquidation bands, and your optional inventory watermarks—with <strong>zero system verdict revealed</strong> so your AI stays 100% objective.
+            One clean export containing closed-4H market facts, modeled liquidation bands, and your optional inventory watermarks—with <strong>Verdict 2 hidden</strong> so your AI stays 100% objective.
           </p>
         </div>
 
@@ -1191,7 +1191,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-sky-500/35 space-y-1">
           <span class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Step 1</span>
           <div class="font-bold text-white">Copy Upgraded Blind Telemetry</div>
-          <p class="text-[11px] text-zinc-400">Exports closed-4H structure, CVD, OI, and modeled pools + your watermarks—without leaking Method 2's verdict.</p>
+          <p class="text-[11px] text-zinc-400">Exports closed-4H structure, CVD, OI, and modeled pools + your watermarks—without leaking Verdict 2.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-cyan-500/35 space-y-1">
@@ -1202,8 +1202,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1">
           <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Step 3</span>
-          <div class="font-bold text-white">Cross-Check Loop A &amp; Loop B</div>
-          <p class="text-[11px] text-zinc-400">Compare your AI's independent Loop A (buy washout) &amp; Loop B (sell squeeze) levels against Method 2 below.</p>
+          <div class="font-bold text-white">Cross-Check Verdict 1 vs Verdict 2</div>
+          <p class="text-[11px] text-zinc-400">Compare your AI's independent Loop A (buy washout) &amp; Loop B (sell squeeze) levels against Verdict 2 below.</p>
         </div>
       </div>
 
@@ -1224,21 +1224,21 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
 
     <!-- ============================================================ -->
-    <!-- METHOD 2: OUR SYSTEM VERDICT • DIBSE BIDIRECTIONAL ENGINE    -->
+    <!-- VERDICT 2: BUILT-IN DIBSE ENGINE                             -->
     <!-- ============================================================ -->
-    <div id="method-2" class="rounded-2xl border-2 border-purple-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(168,85,247,0.12)] space-y-6">
+    <div id="verdict-2" class="rounded-2xl border-2 border-purple-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(168,85,247,0.12)] space-y-6">
       
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-500/25 pb-4">
         <div>
           <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Method 2: Our Bidirectional DIBSE System Verdict</span>
+              <span>Verdict 2 &bull; Built-In DIBSE Engine</span>
             </span>
             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border {action_bg}">{action_pill}</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Our System Verdict
+            Built-In System Verdict
           </h2>
           <p class="text-xs text-zinc-400 mt-0.5">
             Closed-4H deterministic regime call, Loop A &amp; Loop B swing zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and zero-stop self-healing inventory rules.
@@ -1249,14 +1249,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
       </div>
 
-      <!-- Reminder Banner: Method 2 is Deterministic Second Opinion; Always Compare with Method 1 AI -->
-      <div id="method2-ai-reminder" class="p-3.5 sm:p-4 rounded-xl bg-sky-500/10 border border-sky-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <!-- Reminder Banner: Verdict 2 is Deterministic Baseline; Always Generate Verdict 1 AI -->
+      <div id="verdict2-ai-reminder" class="p-3.5 sm:p-4 rounded-xl bg-sky-500/10 border border-sky-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div class="text-xs text-sky-100 leading-relaxed">
-          <strong class="text-sky-300 uppercase tracking-wider">Always Compare with Method 1 AI:</strong>
-          Method 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate DIBSE entries/exits, always copy <strong>Method 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
+          <strong class="text-sky-300 uppercase tracking-wider">Always Generate Verdict 1 (Your AI) &amp; Compare:</strong>
+          Verdict 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate DIBSE entries/exits, always copy <strong>Verdict 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
         </div>
-        <a href="#method-1" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
-          &uarr; Compare via Method 1
+        <a href="#verdict-1" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
+          &uarr; Compare via Verdict 1
         </a>
       </div>
 
@@ -2619,9 +2619,9 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           - Panel 1 • Real-Time BTC Spot Price (Live), Clocks, Next Update & Market Session
           - Panel 2 • On-Exchange Telemetry (Raw Closed-4H Feeds vs Modeled Scope)
           - Panel 3 • Macro Market Regime Diagnosis & 5-Regime + Transition Matrix
-          - Bridge  • How to Get Your DIBSE Trading Verdict (Method 1 vs Method 2)
-          - Method 1: ONE Clean Copy Button (DIBSE Blind Telemetry) + Local Watermarks
-          - Method 2: Our System Verdict (DIBSE Bidirectional Playbook & Liquidation Ladder)
+          - Bridge  • Two Independent DIBSE Verdicts (Verdict 1 vs Verdict 2)
+          - Verdict 1 • Your Own AI: ONE Clean Copy Button (Blind Telemetry) + Local Watermarks
+          - Verdict 2 • Built-In Engine: DIBSE Bidirectional Playbook & Liquidation Ladder
           - Institutional Footer & Platform Links
         """
         import json as _json
@@ -3471,44 +3471,44 @@ __MATCHED_CRITERIA_ASCII__</pre>
         </div>
       </div>
 
-      <!-- BRIDGE: HOW TO GET YOUR VERDICT (METHOD 1 VS METHOD 2) -->
+      <!-- BRIDGE: TWO INDEPENDENT VERDICTS (VERDICT 1 VS VERDICT 2) -->
       <div id="verdict-guide" class="panel-box panel-box-violet">
-        <div class="panel-hdr">Bridge &bull; How to Get Your Trading Verdict</div>
+        <div class="panel-hdr">Bridge &bull; Verdict 1 vs Verdict 2</div>
 
         <div class="sub-card sub-card-indigo">
           <pre class="ascii"><span class="c-indigo">Panels 1-3 = Observable Facts Only.</span>
-Compare Method 1 (Blind AI Prompt) against
-Method 2 (Built-In DIBSE Engine) below:</pre>
+Generate Verdict 1 (Your Own AI) and
+compare with Verdict 2 (Built-In) below:</pre>
         </div>
 
         <div class="sub-card sub-card-sky">
-          <pre class="ascii"><span class="c-cyan">Method 1 &bull; Independent AI (Zero Bias)</span>
+          <pre class="ascii"><span class="c-cyan">Verdict 1 &bull; Your Own AI (Zero Bias)</span>
 1. Optional: enter Loop A Buy / Loop B Sale
    watermarks (saved locally on device).
-2. Tap the single <span class="c-green">COPY BLIND TELEMETRY</span> button
-   and paste into ChatGPT, Claude, or Gemini.</pre>
-          <a href="#method-1" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#38bdf8;text-decoration:none;">&darr; Go to Method 1</a>
+2. Tap <span class="c-green">COPY TELEMETRY FOR AI</span> and paste
+   into ChatGPT, Claude, or Gemini.</pre>
+          <a href="#verdict-1" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#38bdf8;text-decoration:none;">&darr; Go to Verdict 1</a>
         </div>
 
         <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
-          <pre class="ascii"><span class="c-purple">Method 2 &bull; Built-In DIBSE Verdict</span>
+          <pre class="ascii"><span class="c-purple">Verdict 2 &bull; Built-In DIBSE Engine</span>
 1. View Loop A (USDT&rarr;BTC) &amp; Loop B (BTC&rarr;USDT)
    trigger zones, LSCE side, &amp; self-healing rule.
 2. Zero leverage. Zero forced stop-losses.
-Tip: Highest conviction when Method 1
-(Blind AI) and Method 2 align.</pre>
-          <a href="#method-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Method 2</a>
+Tip: Highest conviction when Verdict 1
+(Your AI) and Verdict 2 align.</pre>
+          <a href="#verdict-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Verdict 2</a>
         </div>
       </div>
 
-      <!-- METHOD 1: ONE CLEAN COPY BUTTON (UPGRADED BLIND TELEMETRY) -->
-      <div id="method-1" class="panel-box panel-box-sky">
-        <div class="panel-hdr">Method 1 &bull; Copy Blind Telemetry to AI</div>
+      <!-- VERDICT 1: ONE CLEAN COPY BUTTON (UPGRADED BLIND TELEMETRY) -->
+      <div id="verdict-1" class="panel-box panel-box-sky">
+        <div class="panel-hdr">Verdict 1 &bull; Your Own AI (Copy)</div>
 
         <div class="sub-card sub-card-teal" style="margin-bottom: 2px;">
           <pre class="ascii"><span class="c-cyan">Unbiased Blind Telemetry + 5-Regime Audit:</span>
 Closed-4H facts, 5-Regime rules, &amp; Risk
-Officer checklist. Zero verdict leaked.</pre>
+Officer checklist. Verdict 2 stays hidden.</pre>
 
           <button class="btn-copy" id="copy-blind-btn" onclick="copyBlindPrompt()">
             🧪 COPY TELEMETRY FOR AI
@@ -3540,16 +3540,16 @@ Officer checklist. Zero verdict leaked.</pre>
         </div>
       </div>
 
-      <!-- METHOD 2: OUR SYSTEM VERDICT (FULL-ON VIEW) -->
-      <div id="method-2" class="panel-box panel-box-purple">
-        <div class="panel-hdr">Method 2 &bull; Built-In DIBSE Verdict</div>
+      <!-- VERDICT 2: BUILT-IN DIBSE ENGINE (FULL-ON VIEW) -->
+      <div id="verdict-2" class="panel-box panel-box-purple">
+        <div class="panel-hdr">Verdict 2 &bull; Built-In DIBSE Engine</div>
 
-        <div id="method2-ai-reminder" class="sub-card sub-card-sky">
-          <pre class="ascii"><span class="c-cyan">Always Use Method 1 AI &amp; Compare:</span>
-Method 2 is a fixed rule baseline only.
-Copy <span class="c-green">Method 1</span> into your AI for deeper
+        <div id="verdict2-ai-reminder" class="sub-card sub-card-sky">
+          <pre class="ascii"><span class="c-cyan">Always Generate Verdict 1 AI &amp; Compare:</span>
+Verdict 2 is a fixed rule baseline only.
+Copy <span class="c-green">Verdict 1</span> into your AI for deeper
 context &amp; higher-accuracy DIBSE calls.</pre>
-          <a href="#method-1" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Method 1 (Copy to AI)</a>
+          <a href="#verdict-1" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Verdict 1 (Copy to AI)</a>
         </div>
 
         <div class="sub-card sub-card-emerald">
