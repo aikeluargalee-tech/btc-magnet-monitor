@@ -41,9 +41,13 @@ jobs:
           skip = 'false'
           if os.environ.get('GITHUB_EVENT_NAME') == 'schedule' and os.path.exists('data/regime.json'):
               try:
+                  now = datetime.datetime.now(datetime.timezone.utc)
                   ts = json.load(open('data/regime.json'))['timestamp'].replace('Z', '+00:00')
-                  age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(ts)).total_seconds()
-                  if age < 1320:
+                  last_dt = datetime.datetime.fromisoformat(ts)
+                  age = (now - last_dt).total_seconds()
+                  same_window = (now.date(), now.hour, now.minute // 30) == (last_dt.date(), last_dt.hour, last_dt.minute // 30)
+                  # Never let an earlier half-hour push skip the next :02/:32 slot; skip only same-window backups or <6m duplicates
+                  if age < 360 or (same_window and age < 1500):
                       skip = 'true'
               except Exception:
                   pass

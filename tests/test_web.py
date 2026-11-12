@@ -263,5 +263,153 @@ class TestBrandingAndAndroidIcons(unittest.TestCase):
             shutil.rmtree(work, ignore_errors=True)
 
 
+class TestScalabilityAndNativeAd(unittest.TestCase):
+    def test_configure_android_native_copies_files_and_patches_gradle_idempotently(self):
+        from scripts.configure_android_native import (
+            ADMOB_DEP_LINE,
+            APP_PACKAGE,
+            apply_android_native,
+            ensure_admob_gradle_dependency,
+        )
+
+        work = tempfile.mkdtemp()
+        try:
+            app_dir = os.path.join(work, "app")
+            os.makedirs(os.path.join(app_dir, "src", "main", "res"), exist_ok=True)
+            gradle_path = os.path.join(app_dir, "build.gradle")
+            with open(gradle_path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "dependencies {\n"
+                    "    implementation project(':capacitor-android')\n"
+                    "}\n"
+                )
+
+            apply_android_native(ROOT, android_dir=work)
+
+            pkg_dir = os.path.join(app_dir, "src", "main", "java", *APP_PACKAGE.split("."))
+            self.assertTrue(os.path.isfile(os.path.join(pkg_dir, "MainActivity.java")))
+            self.assertTrue(os.path.isfile(os.path.join(pkg_dir, "MagnetNativeAdPlugin.java")))
+            self.assertTrue(os.path.isfile(os.path.join(app_dir, "src", "main", "res", "layout", "native_ad_card.xml")))
+            for drawable_name in ("native_ad_card_bg.xml", "native_ad_badge_bg.xml", "native_ad_cta_bg.xml"):
+                self.assertTrue(
+                    os.path.isfile(os.path.join(app_dir, "src", "main", "res", "drawable", drawable_name)),
+                    drawable_name,
+                )
+
+            with open(gradle_path, "r", encoding="utf-8") as fh:
+                gradle_text = fh.read()
+            self.assertIn(ADMOB_DEP_LINE.strip(), gradle_text)
+
+            # Second run must be idempotent
+            self.assertFalse(ensure_admob_gradle_dependency(gradle_path))
+            apply_android_native(ROOT, android_dir=work)
+            with open(gradle_path, "r", encoding="utf-8") as fh:
+                self.assertEqual(fh.read().count("com.google.android.gms:play-services-ads"), 1)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+    def test_generated_pages_use_30s_cdn_bucket_cooldown_header_check_and_native_ad_slot(self):
+        import json
+        from web.generator import WebGenerator
+
+        regime_path = os.path.join(ROOT, "data", "regime.json")
+        if not os.path.isfile(regime_path):
+            self.skipTest("data/regime.json missing")
+        with open(regime_path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+
+        work = tempfile.mkdtemp()
+        try:
+            WebGenerator(work).generate(payload)
+            with open(os.path.join(work, "text.html"), "r", encoding="utf-8") as fh:
+                text_html = fh.read()
+            with open(os.path.join(work, "index.html"), "r", encoding="utf-8") as fh:
+                index_html = fh.read()
+
+            # Text terminal: header Check button + cooldown + 30s bucket + smart poll + clear overdue
+            for token in (
+                'id="hdr-check-btn"',
+                'onclick="refreshLiveScan(true)"',
+                "scheduleNextTextPoll",
+                "Math.floor(nowMs / 30000)",
+                "lastManualCheckMs + 25000",
+                "OVERDUE (${ageM}m old)",
+                "MagnetNativeAd",
+                "ca-app-pub-3940256099942544/2247696110",
+                "syncNativeAdSlot",
+            ):
+                self.assertIn(token, text_html, f"Missing {token} in text.html")
+
+            self.assertIn('id="native-ad-anchor"', text_html)
+            self.assertIn('id="verdict-guide"', text_html)
+            self.assertLess(
+                text_html.index('id="native-ad-anchor"'),
+                text_html.index('id="verdict-guide"'),
+                "Native ad slot must appear directly above Bridge Verdict 1 vs Verdict 2 panel",
+            )
+            self.assertNotIn("?t=' + Date.now()", text_html)
+            self.assertNotIn("cache: 'no-store'", text_html)
+
+            # Desktop dashboard: 30s bucket + smart poll + clear overdue
+            for token in (
+                "scheduleNextScanPoll",
+                "Math.floor(lastAutoScanCheckMs / 30000)",
+                "OVERDUE (${ageMin}m old)",
+            ):
+                self.assertIn(token, index_html, f"Missing {token} in index.html")
+            self.assertNotIn("?t=' + Date.now()", index_html)
+            self.assertNotIn("cache: 'no-store'", index_html)
+            self.assertNotIn("setInterval(refreshLiveScan", index_html)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+    def test_workflows_configure_native_ad_and_half_hour_skip_window(self):
+        import datetime
+
+        radar_path = os.path.join(ROOT, ".github", "workflows", "radar.yml")
+        apk_wf_path = os.path.join(ROOT, ".github", "workflows", "build-android-apk.yml")
+        with open(radar_path, "r", encoding="utf-8") as fh:
+            radar_yml = fh.read()
+        with open(apk_wf_path, "r", encoding="utf-8") as fh:
+            apk_yml = fh.read()
+
+        self.assertIn("same_window", radar_yml)
+        self.assertIn("age < 360 or (same_window and age < 1500)", radar_yml)
+        self.assertIn("python scripts/configure_android_native.py", apk_yml)
+        self.assertIn("res/layout/native_ad_card.xml", apk_yml)
+        self.assertIn("Lcom/aikeluargalee/btcmagnet/MagnetNativeAdPlugin;", apk_yml)
+
+        def should_skip(last_dt: datetime.datetime, now_dt: datetime.datetime) -> bool:
+            age = (now_dt - last_dt).total_seconds()
+            same_window = (now_dt.date(), now_dt.hour, now_dt.minute // 30) == (
+                last_dt.date(),
+                last_dt.hour,
+                last_dt.minute // 30,
+            )
+            return age < 360 or (same_window and age < 1500)
+
+        # 04:10:52 push must NOT skip 04:32:00 cron (different 30m window and age > 6m)
+        self.assertFalse(
+            should_skip(
+                datetime.datetime(2026, 11, 12, 4, 10, 52, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2026, 11, 12, 4, 32, 0, tzinfo=datetime.timezone.utc),
+            )
+        )
+        # 04:31:00 push MUST skip 04:32:00 cron (same window, age = 60s)
+        self.assertTrue(
+            should_skip(
+                datetime.datetime(2026, 11, 12, 4, 31, 0, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2026, 11, 12, 4, 32, 0, tzinfo=datetime.timezone.utc),
+            )
+        )
+        # 04:29:00 push MUST skip 04:32:00 cron (age = 180s < 360s)
+        self.assertTrue(
+            should_skip(
+                datetime.datetime(2026, 11, 12, 4, 29, 0, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2026, 11, 12, 4, 32, 0, tzinfo=datetime.timezone.utc),
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

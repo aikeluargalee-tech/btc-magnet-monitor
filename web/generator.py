@@ -1786,7 +1786,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         const ageMin = currentScanTs > 0 ? Math.max(0, Math.floor((utcMs - currentScanTs) / 60000)) : 0;
         if (currentScanTs > 0 && ageMin > 40) {{
           p1Cd.className = 'ml-2 text-xs text-amber-300';
-          p1Cd.innerText = `in ${{remM}}m ${{remS}}s (overdue)`;
+          p1Cd.innerText = `OVERDUE (${{ageMin}}m old) • next in ${{remM}}m ${{remS}}s`;
         }} else {{
           p1Cd.className = 'ml-2 text-xs text-emerald-400';
           p1Cd.innerText = `in ${{remM}}m ${{remS}}s`;
@@ -1962,17 +1962,36 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }});
     }}
 
+    let scanRefreshInFlight = false;
+    let lastAutoScanCheckMs = 0;
+    let scanPollTimer = null;
+
+    function scheduleNextScanPoll() {{
+      if (scanPollTimer) clearTimeout(scanPollTimer);
+      const ageMs = currentScanTs > 0 ? (Date.now() - currentScanTs) : NaN;
+      // Polls every 5m while fresh (<27m) and every 60s near/past the 30m CI scan window.
+      const delayMs = (!isNaN(ageMs) && ageMs >= 27 * 60 * 1000) ? 60000 : 300000;
+      scanPollTimer = setTimeout(refreshLiveScan, delayMs);
+    }}
+
     async function refreshLiveScan() {{
-      if (document.hidden) return;
+      if (document.hidden) {{
+        scheduleNextScanPoll();
+        return;
+      }}
+      if (scanRefreshInFlight) return;
+      scanRefreshInFlight = true;
+      lastAutoScanCheckMs = Date.now();
+      const cacheBucket = Math.floor(lastAutoScanCheckMs / 30000);
       try {{
-        const res = await fetch(LIVE_BASE + 'regime.json?t=' + Date.now(), {{ cache: 'no-store' }});
+        const res = await fetch(LIVE_BASE + 'regime.json?v=' + cacheBucket);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         const liveTs = Date.parse(data && data.timestamp);
         if (isNaN(liveTs)) throw new Error('invalid scan timestamp');
         lastFetchOk = true;
         if (liveTs > currentScanTs) {{
-          const hres = await fetch(LIVE_BASE + 'index.html?t=' + Date.now(), {{ cache: 'no-store' }});
+          const hres = await fetch(LIVE_BASE + 'index.html?v=' + cacheBucket);
           if (!hres.ok) throw new Error('HTTP ' + hres.status);
           const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
           const newRoot = doc.getElementById('app-root');
@@ -1992,13 +2011,18 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         }}
       }} catch (e) {{
         lastFetchOk = false;
+      }} finally {{
+        scanRefreshInFlight = false;
+        scheduleNextScanPoll();
       }}
       renderAgeBanner();
     }}
-    setInterval(refreshLiveScan, 60000);
     setInterval(renderAgeBanner, 30000);
     document.addEventListener('visibilitychange', function () {{
-      if (!document.hidden) {{ refreshLiveScan(); updateLivePriceTicker(); }}
+      if (!document.hidden) {{
+        if (Date.now() - lastAutoScanCheckMs >= 30000) refreshLiveScan();
+        updateLivePriceTicker();
+      }}
     }});
     renderAgeBanner();
     refreshLiveScan();
@@ -2985,7 +3009,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
       font-size: 11px;
       line-height: 1.5;
-      padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(84px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+      padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(84px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
       -webkit-font-smoothing: antialiased;
     }
     .terminal-wrapper {
@@ -3092,6 +3116,26 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       border-color: rgba(192, 132, 252, 0.45);
       color: #c084fc;
       background: rgba(168, 85, 247, 0.1);
+    }
+    .qpill-check {
+      font-family: inherit;
+      line-height: inherit;
+      cursor: pointer;
+      border-color: rgba(245, 158, 11, 0.55);
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.12);
+    }
+    .qpill-check:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .native-ad-slot {
+      width: 100%;
+      margin-bottom: 14px;
+      border-radius: 8px;
+      position: relative;
+      background: transparent;
     }
 
     .stale-banner {
@@ -3441,19 +3485,20 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <a href="#panel-3" class="qpill">Regime</a>
         <a href="#verdict-1" class="qpill qpill-v1">V1 AI</a>
         <a href="#verdict-2" class="qpill qpill-v2">V2 Engine</a>
+        <button type="button" id="hdr-check-btn" class="qpill qpill-check" onclick="refreshLiveScan(true)">&#8635; Check</button>
       </nav>
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
 
-    <!-- STALE TELEMETRY BANNER (>30M TARGET) -->
+    <!-- STALE TELEMETRY BANNER (>30M CADENCE / >40M CI GRACE) -->
     <div class="stale-banner" id="static-stale-banner" style="__STATIC_STALE_STYLE__">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target + CI grace. Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; <span id="static-stale-detail">Last scan past 40m CI grace</span>. Live spot REST feed active below.
       <div style="margin-top: 6px;">
         <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
       </div>
     </div>
     <div class="stale-banner" id="dyn-stale-banner" style="display: none;">
-      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; Past 30m target + CI grace. Live spot REST feed active below.
+      ⚠️ [WARNING: TELEMETRY STALE &gt;30M] &bull; <span id="dyn-stale-detail">Last scan past 40m CI grace</span>. Live spot REST feed active below.
       <div style="margin-top: 6px;">
         <button type="button" onclick="refreshLiveScan(true)" style="background:#1c1917;border:1px solid #f59e0b;color:#fde68a;font-family:inherit;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">↻ CHECK NOW</button>
       </div>
@@ -3581,6 +3626,9 @@ __MATCHED_CRITERIA_ASCII__</pre>
           </div>
         </div>
       </div>
+
+      <!-- SPONSORED NATIVE AD SLOT (ANDROID ADMOB NATIVE ADVANCED ABOVE BRIDGE) -->
+      <div id="native-ad-anchor" class="native-ad-slot" style="display: none;" aria-hidden="true"></div>
 
       <!-- BRIDGE: TWO INDEPENDENT VERDICTS (VERDICT 1 VS VERDICT 2) -->
       <div id="verdict-guide" class="panel-box panel-box-violet">
@@ -3933,8 +3981,9 @@ Decisive Call:
       if (hdrNext) hdrNext.innerText = `${nUH}:${nUM} UTC`;
       const p1Next = document.getElementById('p1-next-upd');
       if (p1Next) p1Next.innerText = `${nUH}:${nUM} UTC (${nSH}:${nSM} SGT)`;
+      const ageM = !isNaN(scanMs) ? Math.max(0, Math.floor((utcMs - scanMs) / 60000)) : 0;
       const overdue = !isNaN(scanMs) && ((utcMs - scanMs) > 40 * 60 * 1000);
-      const cdText = overdue ? `in ${remM}m ${remS}s (overdue)` : `in ${remM}m ${remS}s`;
+      const cdText = overdue ? `OVERDUE (${ageM}m old) • next in ${remM}m ${remS}s` : `in ${remM}m ${remS}s`;
       ['hdr-countdown', 'p1-countdown'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -3970,12 +4019,54 @@ Decisive Call:
     setInterval(updateClocks, 1000);
     updateClocks();
 
+    let nativeAdHeightCss = 0;
+
+    function getMagnetNativeAdPlugin() {
+      if (
+        window.Capacitor &&
+        typeof window.Capacitor.isPluginAvailable === 'function' &&
+        window.Capacitor.isPluginAvailable('MagnetNativeAd') &&
+        window.Capacitor.Plugins &&
+        window.Capacitor.Plugins.MagnetNativeAd
+      ) {
+        return window.Capacitor.Plugins.MagnetNativeAd;
+      }
+      return null;
+    }
+
+    function syncNativeAdSlot() {
+      const anchor = document.getElementById('native-ad-anchor');
+      const plugin = getMagnetNativeAdPlugin();
+      if (!anchor || !plugin) return;
+
+      if (nativeAdHeightCss > 0) {
+        anchor.style.display = 'block';
+        anchor.style.height = Math.ceil(nativeAdHeightCss) + 'px';
+        anchor.setAttribute('aria-hidden', 'false');
+        const rect = anchor.getBoundingClientRect();
+        if (rect.width > 0) {
+          plugin.updateRect({
+            leftCss: rect.left + (window.scrollX || window.pageXOffset || 0),
+            docTopCss: rect.top + (window.scrollY || window.pageYOffset || 0),
+            widthCss: rect.width
+          }).catch(function () {});
+        }
+        plugin.setVisible({ visible: true }).catch(function () {});
+      } else {
+        anchor.style.display = 'none';
+        anchor.style.height = '0px';
+        anchor.setAttribute('aria-hidden', 'true');
+        plugin.setVisible({ visible: false }).catch(function () {});
+      }
+    }
+
     // Dynamic Stale Telemetry (>40m grace allowing staggered CI backup slots) & Live Scan Auto-Refresh
     function renderTextStaleState() {
       const staticBanner = document.getElementById('static-stale-banner');
       const dynBanner = document.getElementById('dyn-stale-banner');
       const confFresh = document.getElementById('p3-conf-fresh');
       const ageMs = !isNaN(scanMs) ? (Date.now() - scanMs) : NaN;
+      const ageM = !isNaN(ageMs) ? Math.max(0, Math.floor(ageMs / 60000)) : 0;
       const isStale = !isNaN(ageMs) && ageMs > 40 * 60 * 1000;
       if (staticBanner) {
         staticBanner.style.display = isStale ? 'block' : 'none';
@@ -3983,9 +4074,15 @@ Decisive Call:
       if (dynBanner) {
         dynBanner.style.display = isStale && (!staticBanner || staticBanner.style.display === 'none') ? 'block' : 'none';
       }
+      if (isStale) {
+        const detail = `Last scan ${ageM}m old (>40m CI grace)`;
+        ['static-stale-detail', 'dyn-stale-detail'].forEach(function (id) {
+          const el = document.getElementById(id);
+          if (el) el.innerText = detail;
+        });
+      }
       if (confFresh) {
         if (isStale) {
-          const ageM = Math.max(0, Math.floor(ageMs / 60000));
           confFresh.className = 'c-amber';
           confFresh.innerText = `⚠ Confidence Downgraded: Scan ${ageM}m old (>40m)`;
         } else {
@@ -3993,6 +4090,7 @@ Decisive Call:
           confFresh.innerText = 'Freshness: Verified ≤40m Window';
         }
       }
+      syncNativeAdSlot();
     }
     renderTextStaleState();
     setInterval(renderTextStaleState, 30000);
@@ -4020,16 +4118,57 @@ Decisive Call:
     const IS_NATIVE_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || location.protocol === 'file:';
     const LIVE_BASE = IS_NATIVE_APP ? 'https://aikeluargalee-tech.github.io/btc-magnet-monitor/' : './';
 
+    let scanRefreshInFlight = false;
+    let lastManualCheckMs = 0;
+    let lastAutoCheckMs = 0;
+    let scanPollTimer = null;
+
+    function scheduleNextTextPoll() {
+      if (scanPollTimer) clearTimeout(scanPollTimer);
+      const ageMs = !isNaN(scanMs) ? (Date.now() - scanMs) : NaN;
+      // Scan cadence is 30m (:02/:32); poll slowly (5m) while fresh, fast (60s) near/past window.
+      const delayMs = (!isNaN(ageMs) && ageMs >= 27 * 60 * 1000) ? 60000 : 300000;
+      scanPollTimer = setTimeout(function () { refreshLiveScan(false); }, delayMs);
+    }
+
     async function refreshLiveScan(manual) {
-      if (document.hidden && !manual) return;
+      if (document.hidden && !manual) {
+        scheduleNextTextPoll();
+        return;
+      }
+      const nowMs = Date.now();
+      if (manual) {
+        if (scanRefreshInFlight) {
+          showToast('Check already in progress...');
+          return;
+        }
+        const waitSec = Math.ceil((lastManualCheckMs + 25000 - nowMs) / 1000);
+        if (lastManualCheckMs > 0 && waitSec > 0) {
+          showToast(`Cooldown active (${waitSec}s) — 30s shared feed`);
+          return;
+        }
+        lastManualCheckMs = nowMs;
+      } else if (scanRefreshInFlight) {
+        return;
+      }
+
+      scanRefreshInFlight = true;
+      lastAutoCheckMs = nowMs;
+      const cacheBucket = Math.floor(nowMs / 30000);
+      const hdrBtn = document.getElementById('hdr-check-btn');
+      if (manual && hdrBtn) {
+        hdrBtn.disabled = true;
+        hdrBtn.innerText = 'Checking...';
+      }
+
       let updated = false;
       try {
-        const res = await fetch(LIVE_BASE + 'regime.json?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(LIVE_BASE + 'regime.json?v=' + cacheBucket);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         const liveTs = Date.parse(data && data.timestamp);
         if (!isNaN(liveTs) && liveTs > scanMs) {
-          const hres = await fetch(LIVE_BASE + 'text.html?t=' + Date.now(), { cache: 'no-store' });
+          const hres = await fetch(LIVE_BASE + 'text.html?v=' + cacheBucket);
           if (hres.ok) {
             const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
             const payloadNode = doc.getElementById('text-live-payload');
@@ -4051,6 +4190,7 @@ Decisive Call:
                 }
                 updateClocks();
                 updateLivePrice();
+                syncNativeAdSlot();
                 updated = true;
                 showToast('✓ Live Scan Telemetry Updated');
               }
@@ -4058,16 +4198,26 @@ Decisive Call:
           }
         }
         if (manual && !updated) {
-          showToast('Checked — awaiting next CI scan');
+          showToast('Checked — up to date (30m CI cadence)');
         }
       } catch (e) {
         if (manual) showToast('⚠ Check failed — offline or rate limited');
+      } finally {
+        scanRefreshInFlight = false;
+        const latestBtn = document.getElementById('hdr-check-btn');
+        if (latestBtn) {
+          latestBtn.disabled = false;
+          latestBtn.innerText = '↻ Check';
+        }
+        scheduleNextTextPoll();
       }
       renderTextStaleState();
     }
-    setInterval(function () { refreshLiveScan(false); }, 60000);
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) { refreshLiveScan(false); updateLivePrice(); }
+      if (!document.hidden) {
+        if (Date.now() - lastAutoCheckMs >= 30000) refreshLiveScan(false);
+        updateLivePrice();
+      }
     });
     refreshLiveScan(false);
 
@@ -4156,6 +4306,47 @@ Decisive Call:
             margin: 0,
             isTesting: true
           }).catch(function () {});
+
+          const nativePlugin = getMagnetNativeAdPlugin();
+          if (nativePlugin) {
+            const wrapperEl = document.querySelector('.terminal-wrapper');
+            const slotWidth = Math.max(
+              200,
+              Math.round(wrapperEl ? wrapperEl.getBoundingClientRect().width : (window.innerWidth - 16))
+            );
+            if (typeof nativePlugin.addListener === 'function') {
+              nativePlugin.addListener('nativeAdLoaded', function (ev) {
+                if (ev && ev.heightCss > 0) {
+                  nativeAdHeightCss = ev.heightCss;
+                  requestAnimationFrame(syncNativeAdSlot);
+                }
+              }).catch(function () {});
+              nativePlugin.addListener('nativeAdFailed', function () {
+                nativeAdHeightCss = 0;
+                syncNativeAdSlot();
+              }).catch(function () {});
+            }
+            if (typeof ResizeObserver === 'function' && wrapperEl) {
+              new ResizeObserver(function () {
+                if (nativeAdHeightCss > 0) syncNativeAdSlot();
+              }).observe(wrapperEl);
+            }
+            window.addEventListener('resize', function () {
+              if (nativeAdHeightCss > 0) syncNativeAdSlot();
+            });
+            window.addEventListener('load', function () {
+              if (nativeAdHeightCss > 0) syncNativeAdSlot();
+            });
+            nativePlugin.loadAndAttach({
+              adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+              widthCss: slotWidth
+            }).then(function (res) {
+              if (res && res.heightCss > 0) {
+                nativeAdHeightCss = res.heightCss;
+                requestAnimationFrame(syncNativeAdSlot);
+              }
+            }).catch(function () {});
+          }
         }).catch(function () {});
       } catch (e) {}
     }
