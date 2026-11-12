@@ -826,8 +826,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5">
     <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
-          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0">
+          <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
         </div>
         <div>
           <div class="flex flex-wrap items-center gap-2">
@@ -2281,8 +2281,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-4">
     <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0.5">
-          <img src="./assets/app-logo.png?v=4" alt="BTC Magnet Monitor Logo" class="w-full h-full object-contain">
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-zinc-800 flex items-center justify-center shadow-inner flex-shrink-0 bg-zinc-950 p-0">
+          <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor Logo" class="w-full h-full object-cover">
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
@@ -3022,13 +3022,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2px;
+      padding: 0;
     }
     .brand-logo-img {
       width: 100%;
       height: 100%;
       display: block;
-      object-fit: contain;
+      object-fit: cover;
     }
     .brand-title-group {
       display: flex;
@@ -3423,7 +3423,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <header class="app-brand-header">
       <div class="brand-top-row">
         <div class="brand-logo-squircle">
-          <img src="./assets/app-logo.png?v=8" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
+          <img src="./assets/app-logo.png?v=9" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
         </div>
         <div class="brand-title-group">
           <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME RADAR</div>

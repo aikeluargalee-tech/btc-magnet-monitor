@@ -93,6 +93,8 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertIn("Verdict 2 &bull; Built-In Spot Engine", self.index)
         self.assertIn("window.location.replace('./text.html'", self.index)
         self.assertIn("p.get('desktop') === '1'", self.index)
+        self.assertIn('src="./assets/app-logo.png?v=9"', text_html)
+        self.assertIn('src="./assets/app-logo.png?v=9"', self.index)
 
         def _strip_prompt_payloads(doc: str) -> str:
             cleaned = re.sub(r"<textarea[^>]*>.*?</textarea>", "", doc, flags=re.DOTALL | re.IGNORECASE)
@@ -207,6 +209,48 @@ class TestOfflineBundler(unittest.TestCase):
                 cwd=work, capture_output=True, text=True,
             )
             self.assertNotEqual(proc.returncode, 0)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+
+class TestBrandingAndAndroidIcons(unittest.TestCase):
+    def test_master_fullsize_icon_and_web_icons_match_1024_512(self):
+        master = os.path.join(ROOT, "branding", "app-icon-fullsize.png")
+        self.assertTrue(os.path.exists(master), "branding/app-icon-fullsize.png missing")
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with Image.open(master) as im:
+            self.assertEqual(im.size, (1024, 1024))
+        for rel, expected in (
+            ("icon-512.png", (512, 512)),
+            ("icon-maskable-512.png", (512, 512)),
+            ("icon-192.png", (192, 192)),
+            (os.path.join("assets", "app-logo.png"), (512, 512)),
+        ):
+            with Image.open(os.path.join(ROOT, rel)) as im:
+                self.assertEqual(im.size, expected, rel)
+
+    def test_android_icon_generator_replaces_capacitor_defaults(self):
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        from scripts.generate_android_assets import apply_android_resources
+        work = tempfile.mkdtemp()
+        try:
+            anydpi24 = os.path.join(work, "drawable-anydpi-v24")
+            os.makedirs(anydpi24, exist_ok=True)
+            stale_xml = os.path.join(anydpi24, "ic_launcher_foreground.xml")
+            with open(stale_xml, "w", encoding="utf-8") as fh:
+                fh.write("<vector/>")
+            apply_android_resources(ROOT, res_dir=work)
+            self.assertFalse(os.path.exists(stale_xml))
+            self.assertTrue(os.path.exists(os.path.join(work, "mipmap-anydpi-v26", "ic_launcher.xml")))
+            self.assertTrue(os.path.exists(os.path.join(work, "mipmap-xxxhdpi", "ic_launcher.png")))
+            self.assertTrue(os.path.exists(os.path.join(work, "mipmap-xxxhdpi", "ic_launcher_foreground.png")))
+            self.assertTrue(os.path.exists(os.path.join(work, "drawable-port-xxhdpi", "splash.png")))
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
