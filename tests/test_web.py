@@ -58,15 +58,23 @@ class TestGeneratedSite(unittest.TestCase):
         with open(os.path.join(self.tmp, "sw.js"), "r", encoding="utf-8") as fh:
             sw = fh.read()
         self.assertIn("res.ok && res.status === 200", sw)
-        self.assertTrue("pwa-v6" in sw or "pwa-v7" in sw)
+        self.assertIn("pwa-v8", sw)
+        self.assertIn("'./text.html'", sw)
 
     def test_text_terminal_page_generated_and_clean(self):
+        import re
         text_path = os.path.join(self.tmp, "text.html")
+        app_path = os.path.join(self.tmp, "app.html")
         self.assertTrue(os.path.exists(text_path), "text.html was not generated")
+        self.assertTrue(os.path.exists(app_path), "app.html was not generated")
         with open(text_path, "r", encoding="utf-8") as fh:
             text_html = fh.read()
+        with open(app_path, "r", encoding="utf-8") as fh:
+            app_html = fh.read()
         with open(os.path.join(self.tmp, "regimes.html"), "r", encoding="utf-8") as fh:
             regimes_html = fh.read()
+
+        self.assertEqual(app_html, text_html, "app.html must match vA text.html")
 
         # Text terminal & index share ONE clean Blind Telemetry button + optional local watermarks
         for token in (
@@ -74,11 +82,34 @@ class TestGeneratedSite(unittest.TestCase):
             "wb-buy", "wb-sell", "wb-clear", "panel-2", "panel-3", "verdict-guide", "verdict-1", "verdict-2",
             "Verdict 1 vs Verdict 2",
             "app-brand-header", "5-Regime Radar", "Observable Positioning Mechanics",
-            "BTC MAGNET MONITOR :: DIBSE ENGINE", "Dual-Inventory Bidirectional Spot Terminal",
-            "MANDATE: DIBSE (10% USDT + 10% BTC | ZERO STOPS)", "min-height: 44px",
+            "BTC MAGNET MONITOR :: 5-REGIME RADAR", "Bidirectional Spot Liquidity Terminal",
+            "MODE: SPOT-ONLY SWING RADAR (NO LEVERAGE)", "quick-nav", "min-height: 44px",
+            "IS_NATIVE_APP", "LIVE_BASE", "serviceWorker", "AdMob", "index.html?desktop=1",
+            "Spot Signal:", "Spot Bidirectional Playbook:", "Spot Patience &amp; Hold Rules:",
             "TIER", "EST.POOL", "[WARNING: TELEMETRY STALE &gt;30M]"
         ):
             self.assertIn(token, text_html)
+
+        self.assertIn("Verdict 2 &bull; Built-In Spot Engine", self.index)
+        self.assertIn("window.location.replace('./text.html'", self.index)
+        self.assertIn("p.get('desktop') === '1'", self.index)
+
+        def _strip_prompt_payloads(doc: str) -> str:
+            cleaned = re.sub(r"<textarea[^>]*>.*?</textarea>", "", doc, flags=re.DOTALL | re.IGNORECASE)
+            cleaned = re.sub(r'<div id="blind-preview-pre"[^>]*>.*?</div>', "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+            cleaned = re.sub(r'<pre[^>]*id="prompt-box-pre"[^>]*>.*?</pre>', "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+            cleaned = re.sub(r"<script[^>]*>.*?</script>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+            return cleaned
+
+        for surface_name, html_doc in (
+            ("index.html", self.index),
+            ("text.html", text_html),
+            ("app.html", app_html),
+            ("regimes.html", regimes_html),
+        ):
+            visible = _strip_prompt_payloads(html_doc)
+            for jargon in ("MANDATE: DIBSE", "10% USDT", "10% BTC", "80% Core", "80% core", "Active Sandbox", "DIBSE"):
+                self.assertNotIn(jargon, visible, f"{surface_name} visible HTML retained jargon {jargon!r}")
 
         for surface_name, html_doc in (("index.html", self.index), ("text.html", text_html)):
             self.assertIn('id="copy-blind-btn"', html_doc, surface_name)
@@ -97,7 +128,7 @@ class TestGeneratedSite(unittest.TestCase):
             for banned_ind in ("20D EMA", "50D EMA", "200D SMA", "Daily ATR", "1H ATR", "ATR Compress"):
                 self.assertNotIn(banned_ind, html_doc, f"{surface_name} retained lagged indicator {banned_ind}")
 
-        self.assertIn("DIBSE", regimes_html)
+        self.assertIn("Bidirectional Spot Protocol", regimes_html)
         for banned_reg in ("20D EMA", "50D EMA", "200D SMA", "1% equity risk-budget"):
             self.assertNotIn(banned_reg, regimes_html)
 
@@ -133,6 +164,7 @@ class TestGeneratedSite(unittest.TestCase):
     def test_manifest_includes_maskable_and_icons(self):
         with open(os.path.join(self.tmp, "manifest.json"), "r", encoding="utf-8") as fh:
             manifest = json.load(fh)
+        self.assertEqual(manifest.get("start_url"), "./text.html")
         purposes = [i.get("purpose") for i in manifest.get("icons", [])]
         self.assertIn("maskable", purposes)
         self.assertIn("any", purposes)
@@ -153,12 +185,13 @@ class TestOfflineBundler(unittest.TestCase):
                 cwd=work, capture_output=True, text=True,
             )
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-            for name in ("index.html", "app.html", "regimes.html", "privacy.html"):
+            for name in ("index.html", "text.html", "app.html", "regimes.html", "privacy.html"):
                 with open(os.path.join(dist, name), "r", encoding="utf-8") as fh:
                     html = fh.read()
                 for needle in ("src=\"https://cdn.tailwindcss.com", "href=\"https://fonts.googleapis.com", "href=\"https://fonts.gstatic.com"):
                     self.assertNotIn(needle, html, f"{name} still loads {needle}")
-                self.assertIn('href="tailwind.css"', html)
+                if name not in ("text.html", "app.html"):
+                    self.assertIn('href="tailwind.css"', html)
             self.assertTrue(os.path.exists(os.path.join(dist, "fonts", "fonts.css")))
         finally:
             shutil.rmtree(work, ignore_errors=True)

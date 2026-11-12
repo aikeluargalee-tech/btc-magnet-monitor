@@ -46,10 +46,10 @@ class WebGenerator:
         with open(text_path, "w", encoding="utf-8") as f:
             f.write(text_content)
 
-        # 4. Render Mobile Cockpit App (app.html) with 100% exact format parity with index.html
+        # 4. Render Mobile App Entry (app.html) using the verified mobile terminal (text.html = vA)
         app_path = os.path.join(self.output_dir, "app.html")
         with open(app_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
+            f.write(text_content)
 
         # 5. Render manifest.json and sw.js for PWA installation
         try:
@@ -77,6 +77,55 @@ class WebGenerator:
             print(f"Warning: Mobile generator encountered error: {e}")
 
         return json_path, html_path
+
+    @staticmethod
+    def _public_copy(text: str) -> str:
+        """Normalize internal portfolio jargon for public-facing web/mobile UI cards."""
+        import re
+        s = str(text or "")
+        replacements = (
+            ("10% USDT Sleeve + 10% BTC Sleeve (20% Active Sandbox | 80% Untouched Core)",
+             "Spot-Only Bidirectional (USDT Reserve + BTC Inventory | No Leverage)"),
+            ("10% USDT + 10% BTC (80% Core Untouched)",
+             "Spot-Only Bidirectional (No Leverage)"),
+            ("DIBSE Asymmetric Self-Healing Inventory", "Spot Patience Rules (No Leverage)"),
+            ("DIBSE Self-Healing", "Spot Patience Protocol"),
+            ("DIBSE Balanced Standby", "Spot-Only Standby"),
+            ("of your 10% BTC Sleeve", "of active spot BTC"),
+            ("of 10% BTC Sleeve", "of active spot BTC"),
+            ("your 10% BTC Sleeve", "active spot BTC"),
+            ("10% BTC Sleeve", "active spot BTC"),
+            ("of your 10% USDT Sleeve", "of active USDT reserve"),
+            ("of 10% USDT Sleeve", "of active USDT reserve"),
+            ("your 10% USDT Sleeve", "active USDT reserve"),
+            ("10% USDT Sleeve", "active USDT reserve"),
+            ("10% USDT &rarr; BTC", "USDT &rarr; BTC"),
+            ("10% BTC &rarr; USDT", "BTC &rarr; USDT"),
+            ("10% USDT + 10% BTC", "USDT + Spot BTC"),
+            ("10% USDT", "active USDT"),
+            ("10% BTC", "active BTC"),
+            ("80% core untouched", "spot reserves untouched"),
+            ("80% Core Untouched", "Spot Reserves Untouched"),
+            ("Active Sandbox", "Active Reserve"),
+            ("BTC Sleeve", "Active BTC"),
+            ("USDT Sleeve", "Active USDT"),
+            ("BTC sleeve", "active BTC"),
+            ("USDT sleeve", "active USDT"),
+            ("Hold Both Sleeves", "Hold Both Sides"),
+            ("BOTH SLEEVES", "BOTH SIDES"),
+            ("ZERO STOP-LOSSES", "NO FORCED STOP-LOSSES"),
+            ("Zero Stop-Losses", "No Forced Stop-Losses"),
+            ("Zero Stop-Buys", "No Chase Buys"),
+            ("DIBSE Loop A", "Spot Loop A"),
+            ("DIBSE Loop B", "Spot Loop B"),
+            ("DIBSE ", ""),
+            (" DIBSE", ""),
+        )
+        for old, new in replacements:
+            s = s.replace(old, new)
+        s = re.sub(r"\s*\(=\s*[\d.]+%\s*(?:total\s*)?equity\s*;\s*spot reserves untouched\)", "", s, flags=re.I)
+        s = re.sub(r"\s*=\s*[\d.]+%\s*equity\s*\|\s*spot reserves untouched\s*", "", s, flags=re.I)
+        return s.strip()
 
     @staticmethod
     def _compute_scan_id(data: Dict[str, Any]) -> str:
@@ -423,27 +472,28 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         playbook = regime.get("playbook", "")
         majority_score = regime.get("majority_score", "4/4 observations confirmed")
         rotation = regime.get("rotation", "Hold Both Sleeves")
-        dibse_signal = regime.get("dibse_signal", "HOLD BOTH SLEEVES")
-        dibse_headline = regime.get("dibse_action_headline", rotation)
-        loop_a_zone = regime.get("loop_a_zone", "Monitor closed 4H support sweep")
-        loop_b_zone = regime.get("loop_b_zone", "Monitor closed 4H resistance squeeze")
-        sleeve_alloc = regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core Untouched)")
-        failure_protocol = regime.get("failure_protocol", "Zero stop-losses; hold spot inventory asymmetrically.")
+        dibse_signal = self._public_copy(regime.get("dibse_signal", "HOLD BOTH SLEEVES"))
+        dibse_headline = self._public_copy(regime.get("dibse_action_headline", rotation))
+        loop_a_zone = self._public_copy(regime.get("loop_a_zone", "Monitor closed 4H support sweep"))
+        loop_b_zone = self._public_copy(regime.get("loop_b_zone", "Monitor closed 4H resistance squeeze"))
+        sleeve_alloc = self._public_copy(regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core Untouched)"))
+        failure_protocol = self._public_copy(regime.get("failure_protocol", "Zero stop-losses; hold spot inventory asymmetrically."))
         sizing = regime.get("sizing_factor", 0.0)
-        action = regime.get("action", "")
-        stop_rule = regime.get("stop_rule", "ZERO STOP-LOSSES (DIBSE Asymmetric Self-Healing Inventory)")
+        action = self._public_copy(regime.get("action", ""))
+        stop_rule = self._public_copy(regime.get("stop_rule", "ZERO STOP-LOSSES (DIBSE Asymmetric Self-Healing Inventory)"))
         stop_price = regime.get("stop_price", 0.0)
         stop_dist = regime.get("stop_distance_pct", 0.0)
-        entry_inst = regime.get("entry_instruction", "")
+        entry_inst = self._public_copy(regime.get("entry_instruction", ""))
         dom_magnet = regime.get("dominant_magnet", "Neutral")
-        dom_reason = regime.get("dominant_magnet_reason", dom_magnet)
-        notes = regime.get("notes", "")
+        dom_reason = self._public_copy(regime.get("dominant_magnet_reason", dom_magnet))
+        notes = self._public_copy(regime.get("notes", ""))
         data_quality = regime.get("data_quality", "LIVE")
 
-        plain_verdict = regime.get("plain_english_verdict", "Analyzing current market conditions...")
-        why_points = regime.get("why_points", [])
-        why_sizing = regime.get("why_sizing_reason", f"DIBSE Active Sandbox: {sleeve_alloc}.")
-        why_stop = regime.get("why_stop_reason", failure_protocol)
+        plain_verdict = self._public_copy(regime.get("plain_english_verdict", "Analyzing current market conditions..."))
+        why_points = [self._public_copy(str(pt)) for pt in regime.get("why_points", [])]
+        why_sizing = self._public_copy(regime.get("why_sizing_reason", f"Spot Reserve Sizing: {sleeve_alloc}."))
+        why_stop = self._public_copy(regime.get("why_stop_reason", failure_protocol))
+        risk_advisory_pub = self._public_copy(str(risk.get("risk_advisory", "")))
 
         upper_c = regime.get("nearest_upper_cluster") or {}
         lower_c = regime.get("nearest_lower_cluster") or {}
@@ -461,7 +511,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             if sizing > 0 and "USDT -> BTC" in rotation:
                 lsce_badge_class = "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
                 lsce_badge_icon = "✅"
-                lsce_badge_title = f"LOWER SWEEP &amp; RECLAIM CONFIRMED (LOOP A: 10% USDT &rarr; BTC {sizing:.2f}x)"
+                lsce_badge_title = f"LOWER SWEEP &amp; RECLAIM CONFIRMED (LOOP A: USDT &rarr; BTC {sizing:.2f}x)"
             else:
                 lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
                 lsce_badge_icon = "🛡️"
@@ -470,7 +520,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             if sizing > 0 and "BTC -> USDT" in rotation:
                 lsce_badge_class = "border-sky-500/45 bg-sky-500/15 text-sky-300"
                 lsce_badge_icon = "🔄"
-                lsce_badge_title = f"UPPER SQUEEZE REJECTION CONFIRMED (LOOP B: 10% BTC &rarr; USDT {sizing:.2f}x)"
+                lsce_badge_title = f"UPPER SQUEEZE REJECTION CONFIRMED (LOOP B: BTC &rarr; USDT {sizing:.2f}x)"
             else:
                 lsce_badge_class = "border-amber-500/40 bg-amber-500/15 text-amber-300"
                 lsce_badge_icon = "🛡️"
@@ -515,7 +565,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             regime_border_color = "border-rose-500/60 shadow-rose-500/15"
             regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
             regime_icon = "⚡"
-            regime_tagline = "Forced margin liquidation cascade in progress. Keep 10% USDT dry until closed 4H washout stabilizes."
+            regime_tagline = "Forced margin liquidation cascade in progress. Keep active USDT dry until closed 4H washout stabilizes."
         elif regime_id == "DISTRIBUTION_BEAR_CONTINUATION":
             regime_border_color = "border-rose-500/50 shadow-rose-500/10"
             regime_badge_bg = "bg-rose-500/15 text-rose-300 border-rose-500/30"
@@ -525,23 +575,23 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             regime_border_color = "border-cyan-500/50 shadow-cyan-500/10"
             regime_badge_bg = "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
             regime_icon = "🧲"
-            regime_tagline = "Price bound in closed 4H channel. DIBSE alternates Loop A at floor washouts and Loop B at ceiling squeezes."
+            regime_tagline = "Price bound in closed 4H channel. Alternates Loop A at floor washouts and Loop B at ceiling squeezes."
         else:
             regime_border_color = "border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.12)]"
             regime_badge_bg = "bg-amber-500/15 text-amber-300 border-amber-500/30"
             regime_icon = "⚖️"
-            regime_tagline = "Market indicators mixed across closed 4H range. Hold both sleeves (10% USDT + 10% BTC) at equilibrium."
+            regime_tagline = "Market indicators mixed across closed 4H range. Hold both sides (USDT reserve + Spot BTC) at equilibrium."
 
         # Action banner color styling
         if "USDT -> BTC" in rotation:
             action_bg = "bg-emerald-500/10 border-emerald-500/35 text-emerald-300"
-            action_pill = "LOOP A: 10% USDT → BTC"
+            action_pill = "LOOP A: USDT → BTC"
         elif "BTC -> USDT" in rotation:
             action_bg = "bg-sky-500/10 border-sky-500/35 text-sky-300"
-            action_pill = "LOOP B: 10% BTC → USDT"
+            action_pill = "LOOP B: BTC → USDT"
         else:
             action_bg = "bg-amber-500/10 border-amber-500/35 text-amber-300"
-            action_pill = "HOLD BOTH SLEEVES (10% + 10%)"
+            action_pill = "HOLD BOTH (STANDBY)"
 
         ev_border = "border-amber-500/35" if regime_id == "TRANSITION_MIXED" else "border-emerald-500/35"
         evidence_cards_html = "".join([
@@ -695,7 +745,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         blind_prompt_escaped = blind_prompt.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         # Unified PWA meta and styling tags
-        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; DIBSE Spot Engine"
+        page_title = "BTC Magnet Monitor — 5-Regime Radar &amp; Spot Engine"
         body_padding = "pb-16"
 
         pwa_meta_tags = """  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -703,11 +753,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="BTC Magnet">
   <meta name="theme-color" content="#09090b">
-  <link rel="manifest" href="manifest.json?v=7">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7">
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7">
-  <link rel="apple-touch-icon" href="icon-192.png?v=7">
-  <link rel="shortcut icon" href="icon-192.png?v=7">"""
+  <link rel="manifest" href="manifest.json?v=8">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=8">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=8">
+  <link rel="apple-touch-icon" href="icon-192.png?v=8">
+  <link rel="shortcut icon" href="icon-192.png?v=8">"""
 
         top_switch_button = """<a href="text.html" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-xs font-semibold text-emerald-400 border border-emerald-700/80 transition-colors">
           <span>📱 Text Terminal</span>
@@ -726,6 +776,19 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 <head>
   <meta charset="UTF-8">
 {pwa_meta_tags}
+  <script>
+    (function () {{
+      try {{
+        var p = new URLSearchParams(window.location.search);
+        if (p.get('desktop') === '1' || window.location.protocol === 'file:') return;
+        var isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+        var isMobile = (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) || (window.innerWidth > 0 && window.innerWidth < 768);
+        if (isNative || isMobile) {{
+          window.location.replace('./text.html' + window.location.search + window.location.hash);
+        }}
+      }} catch (e) {{}}
+    }})();
+  </script>
   <title>{page_title}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1111,7 +1174,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         Verdict 1 (Your Own AI) vs Verdict 2 (Built-In Engine)
       </h3>
       <p class="text-xs sm:text-sm text-zinc-300 max-w-2xl mx-auto leading-relaxed">
-        Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (10% USDT &rarr; BTC)</strong>, <strong>Loop B (10% BTC &rarr; USDT)</strong>, or <strong>Hold Both Sleeves</strong>, generate <strong>Verdict 1</strong> in your AI and cross-check it against <strong>Verdict 2</strong> below.
+        Panels 1–3 give you closed-bar market facts with zero advice. To decide whether to rotate <strong>Loop A (USDT &rarr; BTC)</strong>, <strong>Loop B (BTC &rarr; USDT)</strong>, or <strong>Hold Both Sides</strong>, generate <strong>Verdict 1</strong> in your AI and cross-check it against <strong>Verdict 2</strong> below.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto pt-2 text-left">
@@ -1129,7 +1192,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div>
             <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">Verdict 2 &bull; Built-In Engine</div>
             <div class="text-sm font-extrabold text-white">Read Our Bidirectional System Verdict</div>
-            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Verdict 2 for our Loop A &amp; Loop B zones, symmetric LSCE sweep gate, and 10% + 10% sleeve call.<br>2. Review the zero-stop-loss self-healing rules and 10x–100x modeled liquidity map.</p>
+            <p class="text-[11px] text-zinc-300 mt-1 leading-relaxed">1. Scroll to Verdict 2 for our Loop A &amp; Loop B zones, symmetric LSCE sweep gate, and spot swing call.<br>2. Review the no-forced-stop patience rules and 10x–100x modeled liquidity map.</p>
           </div>
         </a>
       </div>
@@ -1169,7 +1232,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <details id="wb-details" class="rounded-xl bg-zinc-950/90 border border-sky-500/35 px-4 py-3">
         <summary class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 cursor-pointer select-none">
           <span class="text-xs font-bold uppercase tracking-wider text-sky-300">▸ Optional: Add P_buy / P_sell Inventory Watermarks (Local Only)</span>
-          <span id="wb-status" class="text-[11px] font-mono text-zinc-400">Baseline: 10% USDT + 10% BTC sleeves ready</span>
+          <span id="wb-status" class="text-[11px] font-mono text-zinc-400">Baseline: Spot reserves ready</span>
         </summary>
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-3 mt-3 border-t border-zinc-800/80">
           <div class="sm:col-span-5">
@@ -1197,7 +1260,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-cyan-500/35 space-y-1">
           <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Step 2</span>
           <div class="font-bold text-white">Paste into Any Major LLM</div>
-          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with DIBSE dual-sleeve context built in.</p>
+          <p class="text-[11px] text-zinc-400">Works directly in Claude, ChatGPT, Grok, Qwen, or Gemini with bidirectional spot context built in.</p>
         </div>
 
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-indigo-500/35 space-y-1">
@@ -1224,7 +1287,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
 
     <!-- ============================================================ -->
-    <!-- VERDICT 2: BUILT-IN DIBSE ENGINE                             -->
+    <!-- VERDICT 2: BUILT-IN SPOT ENGINE                              -->
     <!-- ============================================================ -->
     <div id="verdict-2" class="rounded-2xl border-2 border-purple-500/60 bg-zinc-900/85 p-6 sm:p-8 backdrop-blur-md shadow-[0_0_25px_rgba(168,85,247,0.12)] space-y-6">
       
@@ -1233,7 +1296,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
               <span>🧠</span>
-              <span>Verdict 2 &bull; Built-In DIBSE Engine</span>
+              <span>Verdict 2 &bull; Built-In Spot Engine</span>
             </span>
             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border {action_bg}">{action_pill}</span>
           </div>
@@ -1241,7 +1304,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             Built-In System Verdict
           </h2>
           <p class="text-xs text-zinc-400 mt-0.5">
-            Closed-4H deterministic regime call, Loop A &amp; Loop B swing zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and zero-stop self-healing inventory rules.
+            Closed-4H deterministic regime call, Loop A &amp; Loop B swing zones, symmetric LSCE sweep/squeeze gate, 10x–100x modeled heatmap, and no-forced-stop spot hold rules.
           </p>
         </div>
         <div class="px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-medium self-start sm:self-auto">
@@ -1253,18 +1316,18 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div id="verdict2-ai-reminder" class="p-3.5 sm:p-4 rounded-xl bg-sky-500/10 border border-sky-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div class="text-xs text-sky-100 leading-relaxed">
           <strong class="text-sky-300 uppercase tracking-wider">Always Generate Verdict 1 (Your AI) &amp; Compare:</strong>
-          Verdict 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate DIBSE entries/exits, always copy <strong>Verdict 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
+          Verdict 2 is a fixed deterministic rule baseline. For deeper reasoning and more accurate swing entries/exits, always copy <strong>Verdict 1 (Blind Telemetry)</strong> into your own AI and compare both verdicts.
         </div>
         <a href="#verdict-1" class="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/60 text-[11px] font-bold text-sky-200 transition-all">
           &uarr; Compare via Verdict 1
         </a>
       </div>
 
-      <!-- Plain English Bottom Line Breakdown + DIBSE Bidirectional Playbook -->
+      <!-- Plain English Bottom Line Breakdown + Bidirectional Spot Playbook -->
       <div class="p-5 sm:p-6 rounded-2xl bg-zinc-950/90 border border-emerald-500/40 space-y-4">
         <div>
           <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; DIBSE Spot Engine</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Bottom Line Verdict &bull; Spot Engine</span>
             <span class="text-xs text-zinc-500 font-medium">({sleeve_alloc})</span>
           </div>
           <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">
@@ -1281,16 +1344,16 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         <!-- Loop A / Loop B Playbook Zones -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           <div class="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/40 space-y-1">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Loop A (10% USDT &rarr; BTC &rarr; USDT)</div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Loop A (USDT &rarr; BTC &rarr; USDT)</div>
             <div class="font-mono text-zinc-200 leading-relaxed">{loop_a_zone}</div>
           </div>
           <div class="p-3.5 rounded-xl bg-sky-950/20 border border-sky-500/40 space-y-1">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Loop B (10% BTC &rarr; USDT &rarr; BTC)</div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400">Loop B (BTC &rarr; USDT &rarr; BTC)</div>
             <div class="font-mono text-zinc-200 leading-relaxed">{loop_b_zone}</div>
           </div>
         </div>
 
-        <!-- 3 Driving Market Factors & DIBSE Self-Healing Rules -->
+        <!-- 3 Driving Market Factors & Spot Patience Rules -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
           <div class="lg:col-span-2 space-y-2.5">
             <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">The 3 Key Market Factors Driving This Call</div>
@@ -1301,12 +1364,12 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
           <div class="space-y-3">
             <div class="bg-zinc-900/60 p-4 rounded-xl border border-amber-500/40 space-y-1">
-              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Dual-Sleeve Sandbox Allocation</div>
+              <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Spot Position Sizing</div>
               <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_sizing}</p>
-              <div class="pt-1.5 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">{risk.get('risk_advisory', '')}</div>
+              <div class="pt-1.5 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">{risk_advisory_pub}</div>
             </div>
             <div class="bg-zinc-900/60 p-4 rounded-xl border border-indigo-500/40 space-y-1">
-              <div class="text-xs font-bold uppercase tracking-wider text-indigo-300">Asymmetric Self-Healing Protocol</div>
+              <div class="text-xs font-bold uppercase tracking-wider text-indigo-300">Spot Patience &amp; Hold Rules</div>
               <p class="text-xs text-zinc-300 leading-relaxed font-normal">{why_stop}</p>
               <p class="text-[11px] text-emerald-300/90 leading-relaxed pt-1 border-t border-zinc-800/80">{stop_rule}</p>
             </div>
@@ -1561,7 +1624,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       if (statusEl) {{
         statusEl.textContent = customLine
           ? 'Active watermark: ' + customLine
-          : 'Baseline: 10% USDT + 10% BTC sleeves ready (local only)';
+          : 'Baseline: Spot reserves ready (local only)';
       }}
     }}
 
@@ -1954,12 +2017,22 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     if ('caches' in window) {{
       caches.keys().then((keys) => {{
         keys.forEach((key) => {{
-          if (key !== 'btc-magnet-pwa-v7') {{
+          if (key !== 'btc-magnet-pwa-v8') {{
             caches.delete(key);
           }}
         }});
       }});
     }}
+    // Fallback Native Capacitor -> vA (text.html) router if Capacitor bridge attaches after <head>
+    document.addEventListener('DOMContentLoaded', function () {{
+      try {{
+        var p = new URLSearchParams(window.location.search);
+        if (p.get('desktop') === '1' || window.location.protocol === 'file:') return;
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {{
+          window.location.replace('./text.html' + window.location.search + window.location.hash);
+        }}
+      }} catch (e) {{}}
+    }});
     // Native Capacitor Bridge & Google AdMob Initialization
     if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
       try {{
@@ -2186,7 +2259,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The 5 Market Regimes &amp; DIBSE Math — BTC Magnet Monitor Reference Guide</title>
+  <title>The 5 Market Regimes &amp; Bidirectional Spot Guide — BTC Magnet Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2213,7 +2286,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div>
           <span class="font-extrabold text-base tracking-tight text-white">BTC Magnet Monitor</span>
-          <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; DIBSE Reference Guide</span>
+          <span class="text-xs text-zinc-400 block">5-Regime Radar &amp; Bidirectional Spot Reference Guide</span>
         </div>
       </div>
       <a href="index.html" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition-colors">
@@ -2227,13 +2300,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <!-- Hero Title -->
     <div class="space-y-3">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-        DIBSE Architecture &bull; Observable Positioning Mechanics
+        Spot Swing Architecture &bull; Observable Positioning Mechanics
       </div>
       <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-        5-Regime Radar &amp; DIBSE Spot Protocol
+        5-Regime Radar &amp; Bidirectional Spot Protocol
       </h1>
       <p class="text-base sm:text-lg text-zinc-300 leading-relaxed">
-        How the Dual-Inventory Bidirectional Swing Engine pairs a <strong>10% USDT Sleeve</strong> and a <strong>10% BTC Sleeve</strong> (80% Core untouched, zero leverage, zero stop-losses) with closed-4H microstructure regimes.
+        How the Bidirectional Spot Protocol pairs an <strong>active USDT reserve</strong> and <strong>active Spot BTC inventory</strong> (core reserves untouched, zero leverage, zero forced stop-losses) with closed-4H microstructure regimes.
       </p>
     </div>
 
@@ -2256,18 +2329,18 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     </div>
     <textarea id="subpage-prompt-data" class="hidden" readonly>{blind_prompt_escaped}</textarea>
 
-    <!-- Section 1: DIBSE Philosophy -->
+    <!-- Section 1: Spot Swing Philosophy -->
     <div class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-sky-500/45 space-y-4">
       <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
         <span>1. Core Philosophy: Bidirectional Spot Swings (Zero Forced Stops)</span>
       </h2>
       <div class="prose prose-invert text-sm text-zinc-300 space-y-3 leading-relaxed">
         <p>
-          Rather than making leveraged all-in directional bets with forced stop-losses, <strong>DIBSE</strong> keeps <strong>10% in USDT</strong> and <strong>10% in Spot BTC</strong> (while 80% sits untouched in core reserve) to harvest two-way volatility:
+          Rather than making leveraged all-in directional bets with forced stop-losses, the <strong>Bidirectional Spot Protocol</strong> splits active swing capital between <strong>USDT reserve</strong> and <strong>Spot BTC inventory</strong> (leaving core holdings untouched) to harvest two-way volatility:
         </p>
         <ul class="space-y-2 list-disc list-inside text-zinc-300">
-          <li><strong>Swing Loop A (USDT &rarr; BTC &rarr; USDT):</strong> Deploys the 10% USDT Sleeve into discounted Spot BTC on lower-band washout sweeps &amp; reclaims, then harvests back into USDT above cost basis (<em>P_exit &gt; P_buy</em>).</li>
-          <li><strong>Swing Loop B (BTC &rarr; USDT &rarr; BTC):</strong> Rotates the 10% BTC Sleeve into USDT during upper short-squeeze distribution rallies, then repurchases more BTC after retracement (<em>P_rebuy &lt; P_sell</em>).</li>
+          <li><strong>Swing Loop A (USDT &rarr; BTC &rarr; USDT):</strong> Deploys active USDT reserve into discounted Spot BTC on lower-band washout sweeps &amp; reclaims, then harvests back into USDT above cost basis (<em>P_exit &gt; P_buy</em>).</li>
+          <li><strong>Swing Loop B (BTC &rarr; USDT &rarr; BTC):</strong> Rotates active Spot BTC into USDT during upper short-squeeze distribution rallies, then repurchases more BTC after retracement (<em>P_rebuy &lt; P_sell</em>).</li>
           <li><strong>Asymmetric Self-Healing Inventory:</strong> Zero borrowed leverage and zero stop-losses. Early entries remain productive spot inventory (Spot BTC held for recovery &gt; P_buy, or Spot USDT held until retrace &lt; P_sell). Zero lagged oscillators (no MA/EMA/RSI/MACD/ATR).</li>
         </ul>
       </div>
@@ -2288,8 +2361,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             <p class="text-xs text-zinc-400">Each regime defines 4 observable orderflow/positioning facts. If 3 or 4 clear simultaneously, the regime activates.</p>
           </div>
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-amber-500/40">
-            <strong class="text-amber-400 block text-xs uppercase font-bold mb-1">Hold Both Sleeves Fallback</strong>
-            <p class="text-xs text-zinc-400">If signals conflict mid-range or feeds drop out (<span class="mono">DATA UNAVAILABLE</span>), both 10% USDT and 10% BTC sleeves hold intact.</p>
+            <strong class="text-amber-400 block text-xs uppercase font-bold mb-1">Hold Both Sides Fallback</strong>
+            <p class="text-xs text-zinc-400">If signals conflict mid-range or feeds drop out (<span class="mono">DATA UNAVAILABLE</span>), both USDT reserve and Spot BTC hold intact.</p>
           </div>
         </div>
       </div>
@@ -2297,7 +2370,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 
     <!-- Section 3: Deep Dive into the 5 Regimes -->
     <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 DIBSE Regimes</h2>
+      <h2 class="text-2xl font-bold text-white">3. Complete Specification of the 5 Radar Regimes</h2>
 
       <!-- Regime 1 -->
       <div id="regime-1" class="p-6 rounded-2xl bg-zinc-900/60 border-2 border-emerald-500/50 space-y-4">
@@ -2305,11 +2378,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             Regime 1 &bull; Spot-Led Expansion
           </span>
-          <span class="text-xs font-mono text-emerald-300 font-bold">Loop A: Accumulate Dips | Hold BTC Sleeve</span>
+          <span class="text-xs font-mono text-emerald-300 font-bold">Loop A: Accumulate Dips | Hold Spot BTC</span>
         </div>
         <h3 class="text-lg font-bold text-white">Genuine spot demand supporting upward structure</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Real institutional bids absorb supply above Daily &amp; Weekly VWAP without excessive perp leverage. Loop A deploys on VWAP pullbacks; Loop B holds the 10% BTC sleeve for expansion instead of selling prematurely.
+          Real institutional bids absorb supply above Daily &amp; Weekly VWAP without excessive perp leverage. Loop A deploys on VWAP pullbacks; Loop B holds active Spot BTC for expansion instead of selling prematurely.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-emerald-500/30">
           <div class="font-bold text-emerald-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
@@ -2320,8 +2393,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-emerald-500/25">
-            <strong class="text-emerald-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
-            <span class="text-zinc-200">Deploy Loop A (10% USDT &rarr; BTC) at Daily/Weekly VWAP pullbacks; keep BTC sleeve riding trend.</span>
+            <strong class="text-emerald-300 block text-[11px] uppercase">Spot Swing Protocol:</strong>
+            <span class="text-zinc-200">Deploy Loop A (USDT &rarr; BTC) at Daily/Weekly VWAP pullbacks; keep Spot BTC riding trend.</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
             <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
@@ -2336,11 +2409,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/30">
             Regime 2 &bull; Leveraged / Fragile Upside
           </span>
-          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate 10% BTC &rarr; USDT (Harvest Squeeze)</span>
+          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate BTC &rarr; USDT (Harvest Squeeze)</span>
         </div>
         <h3 class="text-lg font-bold text-white">Upside driven by stretched perp leverage while Spot CVD lags</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Price pushes higher on surging OI and elevated funding while spot taker buyers step back. Ideal environment for <strong>Swing Loop B (BTC &rarr; USDT)</strong> to harvest the 10% BTC sleeve into retail euphoria—with strictly zero chase buying.
+          Price pushes higher on surging OI and elevated funding while spot taker buyers step back. Ideal environment for <strong>Swing Loop B (BTC &rarr; USDT)</strong> to harvest active Spot BTC into retail euphoria—with strictly zero chase buying.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-orange-500/30">
           <div class="font-bold text-orange-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
@@ -2351,8 +2424,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-sky-500/25">
-            <strong class="text-sky-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
-            <span class="text-zinc-200">Zero upside stop-buys. Rotate 10% BTC &rarr; USDT near upper short pool; rebuy on retrace &lt; P_sell.</span>
+            <strong class="text-sky-300 block text-[11px] uppercase">Spot Swing Protocol:</strong>
+            <span class="text-zinc-200">No chase stop-buys. Rotate BTC &rarr; USDT near upper short pool; rebuy on retrace &lt; P_sell.</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
             <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
@@ -2371,7 +2444,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <h3 class="text-lg font-bold text-white">Closed-4H horizontal channel where extremes trigger two-way swings</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Price oscillates inside a defined closed-4H channel bounded by upper short pools and lower long pools. DIBSE waits patiently in mid-range, buying swept lower floors (<strong>Loop A</strong>) and trimming swept upper ceilings (<strong>Loop B</strong>).
+          Price oscillates inside a defined closed-4H channel bounded by upper short pools and lower long pools. The engine waits patiently in mid-range, buying swept lower floors (<strong>Loop A</strong>) and trimming swept upper ceilings (<strong>Loop B</strong>).
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-cyan-500/30">
           <div class="font-bold text-cyan-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
@@ -2382,7 +2455,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-cyan-500/25">
-            <strong class="text-cyan-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
+            <strong class="text-cyan-300 block text-[11px] uppercase">Spot Swing Protocol:</strong>
             <span class="text-zinc-200">Wait mid-range; execute Loop A on lower LSCE reclaim or Loop B on upper LSCE rejection.</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
@@ -2398,11 +2471,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/30">
             Regime 4 &bull; Cascade / Forced Deleveraging
           </span>
-          <span class="text-xs font-mono text-amber-300 font-bold">Hold Both Sleeves (Do Not Catch Falling Knife)</span>
+          <span class="text-xs font-mono text-amber-300 font-bold">Hold Both Sides (Do Not Catch Falling Knife)</span>
         </div>
         <h3 class="text-lg font-bold text-white">Forced long unwind &amp; OI liquidation waterfall in progress</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Domino margin liquidations drive vertical drops as OI collapses. DIBSE keeps the 10% USDT sleeve strictly on standby until forced unwinding completes and a closed-4H washout stabilizes.
+          Domino margin liquidations drive vertical drops as OI collapses. Keep active USDT reserve strictly on standby until forced unwinding completes and a closed-4H washout stabilizes.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-rose-500/30">
           <div class="font-bold text-rose-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
@@ -2413,12 +2486,12 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-rose-500/25">
-            <strong class="text-rose-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
-            <span class="text-zinc-200">Hold 10% USDT dry until closed 4H bar stabilizes above washout low &amp; OI flatlines.</span>
+            <strong class="text-rose-300 block text-[11px] uppercase">Spot Swing Protocol:</strong>
+            <span class="text-zinc-200">Hold active USDT dry until closed 4H bar stabilizes above washout low &amp; OI flatlines.</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
-            <strong class="text-indigo-300 block text-[11px] uppercase">Self-Healing Rule:</strong>
-            <span class="text-zinc-200">Zero panic stop-sells on your 10% BTC sleeve during forced margin cascades.</span>
+            <strong class="text-indigo-300 block text-[11px] uppercase">Spot Patience Rule:</strong>
+            <span class="text-zinc-200">Zero panic stop-sells on active Spot BTC during forced margin cascades.</span>
           </div>
         </div>
       </div>
@@ -2429,11 +2502,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/30">
             Regime 5 &bull; Distribution / Bear Continuation
           </span>
-          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate 10% BTC &rarr; USDT on Weak Bounces</span>
+          <span class="text-xs font-mono text-sky-300 font-bold">Loop B: Rotate BTC &rarr; USDT on Weak Bounces</span>
         </div>
         <h3 class="text-lg font-bold text-white">Persistent seller control below Daily &amp; Weekly VWAP</h3>
         <p class="text-xs text-zinc-300 leading-relaxed">
-          Larger participants distribute into weak low-volume bounces below VWAP. Loop B converts the 10% BTC sleeve into Spot USDT to repurchase lower; Loop A pauses until deep structural support reclaims.
+          Larger participants distribute into weak low-volume bounces below VWAP. Loop B converts active Spot BTC into Spot USDT to repurchase lower; Loop A pauses until deep structural support reclaims.
         </p>
         <div class="text-xs space-y-1.5 bg-zinc-950/80 p-4 rounded-xl border border-red-500/30">
           <div class="font-bold text-red-400 uppercase tracking-wider text-[11px] mb-2">The 4 Primary Observations (Majority &ge;3):</div>
@@ -2444,8 +2517,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-sky-500/25">
-            <strong class="text-sky-300 block text-[11px] uppercase">DIBSE Sleeve Protocol:</strong>
-            <span class="text-zinc-200">Loop B sells 10% BTC &rarr; USDT into VWAP resistance rejections; rebuy lower below P_sell.</span>
+            <strong class="text-sky-300 block text-[11px] uppercase">Spot Swing Protocol:</strong>
+            <span class="text-zinc-200">Loop B sells active BTC &rarr; USDT into VWAP resistance rejections; rebuy lower below P_sell.</span>
           </div>
           <div class="p-3 rounded-lg bg-zinc-950/60 border border-indigo-500/25">
             <strong class="text-indigo-300 block text-[11px] uppercase">Macro Shift Trigger:</strong>
@@ -2483,7 +2556,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-700/60">
           <strong class="text-zinc-300 block uppercase text-[11px] mb-1">UNTESTED</strong>
-          <p class="text-zinc-400">Spot sits cleanly between lower and upper modeled shelves (&gt;0.20% inside channel). Holding both 10% USDT and 10% BTC sleeves.</p>
+          <p class="text-zinc-400">Spot sits cleanly between lower and upper modeled shelves (&gt;0.20% inside channel). Holding both USDT reserve and Spot BTC intact.</p>
         </div>
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-amber-500/40">
           <strong class="text-amber-300 block uppercase text-[11px] mb-1">SWEEP_IN_PROGRESS / UPPER_SWEEP_IN_PROGRESS</strong>
@@ -2491,11 +2564,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-emerald-500/40">
           <strong class="text-emerald-300 block uppercase text-[11px] mb-1">SWEEP_AND_RECLAIM_CONFIRMED (Loop A)</strong>
-          <p class="text-zinc-300">Spot reclaims lower shelf with <strong>Spot CVD &ge; 1.05</strong> &amp; <strong>Depth &ge; 0.50</strong>. Rotates 10% USDT &rarr; Spot BTC (target P_exit &gt; P_buy; zero stop-loss).</p>
+          <p class="text-zinc-300">Spot reclaims lower shelf with <strong>Spot CVD &ge; 1.05</strong> &amp; <strong>Depth &ge; 0.50</strong>. Rotates USDT reserve &rarr; Spot BTC (target P_exit &gt; P_buy; zero forced stop-loss).</p>
         </div>
         <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-sky-500/40">
           <strong class="text-sky-300 block uppercase text-[11px] mb-1">UPPER_SWEEP_REJECTION_CONFIRMED (Loop B)</strong>
-          <p class="text-zinc-300">Upper short-squeeze wick stalls with exhausted Spot CVD (&le;1.02) or overhead ask wall (Depth &lt; 0.90). Rotates 10% BTC &rarr; USDT (rebuy &lt; P_sell).</p>
+          <p class="text-zinc-300">Upper short-squeeze wick stalls with exhausted Spot CVD (&le;1.02) or overhead ask wall (Depth &lt; 0.90). Rotates active BTC &rarr; USDT (rebuy &lt; P_sell).</p>
         </div>
       </div>
     </div>
@@ -2742,17 +2815,17 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             + ")"
         ) if ls_avail else "DATA UNAVAILABLE"
 
-        regime_name = str(regime.get("name", "Transition / Mixed"))
-        diagnosis = wrap36(str(regime.get("diagnosis", "")))
-        tagline = wrap36(tagline_src)
-        dibse_signal = str(regime.get("dibse_signal", "HOLD BOTH SLEEVES"))
-        dibse_headline = wrap36(str(regime.get("dibse_action_headline", str(regime.get("action", "HOLD BOTH SLEEVES")))))
+        regime_name = self._public_copy(str(regime.get("name", "Transition / Mixed")))
+        diagnosis = wrap36(self._public_copy(str(regime.get("diagnosis", ""))))
+        tagline = wrap36(self._public_copy(tagline_src))
+        dibse_signal = self._public_copy(str(regime.get("dibse_signal", "HOLD BOTH SLEEVES")))
+        dibse_headline = wrap36(self._public_copy(str(regime.get("dibse_action_headline", str(regime.get("action", "HOLD BOTH SLEEVES"))))))
         rotation = str(regime.get("rotation", dibse_signal))
-        loop_a_zone = wrap36(str(regime.get("loop_a_zone", "WAIT FOR SUPPORT SWEEP")))
-        loop_b_zone = wrap36(str(regime.get("loop_b_zone", "WAIT FOR SQUEEZE EXHAUSTION")))
-        sleeve_alloc = str(regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core)"))
-        failure_protocol = wrap36(str(regime.get("failure_protocol", "Zero stop-losses. Asymmetric self-healing spot hold.")))
-        entry_inst = wrap36(str(regime.get("entry_instruction", "")))
+        loop_a_zone = wrap36(self._public_copy(str(regime.get("loop_a_zone", "WAIT FOR SUPPORT SWEEP"))))
+        loop_b_zone = wrap36(self._public_copy(str(regime.get("loop_b_zone", "WAIT FOR SQUEEZE EXHAUSTION"))))
+        sleeve_alloc = self._public_copy(str(regime.get("sleeve_allocation", "10% USDT + 10% BTC (80% Core)")))
+        failure_protocol = wrap36(self._public_copy(str(regime.get("failure_protocol", "Zero stop-losses. Asymmetric self-healing spot hold."))))
+        entry_inst = wrap36(self._public_copy(str(regime.get("entry_instruction", ""))))
         rule_score = str(regime.get("majority_score", "0/4 observations confirmed"))
         dom_magnet = str(regime.get("dominant_magnet", "Neutral"))
         imm_ratio = float(regime.get("immediate_imbalance_ratio", 1.0) or 1.0)
@@ -2832,14 +2905,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             f"Total (Est): {self._format_pool_m(tot_lower)} Down vs {self._format_pool_m(tot_upper)} Up",
         ])
 
-        plain_verdict = wrap36(str(regime.get("plain_english_verdict", "")))
-        why_pts = regime.get("why_points", [])
+        plain_verdict = wrap36(self._public_copy(str(regime.get("plain_english_verdict", ""))))
+        why_pts = [self._public_copy(str(pt)) for pt in regime.get("why_points", [])]
         why_1 = wrap36("1. " + why_pts[0]) if len(why_pts) > 0 else ""
         why_2 = wrap36("2. " + why_pts[1]) if len(why_pts) > 1 else ""
         why_3 = wrap36("3. " + why_pts[2]) if len(why_pts) > 2 else ""
-        why_sizing = wrap36(str(regime.get("why_sizing_reason", "")))
-        why_stop = wrap36(str(regime.get("why_stop_reason", failure_protocol)))
-        risk_summary_txt = wrap36(str(risk.get("risk_advisory", "")))
+        why_sizing = wrap36(self._public_copy(str(regime.get("why_sizing_reason", ""))))
+        why_stop = wrap36(self._public_copy(str(regime.get("why_stop_reason", failure_protocol))))
+        risk_summary_txt = wrap36(self._public_copy(str(risk.get("risk_advisory", ""))))
 
         mf = regime.get("magnet_factors", {})
         f1_size = wrap36(str(mf.get("factor_1_size", "")))
@@ -2879,17 +2952,17 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>BTC Magnet Monitor • Mobile Text Terminal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>BTC Magnet Monitor • Spot Liquidity Terminal</title>
   <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="BTC Magnet">
-  <link rel="manifest" href="manifest.json?v=7">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7">
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7">
-  <link rel="apple-touch-icon" href="icon-192.png?v=7">
-  <link rel="shortcut icon" href="icon-192.png?v=7">
+  <link rel="manifest" href="manifest.json?v=8">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=8">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=8">
+  <link rel="apple-touch-icon" href="icon-192.png?v=8">
+  <link rel="shortcut icon" href="icon-192.png?v=8">
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -2900,6 +2973,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       width: 100%;
       max-width: 100vw;
       overflow-x: hidden;
+      scroll-behavior: smooth;
       background-color: #09090b;
     }
     body {
@@ -2911,7 +2985,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       font-family: Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
       font-size: 11px;
       line-height: 1.5;
-      padding: 8px 8px 80px 8px;
+      padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(84px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
       -webkit-font-smoothing: antialiased;
     }
     .terminal-wrapper {
@@ -2988,6 +3062,36 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       font-family: inherit;
       line-height: 1.45;
       overflow-wrap: break-word;
+    }
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 7px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(56, 189, 248, 0.25);
+    }
+    .qpill {
+      display: inline-block;
+      padding: 3px 7px;
+      border-radius: 5px;
+      border: 1px solid #27272a;
+      background: #11131a;
+      color: #a1a1aa;
+      font-size: 9px;
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: 0.2px;
+    }
+    .qpill-v1 {
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.1);
+    }
+    .qpill-v2 {
+      border-color: rgba(192, 132, 252, 0.45);
+      color: #c084fc;
+      background: rgba(168, 85, 247, 0.1);
     }
 
     .stale-banner {
@@ -3319,18 +3423,25 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     <header class="app-brand-header">
       <div class="brand-top-row">
         <div class="brand-logo-squircle">
-          <img src="./assets/app-logo.png?v=7" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
+          <img src="./assets/app-logo.png?v=8" alt="BTC Magnet Monitor Logo" class="brand-logo-img">
         </div>
         <div class="brand-title-group">
-          <div class="header-line-1">BTC MAGNET MONITOR :: DIBSE ENGINE</div>
-          <div class="header-line-2">Dual-Inventory Bidirectional Spot Terminal</div>
+          <div class="header-line-1">BTC MAGNET MONITOR :: 5-REGIME RADAR</div>
+          <div class="header-line-2">Bidirectional Spot Liquidity Terminal</div>
         </div>
       </div>
       <div class="header-meta-sep">
-        MANDATE: DIBSE (10% USDT + 10% BTC | ZERO STOPS)<br>
+        MODE: SPOT-ONLY SWING RADAR (NO LEVERAGE)<br>
         SESSION: <span class="c-green" id="hdr-session">ACTIVE</span> &bull; CADENCE: EVERY 30M (:02/:32)<br>
         SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; NEXT: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
+      <nav class="quick-nav" aria-label="Quick section navigation">
+        <a href="#panel-1" class="qpill">Spot</a>
+        <a href="#panel-2" class="qpill">Feeds</a>
+        <a href="#panel-3" class="qpill">Regime</a>
+        <a href="#verdict-1" class="qpill qpill-v1">V1 AI</a>
+        <a href="#verdict-2" class="qpill qpill-v2">V2 Engine</a>
+      </nav>
       <div style="display:none;" aria-hidden="true">5-Regime Radar Observable Positioning Mechanics</div>
     </header>
 
@@ -3491,10 +3602,10 @@ compare with Verdict 2 (Built-In) below:</pre>
         </div>
 
         <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
-          <pre class="ascii"><span class="c-purple">Verdict 2 &bull; Built-In DIBSE Engine</span>
+          <pre class="ascii"><span class="c-purple">Verdict 2 &bull; Built-In Spot Engine</span>
 1. View Loop A (USDT&rarr;BTC) &amp; Loop B (BTC&rarr;USDT)
-   trigger zones, LSCE side, &amp; self-healing rule.
-2. Zero leverage. Zero forced stop-losses.
+   trigger zones, LSCE side, &amp; spot hold rule.
+2. Zero leverage. No forced stop-losses.
 Tip: Highest conviction when Verdict 1
 (Your AI) and Verdict 2 align.</pre>
           <a href="#verdict-2" style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;color:#c084fc;text-decoration:none;">&darr; Jump to Verdict 2</a>
@@ -3540,20 +3651,20 @@ Officer checklist. Verdict 2 stays hidden.</pre>
         </div>
       </div>
 
-      <!-- VERDICT 2: BUILT-IN DIBSE ENGINE (FULL-ON VIEW) -->
+      <!-- VERDICT 2: BUILT-IN SPOT ENGINE (FULL-ON VIEW) -->
       <div id="verdict-2" class="panel-box panel-box-purple">
-        <div class="panel-hdr">Verdict 2 &bull; Built-In DIBSE Engine</div>
+        <div class="panel-hdr">Verdict 2 &bull; Built-In Spot Engine</div>
 
         <div id="verdict2-ai-reminder" class="sub-card sub-card-sky">
           <pre class="ascii"><span class="c-cyan">Always Generate Verdict 1 AI &amp; Compare:</span>
 Verdict 2 is a fixed rule baseline only.
 Copy <span class="c-green">Verdict 1</span> into your AI for deeper
-context &amp; higher-accuracy DIBSE calls.</pre>
+context &amp; higher-accuracy swing calls.</pre>
           <a href="#verdict-1" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#38bdf8;text-decoration:none;">&uarr; Go to Verdict 1 (Copy to AI)</a>
         </div>
 
         <div class="sub-card sub-card-emerald">
-          <pre class="ascii">DIBSE Signal: <span class="c-cyan" style="font-weight:800;">__DIBSE_SIGNAL__</span>
+          <pre class="ascii">Spot Signal: <span class="c-cyan" style="font-weight:800;">__DIBSE_SIGNAL__</span>
 Action Headline:
 <span class="c-gold">__DIBSE_HEADLINE__</span>
 
@@ -3570,7 +3681,7 @@ __WHY_3__</pre>
         </div>
 
         <div class="sub-card sub-card-amber">
-          <pre class="ascii"><span class="c-amber">Dual-Sleeve Bidirectional Playbook:</span>
+          <pre class="ascii"><span class="c-amber">Spot Bidirectional Playbook:</span>
 Allocation: <span class="c-green">__SLEEVE_ALLOC__</span>
 
 Loop A (USDT &rarr; BTC &bull; Buy Support):
@@ -3585,7 +3696,7 @@ __RISK_SUMMARY__</pre>
         </div>
 
         <div class="sub-card sub-card-rose">
-          <pre class="ascii"><span class="c-rose">Asymmetric Self-Healing Protocol:</span>
+          <pre class="ascii"><span class="c-rose">Spot Patience &amp; Hold Rules:</span>
 __FAILURE_PROTOCOL__</pre>
         </div>
 
@@ -3636,7 +3747,7 @@ Decisive Call:
         BTC Magnet Monitor &bull; 5-Regime Radar
       </div>
       <div>
-        <a href="index.html">Web Dashboard</a> &bull;
+        <a href="index.html?desktop=1">Desktop View</a> &bull;
         <a href="regimes.html">5 Regimes &amp; Math</a> &bull;
         <a href="privacy.html">Privacy Policy</a>
       </div>
@@ -3748,7 +3859,7 @@ Decisive Call:
 
     function copyBlindPrompt() {
       syncWatermarksToDom(false);
-      copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied DIBSE Blind Telemetry!', 'copy-blind-btn');
+      copyTextPayload(BLIND_PROMPT_TEXT, '✓ Copied Blind Telemetry for AI!', 'copy-blind-btn');
     }
     syncWatermarksToDom(true);
 
@@ -3906,16 +4017,19 @@ Decisive Call:
       });
     }
 
+    const IS_NATIVE_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || location.protocol === 'file:';
+    const LIVE_BASE = IS_NATIVE_APP ? 'https://aikeluargalee-tech.github.io/btc-magnet-monitor/' : './';
+
     async function refreshLiveScan(manual) {
       if (document.hidden && !manual) return;
       let updated = false;
       try {
-        const res = await fetch('./regime.json?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(LIVE_BASE + 'regime.json?t=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         const liveTs = Date.parse(data && data.timestamp);
         if (!isNaN(liveTs) && liveTs > scanMs) {
-          const hres = await fetch('./text.html?t=' + Date.now(), { cache: 'no-store' });
+          const hres = await fetch(LIVE_BASE + 'text.html?t=' + Date.now(), { cache: 'no-store' });
           if (hres.ok) {
             const doc = new DOMParser().parseFromString(await hres.text(), 'text/html');
             const payloadNode = doc.getElementById('text-live-payload');
@@ -4011,6 +4125,40 @@ Decisive Call:
     }
     setInterval(updateLivePrice, 5000);
     updateLivePrice();
+
+    // PWA Service Worker Registration & Stale Cache Purge
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function (reg) { reg.update(); })
+          .catch(function () {});
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (key) {
+          if (key !== 'btc-magnet-pwa-v8') caches.delete(key);
+        });
+      });
+    }
+    // Native Capacitor Bridge & Google AdMob Initialization
+    if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {
+      try {
+        const { AdMob } = window.Capacitor.Plugins;
+        AdMob.initialize({
+          requestTrackingAuthorization: true,
+          initializeForTesting: true,
+        }).then(function () {
+          AdMob.showBanner({
+            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adSize: 'BANNER',
+            position: 'BOTTOM_CENTER',
+            margin: 0,
+            isTesting: true
+          }).catch(function () {});
+        }).catch(function () {});
+      } catch (e) {}
+    }
   </script>
 </body>
 </html>"""

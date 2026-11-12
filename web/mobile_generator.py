@@ -11,27 +11,27 @@ class MobileWebGenerator:
         manifest = {
             "name": "BTC Magnet Monitor",
             "short_name": "BTC Magnet",
-            "description": "Observable 5-Regime Radar & Liquidation Telemetry Cockpit",
-            "start_url": "./index.html",
+            "description": "Observable 5-Regime Radar & Spot Liquidity Mobile Terminal",
+            "start_url": "./text.html",
             "display": "standalone",
             "background_color": "#09090b",
             "theme_color": "#10b981",
             "orientation": "portrait-primary",
             "icons": [
                 {
-                    "src": "./icon-192.png?v=7",
+                    "src": "./icon-192.png?v=8",
                     "sizes": "192x192",
                     "type": "image/png",
                     "purpose": "any"
                 },
                 {
-                    "src": "./icon-512.png?v=7",
+                    "src": "./icon-512.png?v=8",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "any"
                 },
                 {
-                    "src": "./icon-maskable-512.png?v=7",
+                    "src": "./icon-maskable-512.png?v=8",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "maskable"
@@ -41,8 +41,9 @@ class MobileWebGenerator:
         return json.dumps(manifest, indent=2)
 
     def render_service_worker(self) -> str:
-        return """const CACHE_NAME = 'btc-magnet-pwa-v7';
+        return """const CACHE_NAME = 'btc-magnet-pwa-v8';
 const STATIC_ASSETS = [
+  './text.html',
   './index.html',
   './app.html',
   './regimes.html',

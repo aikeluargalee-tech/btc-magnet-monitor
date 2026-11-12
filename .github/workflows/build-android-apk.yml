@@ -82,7 +82,7 @@ jobs:
       - name: Verify the built APK is self-contained (no CDN, bundled CSS and fonts present)
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
-          for f in index.html app.html regimes.html privacy.html; do
+          for f in index.html text.html app.html regimes.html privacy.html; do
             if unzip -p "$APK" "assets/public/$f" | grep -qiE "(src|href)[[:space:]]*=[[:space:]]*[\"']?https?://(cdn\.tailwindcss\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)"; then
               echo "::error::$f inside the APK still loads a CDN resource"; exit 1
             fi
@@ -90,6 +90,8 @@ jobs:
           unzip -l "$APK" | grep -q "assets/public/tailwind.css" || { echo "::error::tailwind.css missing from APK"; exit 1; }
           unzip -l "$APK" | grep -q "assets/public/fonts/inter-latin-wght-normal.woff2" || { echo "::error::Inter font missing from APK"; exit 1; }
           unzip -p "$APK" assets/public/index.html | grep -q "data-age-banner" || { echo "::error::data-age banner missing from APK"; exit 1; }
+          unzip -p "$APK" assets/public/text.html | grep -q "terminal-wrapper" || { echo "::error::text.html terminal-wrapper missing from APK"; exit 1; }
+          unzip -p "$APK" assets/public/app.html | grep -q "terminal-wrapper" || { echo "::error::app.html terminal-wrapper missing from APK"; exit 1; }
           echo "APK self-containment checks passed."
           sha256sum "$APK"
 
