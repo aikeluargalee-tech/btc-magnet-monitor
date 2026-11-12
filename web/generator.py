@@ -4022,14 +4022,9 @@ Decisive Call:
     let nativeAdHeightCss = 0;
 
     function getMagnetNativeAdPlugin() {
-      if (
-        window.Capacitor &&
-        typeof window.Capacitor.isPluginAvailable === 'function' &&
-        window.Capacitor.isPluginAvailable('MagnetNativeAd') &&
-        window.Capacitor.Plugins &&
-        window.Capacitor.Plugins.MagnetNativeAd
-      ) {
-        return window.Capacitor.Plugins.MagnetNativeAd;
+      const plugins = window.Capacitor && window.Capacitor.Plugins;
+      if (plugins && plugins.MagnetNativeAd && typeof plugins.MagnetNativeAd.loadAndAttach === 'function') {
+        return plugins.MagnetNativeAd;
       }
       return null;
     }
@@ -4310,22 +4305,32 @@ Decisive Call:
           const nativePlugin = getMagnetNativeAdPlugin();
           if (nativePlugin) {
             const wrapperEl = document.querySelector('.terminal-wrapper');
-            const slotWidth = Math.max(
-              200,
-              Math.round(wrapperEl ? wrapperEl.getBoundingClientRect().width : (window.innerWidth - 16))
-            );
-            if (typeof nativePlugin.addListener === 'function') {
-              nativePlugin.addListener('nativeAdLoaded', function (ev) {
-                if (ev && ev.heightCss > 0) {
-                  nativeAdHeightCss = ev.heightCss;
-                  requestAnimationFrame(syncNativeAdSlot);
+            const getSlotWidth = function () {
+              return Math.max(
+                200,
+                Math.round(wrapperEl ? wrapperEl.getBoundingClientRect().width : (window.innerWidth - 16))
+              );
+            };
+            const attachNativeListener = function (eventName, handler) {
+              if (typeof nativePlugin.addListener !== 'function') return;
+              try {
+                // Capacitor's native bridge returns { remove } synchronously, not a Promise.
+                const handle = nativePlugin.addListener(eventName, handler);
+                if (handle && typeof handle.catch === 'function') {
+                  handle.catch(function () {});
                 }
-              }).catch(function () {});
-              nativePlugin.addListener('nativeAdFailed', function () {
-                nativeAdHeightCss = 0;
-                syncNativeAdSlot();
-              }).catch(function () {});
-            }
+              } catch (e) {}
+            };
+            attachNativeListener('nativeAdLoaded', function (ev) {
+              if (ev && ev.heightCss > 0) {
+                nativeAdHeightCss = ev.heightCss;
+                requestAnimationFrame(syncNativeAdSlot);
+              }
+            });
+            attachNativeListener('nativeAdFailed', function () {
+              nativeAdHeightCss = 0;
+              syncNativeAdSlot();
+            });
             if (typeof ResizeObserver === 'function' && wrapperEl) {
               new ResizeObserver(function () {
                 if (nativeAdHeightCss > 0) syncNativeAdSlot();
@@ -4337,15 +4342,24 @@ Decisive Call:
             window.addEventListener('load', function () {
               if (nativeAdHeightCss > 0) syncNativeAdSlot();
             });
-            nativePlugin.loadAndAttach({
-              adUnitId: 'ca-app-pub-3940256099942544/2247696110',
-              widthCss: slotWidth
-            }).then(function (res) {
-              if (res && res.heightCss > 0) {
-                nativeAdHeightCss = res.heightCss;
-                requestAnimationFrame(syncNativeAdSlot);
-              }
-            }).catch(function () {});
+            let nativeRetries = 0;
+            const requestNativeAd = function () {
+              nativePlugin.loadAndAttach({
+                adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+                widthCss: getSlotWidth()
+              }).then(function (res) {
+                if (res && res.heightCss > 0) {
+                  nativeAdHeightCss = res.heightCss;
+                  requestAnimationFrame(syncNativeAdSlot);
+                }
+              }).catch(function () {
+                if (nativeRetries < 1 && nativeAdHeightCss <= 0) {
+                  nativeRetries += 1;
+                  setTimeout(requestNativeAd, 4000);
+                }
+              });
+            };
+            requestNativeAd();
           }
         }).catch(function () {});
       } catch (e) {}

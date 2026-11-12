@@ -337,8 +337,15 @@ class TestScalabilityAndNativeAd(unittest.TestCase):
                 "MagnetNativeAd",
                 "ca-app-pub-3940256099942544/2247696110",
                 "syncNativeAdSlot",
+                "attachNativeListener",
             ):
                 self.assertIn(token, text_html, f"Missing {token} in text.html")
+
+            import re
+            self.assertIsNone(
+                re.search(r"addListener\s*\([\s\S]{0,400}?\)\s*\.catch\s*\(", text_html),
+                "Capacitor native addListener returns {remove} synchronously; chaining .catch() throws TypeError",
+            )
 
             self.assertIn('id="native-ad-anchor"', text_html)
             self.assertIn('id="verdict-guide"', text_html)
