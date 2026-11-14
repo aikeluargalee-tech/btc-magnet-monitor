@@ -125,8 +125,11 @@ class TestGeneratedSite(unittest.TestCase):
             'id="entry-native-ad-anchor"',
             "initEntryNativeAd",
             "backdrop-filter: blur(",
+            ".entry-wrapper",
+            "rgba(168, 85, 247",
         ):
             self.assertIn(token, entry_html, f"Missing {token} in entry.html")
+        self.assertNotIn("querySelector('.entry-wrap')", entry_html)
 
         self.assertLess(
             entry_html.index('id="entry-badger-card"'),
@@ -211,7 +214,9 @@ class TestGeneratedSite(unittest.TestCase):
 
         self.assertIn("window.BtcMagnetI18n", i18n_js)
         self.assertIn("localizeBlindPrompt", i18n_js)
-        for lang in ("en", "zh", "id", "ko", "ja", "fr"):
+        self.assertIn("btc-lang-flag", i18n_js)
+        self.assertIn("<svg", i18n_js)
+        for lang in ("en", "zh", "id", "ko", "ja", "fr", "es"):
             self.assertIn(lang, SUPPORTED_LANGS)
             if lang != "en":
                 self.assertIn(lang, AI_PROMPT_DIRECTIVES)

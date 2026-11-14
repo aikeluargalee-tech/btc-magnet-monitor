@@ -2082,8 +2082,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         }}
       }} catch (e) {{}}
     }});
-    // Native Capacitor Bridge & Google AdMob Initialization
-    if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
+    // Native Capacitor Bridge & Google AdMob Initialization (skip when redirecting desktop->entry)
+    const _skipRedirect = (new URLSearchParams(window.location.search)).get('desktop') === '1' || window.location.protocol === 'file:';
+    const _willRedirectToEntry = !_skipRedirect && (!!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || ((window.matchMedia && window.matchMedia('(max-width: 767px)').matches) || (window.innerWidth > 0 && window.innerWidth < 768)));
+    if (!_willRedirectToEntry && window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob')) {{
       try {{
         const {{ AdMob }} = window.Capacitor.Plugins;
         AdMob.initialize({{
@@ -3013,11 +3015,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       padding: 8px 18px;
       border-radius: 999px;
       overflow: hidden;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.24) 0%, rgba(6, 95, 70, 0.34) 55%, rgba(52, 211, 153, 0.16) 100%);
-      border: 1px solid rgba(167, 243, 208, 0.45);
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.32) 0%, rgba(109, 40, 217, 0.42) 55%, rgba(192, 132, 252, 0.22) 100%);
+      border: 1px solid rgba(216, 180, 254, 0.55);
       backdrop-filter: blur(16px) saturate(165%);
       -webkit-backdrop-filter: blur(16px) saturate(165%);
-      color: #ecfdf5;
+      color: #faf5ff;
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.45px;
@@ -3025,9 +3027,9 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       text-transform: uppercase;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
       box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.4),
-        inset 0 -1px 2px rgba(6, 78, 59, 0.55),
-        0 6px 20px rgba(16, 185, 129, 0.22);
+        inset 0 1px 1px rgba(255, 255, 255, 0.45),
+        inset 0 -1px 2px rgba(76, 29, 149, 0.65),
+        0 6px 22px rgba(168, 85, 247, 0.32);
       transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
     }
     .enter-btn::before {
@@ -3040,11 +3042,11 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       pointer-events: none;
     }
     .enter-btn:hover {
-      border-color: rgba(167, 243, 208, 0.72);
+      border-color: rgba(233, 213, 255, 0.8);
       box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.5),
-        inset 0 -1px 2px rgba(6, 78, 59, 0.65),
-        0 8px 24px rgba(16, 185, 129, 0.34);
+        inset 0 1px 1px rgba(255, 255, 255, 0.55),
+        inset 0 -1px 2px rgba(76, 29, 149, 0.75),
+        0 8px 26px rgba(168, 85, 247, 0.45);
       transform: translateY(-1px);
     }
     .enter-btn:active {
@@ -3488,16 +3490,23 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }
     }
 
-    function initEntryNativeAd() {
+    let entryNativeAdRequestFn = null;
+    let entryNativeAdLastReqAt = 0;
+
+    function initEntryNativeAd(forceReload) {
       if (entryNativeAdBooted) {
-        syncEntryNativeAdSlot();
+        if (forceReload && typeof entryNativeAdRequestFn === 'function' && (Date.now() - entryNativeAdLastReqAt) > 800) {
+          entryNativeAdRequestFn();
+        } else {
+          syncEntryNativeAdSlot();
+        }
         return;
       }
       const plugin = getEntryNativeAdPlugin();
       if (!plugin) return;
       entryNativeAdBooted = true;
 
-      const wrapEl = document.querySelector('.entry-wrap');
+      const wrapEl = document.querySelector('.entry-wrapper');
       const getSlotWidth = function () {
         return Math.max(
           200,
@@ -3523,15 +3532,31 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         entryNativeAdHeightCss = 0;
         syncEntryNativeAdSlot();
       });
-      if (typeof ResizeObserver === 'function' && wrapEl) {
-        new ResizeObserver(function () {
+      if (typeof ResizeObserver === 'function') {
+        const ro = new ResizeObserver(function () {
           if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
-        }).observe(wrapEl);
+        });
+        [
+          wrapEl,
+          document.getElementById('entry-data-slot'),
+          document.getElementById('entry-badger-card')
+        ].forEach(function (el) {
+          if (el) ro.observe(el);
+        });
+      }
+      const badgerVid = document.getElementById('entry-badger-video');
+      if (badgerVid) {
+        ['loadedmetadata', 'loadeddata', 'canplay'].forEach(function (evName) {
+          badgerVid.addEventListener(evName, function () {
+            if (entryNativeAdHeightCss > 0) requestAnimationFrame(syncEntryNativeAdSlot);
+          });
+        });
       }
 
       const startLoad = function () {
         let retries = 0;
         const requestAd = function () {
+          entryNativeAdLastReqAt = Date.now();
           plugin.loadAndAttach({
             adUnitId: 'ca-app-pub-3940256099942544/2247696110',
             widthCss: getSlotWidth()
@@ -3541,11 +3566,15 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
               requestAnimationFrame(syncEntryNativeAdSlot);
             }
           }).catch(function () {
-            if (retries < 1 && entryNativeAdHeightCss <= 0) {
+            if (retries < 3 && entryNativeAdHeightCss <= 0) {
               retries += 1;
-              setTimeout(requestAd, 4000);
+              setTimeout(requestAd, 2500);
             }
           });
+        };
+        entryNativeAdRequestFn = function () {
+          retries = 0;
+          requestAd();
         };
         requestAd();
       };
@@ -3556,13 +3585,10 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
           admob.initialize({
             requestTrackingAuthorization: true,
             initializeForTesting: true,
-          }).then(startLoad).catch(startLoad);
-        } else {
-          startLoad();
+          }).catch(function () {});
         }
-      } catch (e) {
-        startLoad();
-      }
+      } catch (e) {}
+      startLoad();
     }
 
     function hideMonitorOverlaysOnEntry() {
@@ -3765,12 +3791,13 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       await fetchEntryLiveDepth(p);
     }
 
+    let entryNativeScrollRaf = false;
     window.addEventListener('load', function () {
       hideMonitorOverlaysOnEntry();
       ensureEntryVideoPlays();
       refreshEntryLiveData();
       refreshEntryRegimeSnapshot();
-      initEntryNativeAd();
+      initEntryNativeAd(false);
       if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
     });
     window.addEventListener('pageshow', function () {
@@ -3778,12 +3805,21 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       ensureEntryVideoPlays();
       refreshEntryLiveData();
       refreshEntryRegimeSnapshot();
-      initEntryNativeAd();
+      initEntryNativeAd(true);
       if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
     });
     window.addEventListener('resize', function () {
       if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
     });
+    window.addEventListener('scroll', function () {
+      if (entryNativeAdHeightCss > 0 && !entryNativeScrollRaf) {
+        entryNativeScrollRaf = true;
+        requestAnimationFrame(function () {
+          entryNativeScrollRaf = false;
+          syncEntryNativeAdSlot();
+        });
+      }
+    }, { passive: true });
     window.addEventListener('btc-magnet:langchange', function () {
       if (entryNativeAdHeightCss > 0) requestAnimationFrame(syncEntryNativeAdSlot);
     });
@@ -3791,8 +3827,15 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       const plugin = getEntryNativeAdPlugin();
       if (plugin) plugin.setVisible({ visible: false }).catch(function () {});
     });
+    ensureEntryVideoPlays();
+    refreshEntryLiveData();
+    refreshEntryRegimeSnapshot();
+    initEntryNativeAd(false);
     setInterval(refreshEntryLiveData, 8000);
     setInterval(refreshEntryRegimeSnapshot, 30000);
+    setInterval(function () {
+      if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
+    }, 1500);
   </script>
   <script src="./i18n.js"></script>
 </body>

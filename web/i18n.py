@@ -15,15 +15,117 @@ import json
 from typing import Dict, Tuple
 
 
-SUPPORTED_LANGS: Tuple[str, ...] = ("en", "zh", "id", "ko", "ja", "fr")
+SUPPORTED_LANGS: Tuple[str, ...] = ("en", "zh", "id", "ko", "ja", "fr", "es")
 
 LANG_BUTTONS = [
-    {"code": "en", "short": "EN", "name": "English"},
-    {"code": "zh", "short": "中文", "name": "简体中文"},
-    {"code": "id", "short": "ID", "name": "Bahasa Indonesia"},
-    {"code": "ko", "short": "한국어", "name": "한국어"},
-    {"code": "ja", "short": "日本語", "name": "日本語"},
-    {"code": "fr", "short": "FR", "name": "Français"},
+    {
+        "code": "en",
+        "short": "EN",
+        "name": "English (US)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect width="24" height="16" fill="#ffffff"/>'
+            '<rect y="0" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="2.45" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="4.9" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="7.35" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="9.8" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="12.25" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect y="14.7" width="24" height="1.3" fill="#dc2626"/>'
+            '<rect width="10.5" height="8.65" fill="#1e3a8a"/>'
+            '<circle cx="2.3" cy="2" r="0.65" fill="#ffffff"/>'
+            '<circle cx="5.2" cy="2" r="0.65" fill="#ffffff"/>'
+            '<circle cx="8.1" cy="2" r="0.65" fill="#ffffff"/>'
+            '<circle cx="3.7" cy="4.3" r="0.65" fill="#ffffff"/>'
+            '<circle cx="6.7" cy="4.3" r="0.65" fill="#ffffff"/>'
+            '<circle cx="2.3" cy="6.6" r="0.65" fill="#ffffff"/>'
+            '<circle cx="5.2" cy="6.6" r="0.65" fill="#ffffff"/>'
+            '<circle cx="8.1" cy="6.6" r="0.65" fill="#ffffff"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "zh",
+        "short": "中文",
+        "name": "简体中文 (CN)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect width="24" height="16" fill="#de2910"/>'
+            '<polygon points="4.5,2.0 5.1,3.7 6.9,3.7 5.5,4.8 6.0,6.5 4.5,5.5 3.0,6.5 3.5,4.8 2.1,3.7 3.9,3.7" fill="#ffde00"/>'
+            '<circle cx="8.3" cy="2.1" r="0.65" fill="#ffde00"/>'
+            '<circle cx="9.5" cy="3.6" r="0.65" fill="#ffde00"/>'
+            '<circle cx="9.5" cy="5.5" r="0.65" fill="#ffde00"/>'
+            '<circle cx="8.3" cy="7.0" r="0.65" fill="#ffde00"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "id",
+        "short": "ID",
+        "name": "Bahasa Indonesia (ID)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect width="24" height="8" fill="#ce1126"/>'
+            '<rect y="8" width="24" height="8" fill="#ffffff"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "ko",
+        "short": "한국어",
+        "name": "한국어 (KR)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect width="24" height="16" fill="#ffffff"/>'
+            '<circle cx="12" cy="8" r="4" fill="#0047a0"/>'
+            '<path d="M8,8 A4,4 0 0,1 16,8 Z" fill="#cd2e3a"/>'
+            '<circle cx="10" cy="8" r="2" fill="#cd2e3a"/>'
+            '<circle cx="14" cy="8" r="2" fill="#0047a0"/>'
+            '<line x1="4.2" y1="4.8" x2="6.6" y2="2.4" stroke="#111827" stroke-width="1.1"/>'
+            '<line x1="17.4" y1="2.4" x2="19.8" y2="4.8" stroke="#111827" stroke-width="1.1"/>'
+            '<line x1="4.2" y1="11.2" x2="6.6" y2="13.6" stroke="#111827" stroke-width="1.1"/>'
+            '<line x1="17.4" y1="13.6" x2="19.8" y2="11.2" stroke="#111827" stroke-width="1.1"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "ja",
+        "short": "日本語",
+        "name": "日本語 (JP)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect width="24" height="16" fill="#ffffff"/>'
+            '<circle cx="12" cy="8" r="4.6" fill="#bc002d"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "fr",
+        "short": "FR",
+        "name": "Français (FR)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect x="0" width="8" height="16" fill="#002395"/>'
+            '<rect x="8" width="8" height="16" fill="#ffffff"/>'
+            '<rect x="16" width="8" height="16" fill="#ed2939"/>'
+            '</svg>'
+        ),
+    },
+    {
+        "code": "es",
+        "short": "ES",
+        "name": "Español (ES)",
+        "flagSvg": (
+            '<svg class="btc-lang-flag" viewBox="0 0 24 16" aria-hidden="true">'
+            '<rect y="0" width="24" height="4" fill="#aa151b"/>'
+            '<rect y="4" width="24" height="8" fill="#f1bf00"/>'
+            '<rect y="12" width="24" height="4" fill="#aa151b"/>'
+            '<rect x="6" y="6" width="3" height="4" rx="0.8" fill="#aa151b"/>'
+            '<rect x="6.5" y="6.8" width="2" height="1.2" fill="#f1bf00"/>'
+            '<rect x="6.6" y="5.1" width="1.8" height="0.8" fill="#b45309"/>'
+            '</svg>'
+        ),
+    },
 ]
 
 AI_PROMPT_DIRECTIVES: Dict[str, str] = {
@@ -61,6 +163,13 @@ AI_PROMPT_DIRECTIVES: Dict[str, str] = {
         "Selected User Language: French (Français).\n"
         "Please write your complete Verdict 1 analysis, key structural drivers, "
         "Loop A / Loop B plan, and risk gates in natural French (Français). "
+        "Keep exact BTC dollar levels, percentages, and raw telemetry values unchanged."
+    ),
+    "es": (
+        "\n\n[RESPONSE LANGUAGE DIRECTIVE]:\n"
+        "Selected User Language: Spanish (Español).\n"
+        "Please write your complete Verdict 1 analysis, key structural drivers, "
+        "Loop A / Loop B plan, and risk gates in natural Spanish (Español). "
         "Keep exact BTC dollar levels, percentages, and raw telemetry values unchanged."
     ),
 }
@@ -893,6 +1002,142 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "toast_cleared_wb": "✓ Seuils locaux effacés",
         "age_banner_live": "FLUX SPOT EN DIRECT ACTIF",
     },
+    "es": {
+        "brand_sub_entry": "Imanes de Liquidez • Radar 5-Regímenes",
+        "brand_pill_entry": "RADAR BIDIRECCIONAL • NIVELES EN VIVO • TELEMETRÍA IA",
+        "brand_badge_radar": "Radar 5-Regímenes",
+        "brand_sub_desktop": "Mecánica de Posicionamiento Observable e Inteligencia de Régimen",
+        "nav_desktop_btn": "🖥️ Panel Completo",
+        "nav_mobile_btn": "📱 Terminal Móvil",
+        "hdr_btc_price": "Precio de Bitcoin",
+        "footer_monitor_terminal": "Terminal Monitor",
+        "footer_regimes_math": "5 Regímenes y Modelo",
+        "footer_regimes_guide": "Guía de 5 Regímenes",
+        "footer_full_dashboard": "Panel 5 Vistas",
+        "footer_privacy": "Privacidad",
+        "footer_disclaimer": "Telemetría de mercado solo con fines informativos. No es asesoramiento financiero.",
+        "footer_research_disclaimer": "Solo con fines informativos y de análisis de riesgo. No es asesoramiento financiero.",
+
+        "entry_video1_cap": "ALCISTA vs BAJISTA • PRESIÓN DEL LIBRO",
+        "entry_video2_cap": "RUPTURA DE PROFUNDIDAD • BIDS vs ASKS",
+        "sound_off": "🔇 SILENCIO",
+        "sound_on": "🔊 SONIDO ON",
+        "entry_enter_btn": "Entrar a BTC Magnet Monitor →",
+        "entry_enter_sub": "Spot BTC en Vivo • Escalera de Liquidez • Veredicto 1 vs Veredicto 2",
+        "entry_pm_title": "Medidor de Presión Bull vs. Bear",
+        "entry_pm_live_badge": "● LIBRO EN VIVO",
+        "entry_pm_bar1": "1. Profundidad del Libro (±1.5 %)",
+        "entry_pm_bar2": "2. Flujo Agresivo (CVD 24H)",
+        "entry_pm_bar3": "3. Sesgo de Apalancamiento (L/S)",
+        "entry_snap_title": "Resumen de Telemetría en Vivo",
+        "entry_snap_price": "Precio Spot BTC",
+        "entry_snap_magnet": "Imán Dominante",
+        "entry_snap_regime": "Régimen Macro Activo",
+        "entry_snap_scan": "Último Escaneo Radar",
+        "entry_snap_cadence": "Cadencia: Cada 30 min (:02/:32 UTC)",
+        "entry_v1_title": "Por Qué y Cómo Te Ayuda Esta App",
+        "entry_v1_badge": "FUNCIÓN N.º 1 • VEREDICTO 1",
+        "entry_v1_intro_html": (
+            'Elimina el ruido emocional y los indicadores retrasados. BTC Magnet Monitor te ofrece la gravedad real del libro de órdenes, '
+            'imanes de liquidez y <strong class="c-amber">Telemetría IA en 1 toque</strong> antes de arriesgar capital:'
+        ),
+        "entry_v1_step1_html": (
+            '<span class="step-badge step-badge-amber">1</span>'
+            '<strong class="c-amber">Veredicto 1 &bull; Copiar Telemetría para IA (Función n.º 1):</strong> '
+            'Con un toque copias telemetría neutral y sin sesgo (cierre 4H, VWAP, OI, funding y muros de liquidez) '
+            'hacia ChatGPT, Claude, Gemini o Grok para una lectura estructural independiente.'
+        ),
+        "entry_v1_step2_html": (
+            '<span class="step-badge">2</span>'
+            '<strong class="c-cyan">Comparar con Veredicto 2 (Motor Integrado):</strong> '
+            'Contrasta el Veredicto 1 de tu IA frente a nuestro Radar 5-Regímenes determinista, niveles imán Loop A / Loop B y filtros de riesgo.'
+        ),
+        "entry_v1_step3_html": (
+            '<span class="step-badge">3</span>'
+            '<strong class="c-green">Ventaja de Microestructura en Vivo:</strong> '
+            'Sigue en tiempo real la presión Bids vs. Asks, el delta agresivo y el sesgo de la multitud para detectar dónde frena o acelera la liquidez.'
+        ),
+
+        "text_header_sub": "Terminal de Telemetría de Liquidez Bidireccional",
+        "text_mode_label": "MODO: RADAR IMÁN 5-REGÍMENES (BIDIRECCIONAL)",
+        "qnav_spot": "Spot",
+        "qnav_feeds": "Flujos",
+        "qnav_regime": "Régimen",
+        "qnav_v1": "V1 IA",
+        "qnav_v2": "V2 Motor",
+        "qnav_check": "↻ Verif.",
+
+        "p1_title": "Panel 1 • Precio Spot BTC en Tiempo Real (En Vivo)",
+        "p2_title_text": "Panel 2 • Telemetría Exchange (Bruto vs Modelado)",
+        "p2_title_index": "Panel 2 • Telemetría Exchange y Pools Modelados",
+        "p2_sub_index": "Flujos de Microestructura de Mercado en Vivo",
+        "p2_cat1": "1. Estructura 4H Cerrada",
+        "p2_cat2": "2. Flujo de Órdenes y CVD",
+        "p2_cat3": "3. Concentración de Derivados",
+        "p2_cat4": "4. Canal e Imanes",
+        "p3_title": "Panel 3 • Diagnóstico de Régimen Macro",
+        "p3_question": "¿En qué entorno de mercado opera Bitcoin ahora?",
+        "p3_sub": "Bitcoin se clasifica estrictamente en 1 de 5 regímenes deterministas (o Transición / Mixto si hay conflicto).",
+        "p3_learn_btn": "Ver los 5 Regímenes y Modelo",
+        "p3_active_badge": "Régimen Activo",
+        "p3_rule_confirm": "Confirmación de Reglas:",
+        "p3_evidence_hdr": "Evidencia Verificada en Exchange",
+        "p3_matrix_hdr": "Matriz del Radar 5-Regímenes",
+
+        "bridge_title_text": "Puente • Veredicto 1 vs Veredicto 2",
+        "bridge_badge_index": "⚖️ Puente • Dos Veredictos Independientes",
+        "bridge_h3_index": "Veredicto 1 (Tu Propia IA) vs Veredicto 2 (Motor Integrado)",
+        "bridge_desc_index": "Los paneles 1–3 muestran solo hechos cerrados sin sesgo. Genera el Veredicto 1 en tu IA y compáralo con el Veredicto 2.",
+        "v1_hdr_text": "Veredicto 1 • Tu Propia IA (Copiar)",
+        "v1_tag_index": "Veredicto 1 • Tu Propia IA (Sin Sesgo)",
+        "v1_h2_index": "Generar Veredicto 1 con Tu Propia IA",
+        "v1_desc_index": "Exportación limpia con estructura 4H cerrada, bandas de liquidación y tus umbrales opcionales — manteniendo oculto el Veredicto 2 para máxima objetividad.",
+        "v1_btn_text": "🧪 COPIAR TELEMETRÍA PARA IA",
+        "v1_btn_index": "Copiar Telemetría Neutral para IA",
+        "v1_wb_summary": "▸ Opcional: Umbrales P_buy / P_sell (Local)",
+        "v1_wb_summary_index": "▸ Opcional: Añadir Umbrales P_buy / P_sell (Local)",
+        "v1_wb_buy_lbl": "Costo Loop A ($P_buy)",
+        "v1_wb_sell_lbl": "Venta Loop B ($P_sell)",
+        "v1_wb_storage": "Guardado solo en tu navegador",
+        "v1_wb_clear": "Limpiar",
+        "v1_step1_title": "Copiar Telemetría Neutral",
+        "v1_step1_desc": "Exporta estructura 4H, CVD, OI y pools modelados + tus umbrales sin revelar el Veredicto 2.",
+        "v1_step2_title": "Pegar en Cualquier IA",
+        "v1_step2_desc": "Funciona en Claude, ChatGPT, Grok, Qwen o Gemini con contexto bidireccional listo para analizar.",
+        "v1_step3_title": "Cruzar Veredicto 1 vs Veredicto 2",
+        "v1_step3_desc": "Compara los niveles Loop A y Loop B de tu IA frente a los cálculos deterministas de abajo.",
+        "v1_preview_summary": "🧪 Vista Previa del Prompt de Telemetría IA",
+        "v1_expand_hint": "Tocar para expandir",
+        "v2_hdr_text": "Veredicto 2 • Motor Radar Integrado",
+        "v2_tag_index": "Veredicto 2 • Motor Radar Integrado",
+        "v2_h2_index": "Veredicto del Sistema Integrado",
+        "v2_desc_index": "Régimen determinista 4H cerrado, zonas imán Loop A & Loop B, compuerta simétrica LSCE y mapa de liquidez 10x–100x.",
+        "v2_reminder_title": "Genera siempre el Veredicto 1 (Tu IA) para comparar:",
+        "v2_reminder_desc": "El Veredicto 2 sigue reglas fijas. Copia el Veredicto 1 en tu IA para un análisis contextual profundo.",
+        "v2_reminder_link": "↑ Subir al Veredicto 1 (Copiar para IA)",
+        "v2_why_title": "¿Por Qué Esta Señal Bidireccional?",
+        "v2_factors_hdr": "Top 3 Impulsores de Mercado",
+        "v2_sizing_hdr": "Dimensionamiento y Paciencia Bidireccional",
+        "v2_patience_hdr": "Filtros de Riesgo y Reglas de Paciencia",
+        "v2_lsce_hdr": "Motor de Barrido Bidireccional (LSCE • 4H Cerrado)",
+        "v2_upper_pool": "Pool Short Superior (Objetivo Loop B)",
+        "v2_lower_pool": "Pool Long Inferior (Objetivo Loop A)",
+
+        "reg_badge": "Arquitectura Radar Bidireccional • Posicionamiento Observable",
+        "reg_h1": "Radar 5-Regímenes y Protocolo de Liquidez Bidireccional",
+        "reg_intro": "Cómo el Protocolo Bidireccional mapea imanes de cierre 4H, sesgos de apalancamiento y reservas de liquidez en los cinco regímenes.",
+        "reg_back_live": "← Volver al Monitor en Vivo",
+        "reg_return_live": "← Volver a BTC Magnet Monitor",
+        "reg_sec1_h2": "1. Filosofía: Liquidez Bidireccional y Filtros de Riesgo",
+        "reg_sec2_h2": "2. Cómo Funciona el Motor de Voto Mayoritario 4H",
+        "reg_sec3_h2": "3. Los 5 Regímenes de Mercado y Activadores",
+        "reg_sec4_h2": "4. Metodología de Pools Modelados y Escalera 4H",
+        "reg_sec5_h2": "5. Máquina de Estados LSCE y Reglas de Activación",
+
+        "toast_copied_v1": "✓ Telemetría IA Veredicto 1 copiada (respuesta IA en español)",
+        "toast_cleared_wb": "✓ Umbrales locales borrados",
+        "age_banner_live": "FLUJO SPOT EN VIVO ACTIVO",
+    },
 }
 
 # Dynamic exact/substring phrase replacements applied by i18n.js for live JS telemetry
@@ -1032,6 +1277,33 @@ PHRASE_MAP: Dict[str, Dict[str, str]] = {
         "Crowd leans short": "Foule surexposée Short",
         "Balanced Positioning": "Positionnement Équilibré",
     },
+    "es": {
+        "Spot-Led Expansion": "Expansión Liderada por Spot",
+        "Leveraged Fragile Upside": "Subida Frágil por Apalancamiento",
+        "Range / Liquidation Magnet": "Rango / Imán de Liquidación",
+        "Cascade / Forced Deleveraging": "Cascada / Desapalancamiento Forzado",
+        "Distribution / Bear Continuation": "Distribución / Continuación Bajista",
+        "Transition / Mixed": "Transición / Señales Mixtas",
+        "Lower Long Sweep Magnet": "Imán Barrido Long Inferior",
+        "Upper Short Squeeze Magnet": "Imán Squeeze Short Superior",
+        "Balanced / Symmetric Two-Way Magnet": "Imán Bidireccional Equilibrado",
+        "Hold Both Sides": "Esperar en Ambos Lados",
+        "ASIA ACCUMULATION": "ACUMULACIÓN ASIA",
+        "LONDON ACTIVE": "SESIÓN LONDRES ACTIVA",
+        "NEW YORK CORE": "NÚCLEO NUEVA YORK",
+        "US CLOSE / ASIA PRE-OPEN": "CIERRE EEUU / PRE-ASIA",
+        "Freshness: Verified ≤40m Window": "Estado: Verificado en ≤40 min",
+        "DATA UNAVAILABLE": "DATOS NO DISPONIBLES",
+        "Strong Bull Depth": "Fuerte Profundidad Compradora",
+        "Bear Ask Wall Dominant": "Muro Vendedor Dominante",
+        "Balanced Order Book": "Libro de Órdenes Equilibrado",
+        "Spot Buyers Aggressive": "Compradores Spot Agresivos",
+        "Spot Sellers Dominant": "Vendedores Spot Dominantes",
+        "Mixed Spot Taker Flow": "Flujo Taker Spot Mixto",
+        "Crowd leans long": "Multitud inclinada a Long",
+        "Crowd leans short": "Multitud inclinada a Short",
+        "Balanced Positioning": "Posicionamiento Equilibrado",
+    },
 }
 
 
@@ -1042,7 +1314,7 @@ def render_i18n_js() -> str:
     phrases_json = json.dumps(PHRASE_MAP, ensure_ascii=False)
     ai_dirs_json = json.dumps(AI_PROMPT_DIRECTIVES, ensure_ascii=False)
 
-    return f"""/* BTC Magnet Monitor — Offline Multi-Language Engine (EN / ZH / ID / KO / JA / FR) */
+    return f"""/* BTC Magnet Monitor — Offline Multi-Language Engine (EN / ZH / ID / KO / JA / FR / ES) */
 (function () {{
   const STORAGE_KEY = 'btc_magnet_lang';
   const LANG_BUTTONS = {buttons_json};
@@ -1075,13 +1347,14 @@ def render_i18n_js() -> str:
     st.id = 'btc-i18n-styles';
     st.textContent =
       '.btc-lang-bar{{display:flex;flex-wrap:wrap;align-items:center;gap:4px;}}' +
-      '.btc-lang-pill{{background:#11141d;border:1px solid rgba(113,113,122,0.5);color:#d4d4d8;' +
-      'font-family:inherit;font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px;' +
-      'cursor:pointer;line-height:1.2;transition:all .15s ease;user-select:none;}}' +
-      '.btc-lang-pill:hover{{border-color:#38bdf8;color:#ffffff;}}' +
-      '.btc-lang-pill.is-active{{background:rgba(16,185,129,0.18);border-color:#10b981;color:#6ee7b7;' +
-      'box-shadow:0 0 10px rgba(16,185,129,0.25);}}' +
-      '@media (max-width:480px){{.btc-lang-pill{{font-size:9px;padding:3px 6px;}}}}';
+      '.btc-lang-pill{{display:inline-flex;align-items:center;justify-content:center;background:#11141d;' +
+      'border:1px solid rgba(113,113,122,0.5);color:#d4d4d8;padding:3px 5px;border-radius:7px;' +
+      'cursor:pointer;line-height:1;transition:all .15s ease;user-select:none;}}' +
+      '.btc-lang-pill:hover{{border-color:#38bdf8;color:#ffffff;transform:translateY(-1px);}}' +
+      '.btc-lang-pill.is-active{{background:rgba(16,185,129,0.22);border-color:#10b981;color:#6ee7b7;' +
+      'box-shadow:0 0 10px rgba(16,185,129,0.35);}}' +
+      '.btc-lang-flag{{width:20px;height:14px;display:block;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,0.14);}}' +
+      '@media (max-width:480px){{.btc-lang-pill{{padding:3px 4px;}}.btc-lang-flag{{width:18px;height:12px;}}}}';
     document.head.appendChild(st);
   }}
 
@@ -1098,8 +1371,9 @@ def render_i18n_js() -> str:
         btn.className = 'btc-lang-pill' + (b.code === currentLang ? ' is-active' : '');
         btn.setAttribute('data-lang', b.code);
         btn.setAttribute('title', b.name);
+        btn.setAttribute('aria-label', b.name);
         btn.setAttribute('aria-pressed', b.code === currentLang ? 'true' : 'false');
-        btn.textContent = b.short;
+        btn.innerHTML = b.flagSvg || b.short;
         btn.addEventListener('click', function () {{
           setLang(b.code);
         }});

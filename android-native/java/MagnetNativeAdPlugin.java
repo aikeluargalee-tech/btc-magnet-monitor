@@ -26,6 +26,7 @@ import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdLoader;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.VideoOptions;
 import com.google.android.gms.ads.nativead.MediaView;
 import com.google.android.gms.ads.nativead.NativeAd;
@@ -72,10 +73,22 @@ public class MagnetNativeAdPlugin extends Plugin {
 
         activity.runOnUiThread(() -> {
             ensureHostAttached();
+            MobileAds.initialize(activity);
             hasAnchorRect = false;
             slotVisible = false;
             if (initialWidthCss > 0f) {
                 anchorWidthCss = initialWidthCss;
+            }
+
+            if (currentNativeAd != null && adWrapper != null && nativeAdView != null) {
+                double heightCss = measureAndApplyWrapperSize();
+                repositionCard();
+                JSObject result = new JSObject();
+                result.put("heightCss", heightCss);
+                result.put("headline", currentNativeAd.getHeadline());
+                notifyListeners("nativeAdLoaded", result);
+                call.resolve(result);
+                return;
             }
 
             NativeAdOptions adOptions = new NativeAdOptions.Builder()
@@ -231,6 +244,10 @@ public class MagnetNativeAdPlugin extends Plugin {
             // Insert immediately above WebView (index 0) and below any bottom AdMob banner added later.
             int insertIndex = Math.min(1, rootContainer.getChildCount());
             rootContainer.addView(adViewportHost, insertIndex, lp);
+            adViewportHost.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                updateViewportClipBounds();
+                repositionCard();
+            });
         }
 
         if (rootLayoutListener == null) {
