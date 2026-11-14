@@ -41,7 +41,7 @@ class MobileWebGenerator:
         return json.dumps(manifest, indent=2)
 
     def render_service_worker(self) -> str:
-        return """const CACHE_NAME = 'btc-magnet-pwa-v8';
+        return """const CACHE_NAME = 'btc-magnet-pwa-v10';
 const STATIC_ASSETS = [
   './entry.html',
   './text.html',
@@ -50,6 +50,7 @@ const STATIC_ASSETS = [
   './regimes.html',
   './privacy.html',
   './i18n.js',
+  './i18n.js?v=10',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -81,8 +82,8 @@ self.addEventListener('fetch', (e) => {
   if (!e.request.url.startsWith(self.location.origin)) {
     return; // Pass through external feeds (Binance, Deribit) directly
   }
-  // NETWORK-FIRST FOR HTML PAGES AND LIVE METRICS (Always fresh, offline fallback)
-  if (e.request.mode === 'navigate' || e.request.url.endsWith('.html') || e.request.url.includes('regime.json')) {
+  // NETWORK-FIRST FOR HTML PAGES, I18N SCRIPT, AND LIVE METRICS (Always fresh, offline fallback)
+  if (e.request.mode === 'navigate' || e.request.url.endsWith('.html') || e.request.url.includes('.html?') || e.request.url.includes('i18n.js') || e.request.url.includes('regime.json')) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {

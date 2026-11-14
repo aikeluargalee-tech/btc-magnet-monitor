@@ -2066,7 +2066,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     if ('caches' in window) {{
       caches.keys().then((keys) => {{
         keys.forEach((key) => {{
-          if (key !== 'btc-magnet-pwa-v8') {{
+          if (key !== 'btc-magnet-pwa-v10') {{
             caches.delete(key);
           }}
         }});
@@ -2103,7 +2103,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }} catch (e) {{}}
     }}
   </script>
-  <script src="./i18n.js"></script>
+  <script src="./i18n.js?v=10"></script>
 
 </body>
 </html>"""
@@ -2673,7 +2673,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       }} catch (e) {{}}
     }}
   </script>
-  <script src="./i18n.js"></script>
+  <script src="./i18n.js?v=10"></script>
 
 </body>
 </html>"""
@@ -2897,7 +2897,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       margin-top: 2px;
     }
     .mandate-pill {
-      display: inline-block;
+      display: block;
+      text-align: center;
       margin-top: 8px;
       padding: 3px 8px;
       border-radius: 4px;
@@ -2907,6 +2908,16 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       font-size: 9px;
       font-weight: 800;
       letter-spacing: 0.4px;
+    }
+    .brand-bar [data-i18n-switcher] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 8px;
+      padding-top: 7px;
+      border-top: 1px dashed rgba(56, 189, 248, 0.25);
     }
     .video-card {
       position: relative;
@@ -3241,7 +3252,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
       </div>
       <div data-i18n="brand_pill_entry" class="mandate-pill">BIDIRECTIONAL RADAR &bull; LIVE MAGNET LEVELS &bull; AI TELEMETRY</div>
-      <div data-i18n-switcher style="margin-top: 8px; width: 100%; justify-content: center;"></div>
+      <div data-i18n-switcher style="margin-top: 8px; width: 100%; display: flex; justify-content: center;"></div>
     </div>
 
     <div class="video-card">
@@ -3836,8 +3847,20 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     setInterval(function () {
       if (entryNativeAdHeightCss > 0) syncEntryNativeAdSlot();
     }, 1500);
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function (reg) { reg.update(); })
+        .catch(function () {});
+    }
+    if ('caches' in window) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (key) {
+          if (key !== 'btc-magnet-pwa-v10') caches.delete(key);
+        });
+      });
+    }
   </script>
-  <script src="./i18n.js"></script>
+  <script src="./i18n.js?v=10"></script>
 </body>
 </html>"""
 
@@ -4251,6 +4274,16 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       line-height: 1.45;
       overflow-wrap: break-word;
     }
+    .app-brand-header [data-i18n-switcher] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin: 7px 0 2px 0;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(56, 189, 248, 0.25);
+    }
     .quick-nav {
       display: flex;
       flex-wrap: wrap;
@@ -4643,7 +4676,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         SESSION: <span class="c-green" id="hdr-session">ACTIVE</span> &bull; CADENCE: EVERY 30M (:02/:32)<br>
         SCAN: <span class="c-cyan" id="hdr-scan-ts">__TIME_UTC__</span> &bull; NEXT: <span class="c-amber" id="hdr-next-upd">--:-- UTC</span> (<span class="c-green" id="hdr-countdown">in --m --s</span>)
       </div>
-      <div data-i18n-switcher style="margin: 6px 0 4px 0;"></div>
+      <div data-i18n-switcher style="margin: 7px 0 2px 0; width: 100%; display: flex; justify-content: center;"></div>
       <nav class="quick-nav" aria-label="Quick section navigation">
         <a href="#panel-1" data-i18n="qnav_spot" class="qpill">Spot</a>
         <a href="#panel-2" data-i18n="qnav_feeds" class="qpill">Feeds</a>
@@ -5430,7 +5463,7 @@ Decisive Call:
     if ('caches' in window) {
       caches.keys().then(function (keys) {
         keys.forEach(function (key) {
-          if (key !== 'btc-magnet-pwa-v8') caches.delete(key);
+          if (key !== 'btc-magnet-pwa-v10') caches.delete(key);
         });
       });
     }
@@ -5522,7 +5555,7 @@ Decisive Call:
       } catch (e) {}
     }
   </script>
-  <script src="./i18n.js"></script>
+  <script src="./i18n.js?v=10"></script>
 </body>
 </html>"""
 

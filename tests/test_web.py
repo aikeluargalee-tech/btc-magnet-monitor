@@ -59,7 +59,7 @@ class TestGeneratedSite(unittest.TestCase):
         with open(os.path.join(self.tmp, "sw.js"), "r", encoding="utf-8") as fh:
             sw = fh.read()
         self.assertIn("res.ok && res.status === 200", sw)
-        self.assertIn("pwa-v8", sw)
+        self.assertIn("pwa-v10", sw)
         self.assertIn("'./entry.html'", sw)
         self.assertIn("'./text.html'", sw)
 
@@ -229,11 +229,14 @@ class TestGeneratedSite(unittest.TestCase):
         with open(os.path.join(self.tmp, "sw.js"), "r", encoding="utf-8") as f:
             sw_js = f.read()
         self.assertIn("'./i18n.js'", sw_js)
+        self.assertIn("'./i18n.js?v=10'", sw_js)
+        self.assertIn("e.request.url.includes('i18n.js')", sw_js)
+        self.assertIn("btc-magnet-pwa-v10", sw_js)
 
         for fname in ("entry.html", "text.html", "app.html", "index.html", "regimes.html"):
             with open(os.path.join(self.tmp, fname), "r", encoding="utf-8") as f:
                 doc = f.read()
-            self.assertIn('src="./i18n.js"', doc, f"{fname} missing ./i18n.js script tag")
+            self.assertIn('src="./i18n.js?v=10"', doc, f"{fname} missing ./i18n.js?v=10 script tag")
             self.assertIn("data-i18n-switcher", doc, f"{fname} missing language switcher mount")
             if fname in ("index.html", "text.html", "app.html"):
                 self.assertIn("localizeBlindPrompt", doc, f"{fname} missing localizeBlindPrompt hook")
