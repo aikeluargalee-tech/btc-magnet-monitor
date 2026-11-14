@@ -2916,7 +2916,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       border-radius: 10px;
       overflow: hidden;
       box-shadow: 0 0 22px rgba(16, 185, 129, 0.16);
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .video-stage {
       position: relative;
@@ -3000,19 +3000,19 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 14px;
+      margin-bottom: 9px;
     }
     .enter-btn {
       position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 5px;
       width: auto;
-      min-width: 210px;
-      max-width: 92%;
-      min-height: 36px;
-      padding: 8px 18px;
+      min-width: 0;
+      max-width: 90%;
+      min-height: 26px;
+      padding: 4px 12px;
       border-radius: 999px;
       overflow: hidden;
       background: linear-gradient(135deg, rgba(168, 85, 247, 0.32) 0%, rgba(109, 40, 217, 0.42) 55%, rgba(192, 132, 252, 0.22) 100%);
@@ -3020,16 +3020,16 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
       backdrop-filter: blur(16px) saturate(165%);
       -webkit-backdrop-filter: blur(16px) saturate(165%);
       color: #faf5ff;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.45px;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
       text-decoration: none;
       text-transform: uppercase;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
       box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.45),
-        inset 0 -1px 2px rgba(76, 29, 149, 0.65),
-        0 6px 22px rgba(168, 85, 247, 0.32);
+        inset 0 1px 1px rgba(255, 255, 255, 0.42),
+        inset 0 -1px 2px rgba(76, 29, 149, 0.6),
+        0 3px 10px rgba(168, 85, 247, 0.22);
       transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
     }
     .enter-btn::before {
@@ -3044,9 +3044,9 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     .enter-btn:hover {
       border-color: rgba(233, 213, 255, 0.8);
       box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.55),
-        inset 0 -1px 2px rgba(76, 29, 149, 0.75),
-        0 8px 26px rgba(168, 85, 247, 0.45);
+        inset 0 1px 1px rgba(255, 255, 255, 0.52),
+        inset 0 -1px 2px rgba(76, 29, 149, 0.72),
+        0 4px 14px rgba(168, 85, 247, 0.34);
       transform: translateY(-1px);
     }
     .enter-btn:active {
@@ -3055,8 +3055,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
     .enter-sub {
       text-align: center;
       color: #a1a1aa;
-      font-size: 9px;
-      margin-top: 6px;
+      font-size: 8.5px;
+      margin-top: 4px;
     }
     .data-card {
       background: #101218;
@@ -3241,7 +3241,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         </div>
       </div>
       <div data-i18n="brand_pill_entry" class="mandate-pill">BIDIRECTIONAL RADAR &bull; LIVE MAGNET LEVELS &bull; AI TELEMETRY</div>
-      <div data-i18n-switcher style="margin-top: 8px;"></div>
+      <div data-i18n-switcher style="margin-top: 8px; width: 100%; justify-content: center;"></div>
     </div>
 
     <div class="video-card">

@@ -1346,7 +1346,7 @@ def render_i18n_js() -> str:
     const st = document.createElement('style');
     st.id = 'btc-i18n-styles';
     st.textContent =
-      '.btc-lang-bar{{display:flex;flex-wrap:wrap;align-items:center;gap:4px;}}' +
+      '.btc-lang-bar{{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;}}' +
       '.btc-lang-pill{{display:inline-flex;align-items:center;justify-content:center;background:#11141d;' +
       'border:1px solid rgba(113,113,122,0.5);color:#d4d4d8;padding:3px 5px;border-radius:7px;' +
       'cursor:pointer;line-height:1;transition:all .15s ease;user-select:none;}}' +
@@ -1354,6 +1354,7 @@ def render_i18n_js() -> str:
       '.btc-lang-pill.is-active{{background:rgba(16,185,129,0.22);border-color:#10b981;color:#6ee7b7;' +
       'box-shadow:0 0 10px rgba(16,185,129,0.35);}}' +
       '.btc-lang-flag{{width:20px;height:14px;display:block;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,0.14);}}' +
+      '@media (max-width:767px){{.btc-lang-bar{{width:100%;}}}}' +
       '@media (max-width:480px){{.btc-lang-pill{{padding:3px 4px;}}.btc-lang-flag{{width:18px;height:12px;}}}}';
     document.head.appendChild(st);
   }}

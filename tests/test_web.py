@@ -127,6 +127,7 @@ class TestGeneratedSite(unittest.TestCase):
             "backdrop-filter: blur(",
             ".entry-wrapper",
             "rgba(168, 85, 247",
+            "min-height: 26px",
         ):
             self.assertIn(token, entry_html, f"Missing {token} in entry.html")
         self.assertNotIn("querySelector('.entry-wrap')", entry_html)
@@ -216,6 +217,7 @@ class TestGeneratedSite(unittest.TestCase):
         self.assertIn("localizeBlindPrompt", i18n_js)
         self.assertIn("btc-lang-flag", i18n_js)
         self.assertIn("<svg", i18n_js)
+        self.assertIn("justify-content:center", i18n_js)
         for lang in ("en", "zh", "id", "ko", "ja", "fr", "es"):
             self.assertIn(lang, SUPPORTED_LANGS)
             if lang != "en":
