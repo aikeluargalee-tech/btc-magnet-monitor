@@ -12,10 +12,12 @@ import os
 import sys
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
 except ImportError as exc:
     Image = None  # type: ignore
     ImageDraw = None  # type: ignore
+    ImageFilter = None  # type: ignore
+    ImageFont = None  # type: ignore
     _PIL_ERROR = exc
 else:
     _PIL_ERROR = None
@@ -138,6 +140,119 @@ def _splash_image(src: "Image.Image", width: int, height: int) -> "Image.Image":
     return canvas.convert("RGB")
 
 
+def _load_ui_font(size_px: int, bold: bool = False, mono: bool = False):
+    """Load crisp cross-platform TrueType font (Windows/Linux) with Pillow fallback."""
+    if mono:
+        candidates = [
+            "C:/Windows/Fonts/consolab.ttf" if bold else "C:/Windows/Fonts/consola.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+            "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+        ]
+    else:
+        candidates = [
+            "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
+            "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ]
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                return ImageFont.truetype(path, size_px)
+            except Exception:
+                pass
+    try:
+        return ImageFont.load_default(size=size_px)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def generate_play_store_feature_graphic(root_dir: str) -> str:
+    """Generate 1024x500 RGB Google Play Store Feature Graphic in branding/play-store-feature-graphic.png."""
+    _require_pil()
+    master_path = os.path.join(root_dir, MASTER_ICON_REL)
+    if not os.path.exists(master_path):
+        raise FileNotFoundError(f"Master icon not found: {master_path}")
+
+    W, H = 1024, 500
+    base = Image.new("RGBA", (W, H), (9, 9, 14, 255))
+
+    # Smooth ambient glow layer (Gaussian blurred for silky dark-mode depth)
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow, "RGBA")
+    gd.ellipse((30, 50, 430, 450), fill=(56, 189, 248, 52))
+    gd.ellipse((560, -80, 1080, 380), fill=(168, 85, 247, 58))
+    gd.ellipse((700, 240, 1060, 560), fill=(16, 185, 129, 32))
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=75))
+    base = Image.alpha_composite(base, glow)
+
+    # Fine radar grid + outer hairline border
+    grid_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gr = ImageDraw.Draw(grid_layer, "RGBA")
+    for gx in range(48, W, 64):
+        gr.line([(gx, 0), (gx, H)], fill=(148, 163, 184, 16), width=1)
+    for gy in range(44, H, 64):
+        gr.line([(0, gy), (W, gy)], fill=(148, 163, 184, 16), width=1)
+    gr.rounded_rectangle((16, 16, W - 17, H - 17), radius=24, outline=(56, 189, 248, 56), width=2)
+    base = Image.alpha_composite(base, grid_layer)
+
+    # Left rounded master logo card (crop tiny outer padding so it sits flush with subtle glow)
+    src = Image.open(master_path).convert("RGBA")
+    icon_sz = 308
+    icon_img = src.resize((icon_sz, icon_sz), Image.Resampling.LANCZOS)
+    mask = Image.new("L", (icon_sz, icon_sz), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, icon_sz - 1, icon_sz - 1), radius=64, fill=255)
+    ix, iy = 58, (H - icon_sz) // 2
+    base.paste(icon_img, (ix, iy), mask)
+
+    # Glassmorphic pills & typography composited properly with alpha
+    ui_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    td = ImageDraw.Draw(ui_layer, "RGBA")
+    tx = 402
+    f_eyebrow = _load_ui_font(15, bold=True, mono=True)
+    f_title = _load_ui_font(47, bold=True)
+    f_sub = _load_ui_font(20, bold=False)
+    f_chip = _load_ui_font(14, bold=True, mono=True)
+    f_cta = _load_ui_font(15, bold=True)
+    f_foot = _load_ui_font(13, bold=False, mono=True)
+
+    # Eyebrow badge
+    td.rounded_rectangle((tx, 88, tx + 432, 122), radius=17, fill=(15, 23, 42, 200), outline=(34, 211, 238, 115), width=1)
+    td.text((tx + 18, 97), "5-REGIME RADAR  •  LIQUIDATION TELEMETRY", font=f_eyebrow, fill=(103, 232, 249, 255))
+
+    # Main Title
+    td.text((tx, 144), "BTC MAGNET MONITOR", font=f_title, fill=(248, 250, 252, 255))
+
+    # Subtitle
+    td.text((tx, 210), "Spot vs Perp Flow • Live Book Depth • Dual AI Verdicts", font=f_sub, fill=(203, 213, 225, 255))
+
+    # Feature chips row (translucent dark-glass pills)
+    chips = [
+        ("7 LANGUAGES", (56, 189, 248, 120), (14, 165, 233, 34), (125, 211, 252, 255)),
+        ("LIVE ±1.5% DEPTH", (52, 211, 153, 120), (16, 185, 129, 34), (110, 231, 183, 255)),
+        ("BLIND AI TELEMETRY", (192, 132, 252, 125), (168, 85, 247, 36), (233, 213, 255, 255)),
+    ]
+    cx = tx
+    for label, border_c, fill_c, txt_c in chips:
+        tw = max(124, int(td.textlength(label, font=f_chip)) + 28)
+        td.rounded_rectangle((cx, 264, cx + tw, 300), radius=10, fill=fill_c, outline=border_c, width=1)
+        td.text((cx + 14, 274), label, font=f_chip, fill=txt_c)
+        cx += tw + 12
+
+    # Purple Liquid Glass CTA preview badge + compliance caption
+    td.rounded_rectangle((tx, 332, tx + 286, 378), radius=23, fill=(124, 58, 237, 130), outline=(216, 180, 254, 185), width=2)
+    td.text((tx + 22, 346), "ENTER BTC MAGNET MONITOR →", font=f_cta, fill=(250, 245, 255, 255))
+
+    td.text((tx, 400), "Read-Only Institutional Market Analytics • Informational Only", font=f_foot, fill=(148, 163, 184, 225))
+    base = Image.alpha_composite(base, ui_layer)
+
+    branding_dir = os.path.join(root_dir, "branding")
+    os.makedirs(branding_dir, exist_ok=True)
+    out_path = os.path.join(branding_dir, "play-store-feature-graphic.png")
+    base.convert("RGB").save(out_path, format="PNG", optimize=True)
+    return out_path
+
+
 def sync_web_icons(root_dir: str) -> None:
     """Update root/assets web, header, and PWA icons from the full-size 1024x1024 master PNG."""
     _require_pil()
@@ -167,7 +282,8 @@ def sync_web_icons(root_dir: str) -> None:
     )
     with open(os.path.join(assets_dir, "logo.svg"), "w", encoding="utf-8") as fh:
         fh.write(svg)
-    print("OK: synced web, header, and PWA icons from full-size 1024x1024 logo.")
+    fg_path = generate_play_store_feature_graphic(root_dir)
+    print(f"OK: synced web, header, PWA icons & Play Store feature graphic ({fg_path}).")
 
 
 def apply_android_resources(root_dir: str, res_dir: str | None = None) -> None:

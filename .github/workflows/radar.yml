@@ -78,6 +78,11 @@ jobs:
 
       - name: Run BTC Magnet Diagnostic Engine
         if: steps.fresh.outputs.skip != 'true'
+        env:
+          BTC_MAGNET_ADMOB_APP_ID: ${{ secrets.BTC_MAGNET_ADMOB_APP_ID }}
+          BTC_MAGNET_ADMOB_BANNER_ID: ${{ secrets.BTC_MAGNET_ADMOB_BANNER_ID }}
+          BTC_MAGNET_ADMOB_NATIVE_ID: ${{ secrets.BTC_MAGNET_ADMOB_NATIVE_ID }}
+          BTC_MAGNET_ADMOB_TESTING: ${{ secrets.BTC_MAGNET_ADMOB_TESTING }}
         run: |
           python main.py
 

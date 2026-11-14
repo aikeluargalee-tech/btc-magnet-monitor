@@ -3,6 +3,11 @@ import os
 import datetime
 from typing import Dict, Any, Tuple
 
+DEFAULT_ADMOB_APP_ID = "ca-app-pub-3940256099942544~3347511713"
+DEFAULT_ADMOB_BANNER_ID = "ca-app-pub-3940256099942544/6300978111"
+DEFAULT_ADMOB_NATIVE_ID = "ca-app-pub-3940256099942544/2247696110"
+
+
 class WebGenerator:
     """
     Generates:
@@ -14,6 +19,21 @@ class WebGenerator:
     def __init__(self, output_dir: str = "dist"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        self.admob_app_id = os.environ.get("BTC_MAGNET_ADMOB_APP_ID", DEFAULT_ADMOB_APP_ID).strip() or DEFAULT_ADMOB_APP_ID
+        self.admob_banner_id = os.environ.get("BTC_MAGNET_ADMOB_BANNER_ID", DEFAULT_ADMOB_BANNER_ID).strip() or DEFAULT_ADMOB_BANNER_ID
+        self.admob_native_id = os.environ.get("BTC_MAGNET_ADMOB_NATIVE_ID", DEFAULT_ADMOB_NATIVE_ID).strip() or DEFAULT_ADMOB_NATIVE_ID
+        env_testing = os.environ.get("BTC_MAGNET_ADMOB_TESTING", "").strip().lower()
+        if env_testing in ("true", "1", "yes"):
+            self.admob_is_testing = True
+        elif env_testing in ("false", "0", "no"):
+            self.admob_is_testing = False
+        else:
+            self.admob_is_testing = (
+                self.admob_app_id.startswith("ca-app-pub-3940256099942544")
+                or self.admob_banner_id.startswith("ca-app-pub-3940256099942544")
+                or self.admob_native_id.startswith("ca-app-pub-3940256099942544")
+            )
+        self.admob_testing_js = "true" if self.admob_is_testing else "false"
 
     def generate(self, payload: Dict[str, Any]) -> Tuple[str, str]:
         # 1. Write raw JSON feed
@@ -62,6 +82,13 @@ class WebGenerator:
         i18n_path = os.path.join(self.output_dir, "i18n.js")
         with open(i18n_path, "w", encoding="utf-8") as f:
             f.write(render_i18n_js())
+
+        # 4c. Emit app-ads.txt from configured AdMob publisher ID
+        pub_prefix = self.admob_app_id.split("~")[0].replace("ca-app-", "").strip()
+        if pub_prefix.startswith("pub-"):
+            app_ads_path = os.path.join(self.output_dir, "app-ads.txt")
+            with open(app_ads_path, "w", encoding="utf-8") as f:
+                f.write(f"google.com, {pub_prefix}, DIRECT, f08c47fec0942fa0\n")
 
         # 5. Render manifest.json and sw.js for PWA installation
         try:
@@ -2090,14 +2117,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         const {{ AdMob }} = window.Capacitor.Plugins;
         AdMob.initialize({{
           requestTrackingAuthorization: true,
-          initializeForTesting: true,
+          initializeForTesting: {self.admob_testing_js},
         }}).then(() => {{
           AdMob.showBanner({{
-            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adId: '{self.admob_banner_id}',
             adSize: 'BANNER',
             position: 'BOTTOM_CENTER',
             margin: 0,
-            isTesting: true
+            isTesting: {self.admob_testing_js}
           }}).catch(() => {{}});
         }}).catch(() => {{}});
       }} catch (e) {{}}
@@ -2660,14 +2687,14 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         const {{ AdMob }} = window.Capacitor.Plugins;
         AdMob.initialize({{
           requestTrackingAuthorization: true,
-          initializeForTesting: true,
+          initializeForTesting: {self.admob_testing_js},
         }}).then(() => {{
           AdMob.showBanner({{
-            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adId: '{self.admob_banner_id}',
             adSize: 'BANNER',
             position: 'BOTTOM_CENTER',
             margin: 0,
-            isTesting: true
+            isTesting: {self.admob_testing_js}
           }}).catch(() => {{}});
         }}).catch(() => {{}});
       }} catch (e) {{}}
@@ -3569,7 +3596,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         const requestAd = function () {
           entryNativeAdLastReqAt = Date.now();
           plugin.loadAndAttach({
-            adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+            adUnitId: '__ADMOB_NATIVE_ID__',
             widthCss: getSlotWidth()
           }).then(function (res) {
             if (res && res.heightCss > 0) {
@@ -3595,7 +3622,7 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         if (admob && typeof admob.initialize === 'function') {
           admob.initialize({
             requestTrackingAuthorization: true,
-            initializeForTesting: true,
+            initializeForTesting: __ADMOB_TESTING__,
           }).catch(function () {});
         }
       } catch (e) {}
@@ -3893,6 +3920,8 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
         html_out = html_out.replace("__LS_BULL_PCT__", f"{ls_bull_pct:.1f}")
         html_out = html_out.replace("__LS_MUTED_CLS__", "is-muted" if ls_muted else "")
         html_out = html_out.replace("__LS_NOTE__", _html.escape(ls_note))
+        html_out = html_out.replace("__ADMOB_NATIVE_ID__", self.admob_native_id)
+        html_out = html_out.replace("__ADMOB_TESTING__", self.admob_testing_js)
         return html_out
 
     def _render_text_page(self, data: Dict[str, Any]) -> str:
@@ -5473,14 +5502,14 @@ Decisive Call:
         const { AdMob } = window.Capacitor.Plugins;
         AdMob.initialize({
           requestTrackingAuthorization: true,
-          initializeForTesting: true,
+          initializeForTesting: __ADMOB_TESTING__,
         }).then(function () {
           AdMob.showBanner({
-            adId: 'ca-app-pub-3940256099942544/6300978111',
+            adId: '__ADMOB_BANNER_ID__',
             adSize: 'BANNER',
             position: 'BOTTOM_CENTER',
             margin: 0,
-            isTesting: true
+            isTesting: __ADMOB_TESTING__
           }).catch(function () {});
 
           const nativePlugin = getMagnetNativeAdPlugin();
@@ -5535,7 +5564,7 @@ Decisive Call:
             let nativeRetries = 0;
             const requestNativeAd = function () {
               nativePlugin.loadAndAttach({
-                adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+                adUnitId: '__ADMOB_NATIVE_ID__',
                 widthCss: getSlotWidth()
               }).then(function (res) {
                 if (res && res.heightCss > 0) {
@@ -5662,5 +5691,8 @@ Decisive Call:
         html = html.replace("__TIME_UTC__", utc_time_str)
         html = html.replace("__TIME_SGT__", sgt_time_str)
         html = html.replace("__DATE_UTC__", date_str)
+        html = html.replace("__ADMOB_BANNER_ID__", self.admob_banner_id)
+        html = html.replace("__ADMOB_NATIVE_ID__", self.admob_native_id)
+        html = html.replace("__ADMOB_TESTING__", self.admob_testing_js)
 
         return html

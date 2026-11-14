@@ -11,4 +11,7 @@ node_modules/
 .gradle/
 *.apk
 *.aab
+*.jks
+*.keystore
+*.p12
 build-apk-output/

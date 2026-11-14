@@ -333,6 +333,17 @@ class TestBrandingAndAndroidIcons(unittest.TestCase):
             with Image.open(os.path.join(ROOT, rel)) as im:
                 self.assertEqual(im.size, expected, rel)
 
+    def test_play_store_feature_graphic_1024x500_rgb(self):
+        fg_path = os.path.join(ROOT, "branding", "play-store-feature-graphic.png")
+        self.assertTrue(os.path.exists(fg_path), "branding/play-store-feature-graphic.png missing")
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with Image.open(fg_path) as im:
+            self.assertEqual(im.size, (1024, 500))
+            self.assertEqual(im.mode, "RGB")
+
     def test_android_icon_generator_replaces_capacitor_defaults(self):
         try:
             import PIL  # noqa: F401
@@ -411,6 +422,79 @@ class TestScalabilityAndNativeAd(unittest.TestCase):
             apply_android_native(ROOT, android_dir=work)
             with open(gradle_path, "r", encoding="utf-8") as fh:
                 self.assertEqual(fh.read().count("com.google.android.gms:play-services-ads"), 1)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+    def test_configure_android_native_stamps_version_and_signing_idempotently(self):
+        from scripts.configure_android_native import (
+            apply_android_native,
+            ensure_version_and_signing_gradle,
+        )
+
+        work = tempfile.mkdtemp()
+        try:
+            app_dir = os.path.join(work, "app")
+            os.makedirs(os.path.join(app_dir, "src", "main", "res"), exist_ok=True)
+            gradle_path = os.path.join(app_dir, "build.gradle")
+            with open(gradle_path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "android {\n"
+                    "    defaultConfig {\n"
+                    "        versionCode 1\n"
+                    '        versionName "1.0"\n'
+                    "    }\n"
+                    "    buildTypes {\n"
+                    "        release {\n"
+                    "            minifyEnabled false\n"
+                    "        }\n"
+                    "    }\n"
+                    "}\n"
+                    "dependencies {\n"
+                    "    implementation project(':capacitor-android')\n"
+                    "}\n"
+                )
+
+            apply_android_native(ROOT, android_dir=work)
+            with open(gradle_path, "r", encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn("versionCode 9", text)
+            self.assertIn('versionName "1.0.9"', text)
+            self.assertIn("signingConfigs {", text)
+            self.assertIn("signingConfig signingConfigs.release", text)
+
+            self.assertFalse(ensure_version_and_signing_gradle(gradle_path))
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+    def test_web_generator_custom_admob_env_and_app_ads_txt(self):
+        from unittest.mock import patch
+
+        work = tempfile.mkdtemp()
+        try:
+            env_patch = {
+                "BTC_MAGNET_ADMOB_APP_ID": "ca-app-pub-1234567890123456~1111111111",
+                "BTC_MAGNET_ADMOB_BANNER_ID": "ca-app-pub-1234567890123456/2222222222",
+                "BTC_MAGNET_ADMOB_NATIVE_ID": "ca-app-pub-1234567890123456/3333333333",
+            }
+            with patch.dict(os.environ, env_patch, clear=False):
+                WebGenerator(work).generate(_sample_payload())
+
+            app_ads_path = os.path.join(work, "app-ads.txt")
+            self.assertTrue(os.path.isfile(app_ads_path))
+            with open(app_ads_path, "r", encoding="utf-8") as fh:
+                self.assertEqual(fh.read().strip(), "google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0")
+
+            for fname, expected_id in (
+                ("entry.html", "ca-app-pub-1234567890123456/3333333333"),
+                ("text.html", "ca-app-pub-1234567890123456/2222222222"),
+                ("index.html", "ca-app-pub-1234567890123456/2222222222"),
+                ("regimes.html", "ca-app-pub-1234567890123456/2222222222"),
+            ):
+                with open(os.path.join(work, fname), "r", encoding="utf-8") as fh:
+                    doc = fh.read()
+                self.assertIn(expected_id, doc, fname)
+                self.assertIn("initializeForTesting: false", doc, fname)
+                self.assertNotIn("initializeForTesting: true", doc, fname)
         finally:
             shutil.rmtree(work, ignore_errors=True)
 

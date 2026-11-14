@@ -1,6 +1,6 @@
 {
   "name": "btc-magnet-monitor",
-  "version": "1.0.0",
+  "version": "1.0.9",
   "description": "BTC Magnet Monitor — 5-Regime Radar & Liquidation Telemetry Mobile Cockpit",
   "private": true,
   "scripts": {

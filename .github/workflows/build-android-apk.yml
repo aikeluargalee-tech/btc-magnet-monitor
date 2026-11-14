@@ -28,6 +28,11 @@ jobs:
           pip install -r requirements.txt pillow
 
       - name: Build Web Cockpit & Telemetry
+        env:
+          BTC_MAGNET_ADMOB_APP_ID: ${{ secrets.BTC_MAGNET_ADMOB_APP_ID }}
+          BTC_MAGNET_ADMOB_BANNER_ID: ${{ secrets.BTC_MAGNET_ADMOB_BANNER_ID }}
+          BTC_MAGNET_ADMOB_NATIVE_ID: ${{ secrets.BTC_MAGNET_ADMOB_NATIVE_ID }}
+          BTC_MAGNET_ADMOB_TESTING: ${{ secrets.BTC_MAGNET_ADMOB_TESTING }}
         run: |
           python main.py
 
@@ -59,7 +64,13 @@ jobs:
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
 
       - name: Initialize & Sync Capacitor Android
+        env:
+          BTC_MAGNET_ADMOB_APP_ID: ${{ secrets.BTC_MAGNET_ADMOB_APP_ID }}
+          BTC_MAGNET_VERSION_CODE: ${{ vars.BTC_MAGNET_VERSION_CODE || '9' }}
+          BTC_MAGNET_VERSION_NAME: ${{ vars.BTC_MAGNET_VERSION_NAME || '1.0.9' }}
         run: |
+          export ADMOB_APP_ID="${BTC_MAGNET_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
+          python3 -c 'import json, os; p="capacitor.config.json"; cfg=json.load(open(p, encoding="utf-8")); cfg.setdefault("plugins", {}).setdefault("AdMob", {})["appId"]=os.environ["ADMOB_APP_ID"]; json.dump(cfg, open(p, "w", encoding="utf-8"), indent=2); open(p, "a", encoding="utf-8").write("\n")'
           if [ ! -d "android" ]; then
             npx cap add android
           fi
@@ -67,19 +78,44 @@ jobs:
           python scripts/generate_android_assets.py
           python scripts/configure_android_native.py
 
-      - name: Inject Google AdMob Test App ID into AndroidManifest.xml
+      - name: Inject Google AdMob App ID into AndroidManifest.xml
+        env:
+          BTC_MAGNET_ADMOB_APP_ID: ${{ secrets.BTC_MAGNET_ADMOB_APP_ID }}
         run: |
+          export ADMOB_APP_ID="${BTC_MAGNET_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Ensure AdMob App ID meta-data is present inside <application>
           if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" "$MANIFEST"; then
-            sed -i '/<\/application>/i \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' "$MANIFEST"
+            sed -i "/<\/application>/i \\        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"${ADMOB_APP_ID}\"/>" "$MANIFEST"
+          else
+            python3 -c 'import os, re; p="android/app/src/main/AndroidManifest.xml"; txt=open(p, encoding="utf-8").read(); aid=os.environ["ADMOB_APP_ID"]; open(p, "w", encoding="utf-8").write(re.sub(r"(<meta-data\s+android:name=\"com\.google\.android\.gms\.ads\.APPLICATION_ID\"\s+android:value=\")[^\"]*(\")", rf"\g<1>{aid}\g<2>", txt))'
           fi
 
-      - name: Build Android Debug APK with Gradle
+      - name: Prepare Release Upload Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > android/app/upload-keystore.p12
+            keytool -list -keystore android/app/upload-keystore.p12 -storepass "$ANDROID_KEYSTORE_PASSWORD"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 secret not set; generating ephemeral keystore."
+            keytool -genkeypair -v -keystore android/app/upload-keystore.p12 -storetype PKCS12 \
+              -alias btcmagnet -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "btcmagnet-fallback-pass" -keypass "btcmagnet-fallback-pass" \
+              -dname "CN=BTC Magnet Monitor, OU=Mobile, O=Aikeluargalee Tech, C=SG"
+          fi
+
+      - name: Build Android Debug & Signed Release APK + Play Store AAB with Gradle
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'btcmagnet-fallback-pass' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'btcmagnet' }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'btcmagnet-fallback-pass' }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug assembleRelease bundleRelease --no-daemon
 
       - name: Verify the built APK is self-contained (no CDN, bundled CSS and fonts present)
         run: |
@@ -110,7 +146,27 @@ jobs:
           unzip -l "$APK" | grep -q "res/drawable/native_ad_card_bg.xml" || { echo "::error::res/drawable/native_ad_card_bg.xml missing from APK"; exit 1; }
           unzip -p "$APK" "classes*.dex" | grep -aq "Lcom/aikeluargalee/btcmagnet/MagnetNativeAdPlugin;" || { echo "::error::MagnetNativeAdPlugin missing from APK DEX"; exit 1; }
           echo "APK self-containment, custom launcher icon, and NativeAd checks passed."
-          sha256sum "$APK"
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          REL_APK=android/app/build/outputs/apk/release/app-release.apk
+          test -f "$AAB" || { echo "::error::Release AAB missing at $AAB"; exit 1; }
+          test -f "$REL_APK" || { echo "::error::Release APK missing at $REL_APK"; exit 1; }
+          jarsigner -verify "$AAB"
+          unzip -l "$AAB" | grep -q "base/res/layout/native_ad_card.xml" || { echo "::error::native_ad_card.xml missing from AAB"; exit 1; }
+          sha256sum "$APK" "$REL_APK" "$AAB"
+
+      - name: Upload Play Store Release AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-magnet-monitor-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload Signed Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-magnet-monitor-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
 
       - name: Upload Installable APK Artifact
         uses: actions/upload-artifact@v4

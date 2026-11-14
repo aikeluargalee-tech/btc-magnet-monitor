@@ -6,6 +6,8 @@ import shutil
 import sys
 
 APP_PACKAGE = "com.aikeluargalee.btcmagnet"
+APP_VERSION_CODE = 9
+APP_VERSION_NAME = "1.0.9"
 ADMOB_DEP_ARTIFACT = "com.google.android.gms:play-services-ads"
 ADMOB_DEP_LINE = '    implementation "com.google.android.gms:play-services-ads:23.0.0"'
 
@@ -61,6 +63,61 @@ def ensure_admob_gradle_dependency(build_gradle_path: str) -> bool:
     return True
 
 
+SIGNING_CONFIG_BLOCK = """    signingConfigs {
+        release {
+            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH") ?: "upload-keystore.p12"
+            def ksFile = file(ksPath)
+            if (ksFile.exists() && System.getenv("ANDROID_KEYSTORE_PASSWORD")) {
+                storeFile ksFile
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "btcmagnet"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+"""
+
+RELEASE_SIGNING_LINE = """            if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+"""
+
+
+def ensure_version_and_signing_gradle(
+    build_gradle_path: str,
+    version_code: int | None = None,
+    version_name: str | None = None,
+) -> bool:
+    """Stamp versionCode/versionName and inject release signingConfigs idempotently."""
+    if not os.path.isfile(build_gradle_path):
+        raise FileNotFoundError(f"Gradle build file not found: {build_gradle_path}")
+
+    with open(build_gradle_path, "r", encoding="utf-8") as fh:
+        content = fh.read()
+
+    v_code = version_code if version_code is not None else int(os.environ.get("BTC_MAGNET_VERSION_CODE", str(APP_VERSION_CODE)))
+    v_name = version_name if version_name is not None else (os.environ.get("BTC_MAGNET_VERSION_NAME", APP_VERSION_NAME).strip() or APP_VERSION_NAME)
+
+    updated = re.sub(r"(\bversionCode\s+)\d+", rf"\g<1>{v_code}", content)
+    updated = re.sub(r'(\bversionName\s+)"[^"]*"', rf'\g<1>"{v_name}"', updated)
+
+    if "buildTypes" in updated and "signingConfigs" not in updated:
+        updated = re.sub(r"([ \t]*buildTypes\s*\{)", SIGNING_CONFIG_BLOCK + r"\1", updated, count=1)
+        updated = re.sub(
+            r"(buildTypes\s*\{[\s\S]*?release\s*\{[^\r\n]*\r?\n)",
+            r"\1" + RELEASE_SIGNING_LINE,
+            updated,
+            count=1,
+        )
+
+    if updated == content:
+        return False
+
+    with open(build_gradle_path, "w", encoding="utf-8") as fh:
+        fh.write(updated)
+    return True
+
+
 def apply_android_native(repo_root: str, android_dir: str | None = None) -> None:
     """Install custom Java plugin/MainActivity and NativeAd XML resources into android/app."""
     target_android = android_dir or os.path.join(repo_root, "android")
@@ -79,8 +136,10 @@ def apply_android_native(repo_root: str, android_dir: str | None = None) -> None
 
     gradle_path = os.path.join(target_android, "app", "build.gradle")
     gradle_changed = ensure_admob_gradle_dependency(gradle_path)
+    version_signing_changed = ensure_version_and_signing_gradle(gradle_path)
     status = "added Play Services Ads dependency" if gradle_changed else "Play Services Ads dependency already present"
-    print(f"OK: applied custom native Android Java/res files into {target_android} ({status}).")
+    vs_status = "updated version/signing" if version_signing_changed else "version/signing already set"
+    print(f"OK: applied custom native Android Java/res files into {target_android} ({status}; {vs_status}).")
 
 
 def main() -> int:
