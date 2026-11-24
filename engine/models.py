@@ -84,6 +84,18 @@ class MarketMetrics:
     oi_history_available: bool = True
     ls_ratio_percentile_72h: Optional[float] = None
 
+    # Section 5: Cross-Venue & Macro Context Sidecar (strictly raw/closed-bar & options, zero lagging TA)
+    coinbase_spot_price: Optional[float] = None
+    okx_spot_price: Optional[float] = None
+    coinbase_premium_usd: Optional[float] = None
+    coinbase_premium_bps: Optional[float] = None
+    vwap_30d: Optional[float] = None
+    vpoc_30d_primary: Optional[float] = None
+    vpoc_30d_secondary: Optional[float] = None
+    realized_vol_30d_pct: Optional[float] = None
+    implied_vol_dvol_pct: Optional[float] = None
+    variance_premium_pts: Optional[float] = None
+
     # Excluded lagging/smoothed oscillators under DIBSE Rule 4 (kept None intentionally)
     ema_20d: Optional[float] = None
     ema_50d: Optional[float] = None

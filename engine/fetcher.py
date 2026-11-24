@@ -1,4 +1,5 @@
 import os
+import math
 import time
 import datetime
 import requests
@@ -128,6 +129,20 @@ class MarketDataFetcher:
         )
         current_oi = fut["current_oi"]
 
+        # 7. Cross-Venue Spot (Coinbase / OKX), Deribit DVOL & 30D Closed-Bar Macro Anchors (Section 5 Sidecar)
+        xv = self._fetch_cross_venue_spot_and_dvol(current_price)
+        macro_30d = self._calc_30d_macro_anchors(closed_daily, closed_4h)
+        dvol_pct = xv.get("implied_vol_dvol_pct")
+        rvol_pct = macro_30d.get("realized_vol_30d_pct")
+        var_prem = round(dvol_pct - rvol_pct, 2) if (dvol_pct is not None and rvol_pct is not None) else None
+        env_etf_raw = os.environ.get("BTC_MAGNET_ETF_NETFLOW_1D_M", "").strip()
+        etf_inflow_val: Optional[float] = None
+        if env_etf_raw:
+            try:
+                etf_inflow_val = float(env_etf_raw)
+            except ValueError:
+                etf_inflow_val = None
+
         metrics = MarketMetrics(
             price=current_price,
             daily_vwap=daily_vwap,
@@ -164,12 +179,22 @@ class MarketDataFetcher:
             data_quality="LIVE",
             spot_data_source="Binance Public Market-Data REST (data-api.binance.vision/api/v3 Closed 4H/1H Klines & L2 Depth)",
             futures_data_source=fut["futures_source"],
-            etf_net_inflow_m=None,      # Not fabricated: set to None unless verified source wired
-            whale_inflow_proxy=None,    # Not fabricated: set to None unless verified source wired
+            etf_net_inflow_m=etf_inflow_val,  # Never fabricated: None unless verified env/source provided
+            whale_inflow_proxy=None,          # Never fabricated: None unless verified source wired
             oi_scope=fut["oi_scope"],
             ls_ratio_available=fut["ls_ratio_available"],
             oi_history_available=fut["oi_history_available"],
             ls_ratio_percentile_72h=fut.get("ls_ratio_percentile_72h"),
+            coinbase_spot_price=xv.get("coinbase_spot_price"),
+            okx_spot_price=xv.get("okx_spot_price"),
+            coinbase_premium_usd=xv.get("coinbase_premium_usd"),
+            coinbase_premium_bps=xv.get("coinbase_premium_bps"),
+            vwap_30d=macro_30d.get("vwap_30d"),
+            vpoc_30d_primary=macro_30d.get("vpoc_30d_primary"),
+            vpoc_30d_secondary=macro_30d.get("vpoc_30d_secondary"),
+            realized_vol_30d_pct=rvol_pct,
+            implied_vol_dvol_pct=dvol_pct,
+            variance_premium_pts=var_prem,
         )
 
         clusters = self._calc_liquidation_clusters(current_price, closed_4h, current_oi)
@@ -295,6 +320,31 @@ class MarketDataFetcher:
                 if k_btc and k_btc.get("openInterest"):
                     combined_oi += float(k_btc["openInterest"])
                     sources.append("Kraken PF_XBTUSD")
+            except Exception:
+                pass
+
+            try:
+                bitget_resp = self._get_json(
+                    ["https://api.bitget.com/api/v2/mix/market/open-interest"],
+                    {"symbol": "BTCUSDT", "productType": "USDT-FUTURES"},
+                )
+                bg_list = (bitget_resp.get("data") or {}).get("openInterestList") or []
+                if bg_list and bg_list[0].get("size"):
+                    bg_oi = float(bg_list[0]["size"])
+                    if bg_oi > 0:
+                        combined_oi += bg_oi
+                        sources.append("Bitget BTCUSDT-PERP")
+            except Exception:
+                pass
+
+            try:
+                gate_resp = self._get_json(["https://api.gateio.ws/api/v4/futures/usdt/contracts/BTC_USDT"])
+                pos_sz = float(gate_resp.get("position_size") or 0.0)
+                q_mult = float(gate_resp.get("quanto_multiplier") or 0.0001)
+                gate_oi = pos_sz * q_mult
+                if gate_oi > 0:
+                    combined_oi += gate_oi
+                    sources.append("Gate.io BTC_USDT")
             except Exception:
                 pass
 
@@ -529,8 +579,13 @@ class MarketDataFetcher:
                     lower_bins[binned_price] = lower_bins.get(binned_price, 0.0) + vol
 
         clusters = []
-        sorted_upper = [item for item in sorted(upper_bins.items(), key=lambda x: x[0]) if item[0] > current_price]
-        for p, vol in sorted_upper[:2]:
+        # Enforce >= 0.45% minimum distance clearance from spot for immediate 50-100x pools
+        # so historical kline offset bins landing $10 (0.02%) from spot do not create micro-straddle noise.
+        min_clearance = current_price * 0.0045
+        all_upper = [item for item in sorted(upper_bins.items(), key=lambda x: x[0]) if item[0] > current_price]
+        cleared_upper = [item for item in all_upper if item[0] >= current_price + min_clearance]
+        selected_upper = cleared_upper[:2] if len(cleared_upper) >= 2 else (cleared_upper + [x for x in all_upper if x not in cleared_upper])[:2]
+        for p, vol in selected_upper:
             dist_pct = ((p - current_price) / current_price) * 100
             clusters.append(
                 LiquidationCluster(
@@ -543,8 +598,10 @@ class MarketDataFetcher:
                 )
             )
 
-        sorted_lower = [item for item in sorted(lower_bins.items(), key=lambda x: x[0], reverse=True) if item[0] < current_price]
-        for p, vol in sorted_lower[:2]:
+        all_lower = [item for item in sorted(lower_bins.items(), key=lambda x: x[0], reverse=True) if item[0] < current_price]
+        cleared_lower = [item for item in all_lower if item[0] <= current_price - min_clearance]
+        selected_lower = cleared_lower[:2] if len(cleared_lower) >= 2 else (cleared_lower + [x for x in all_lower if x not in cleared_lower])[:2]
+        for p, vol in selected_lower:
             dist_pct = ((current_price - p) / current_price) * 100
             clusters.append(
                 LiquidationCluster(
@@ -558,3 +615,121 @@ class MarketDataFetcher:
             )
 
         return clusters
+
+    def _fetch_cross_venue_spot_and_dvol(self, binance_price: float) -> Dict[str, Optional[float]]:
+        """Fetch supplemental un-geoblocked Coinbase BTC-USD spot, OKX BTC-USDT spot, and Deribit BTC DVOL."""
+        out: Dict[str, Optional[float]] = {
+            "coinbase_spot_price": None,
+            "okx_spot_price": None,
+            "coinbase_premium_usd": None,
+            "coinbase_premium_bps": None,
+            "implied_vol_dvol_pct": None,
+        }
+        try:
+            cb = self._get_json(["https://api.exchange.coinbase.com/products/BTC-USD/ticker"])
+            cb_px = float(cb.get("price") or 0.0)
+            if cb_px > 0 and binance_price > 0:
+                prem_usd = cb_px - binance_price
+                prem_bps = (prem_usd / binance_price) * 10000.0
+                out["coinbase_spot_price"] = round(cb_px, 2)
+                out["coinbase_premium_usd"] = round(prem_usd, 2)
+                out["coinbase_premium_bps"] = round(prem_bps, 2)
+        except Exception:
+            pass
+
+        try:
+            okx = self._get_json(
+                ["https://www.okx.com/api/v5/market/ticker"],
+                {"instId": "BTC-USDT"},
+            )
+            okx_rows = okx.get("data") or []
+            if okx_rows and okx_rows[0].get("last"):
+                okx_px = float(okx_rows[0]["last"])
+                if okx_px > 0:
+                    out["okx_spot_price"] = round(okx_px, 2)
+        except Exception:
+            pass
+
+        try:
+            now_ms = int(time.time() * 1000)
+            start_ms = now_ms - (48 * 3600 * 1000)
+            dvol_resp = self._get_json(
+                ["https://www.deribit.com/api/v2/public/get_volatility_index_data"],
+                {
+                    "currency": "BTC",
+                    "resolution": "3600",
+                    "start_timestamp": start_ms,
+                    "end_timestamp": now_ms,
+                },
+            )
+            dvol_rows = ((dvol_resp.get("result") or {}).get("data")) or []
+            if dvol_rows:
+                # Each row is [timestamp, open, high, low, close]
+                latest_close = float(dvol_rows[-1][4])
+                if latest_close > 0:
+                    out["implied_vol_dvol_pct"] = round(latest_close, 2)
+        except Exception:
+            pass
+
+        return out
+
+    def _calc_30d_macro_anchors(
+        self,
+        closed_daily: List[List[Any]],
+        closed_4h: List[List[Any]],
+    ) -> Dict[str, Optional[float]]:
+        """
+        Deterministically compute 30D Closed VWAP, 30D Volume Profile POCs (Primary & Secondary HVN),
+        and 30D Annualized Realized Volatility strictly from closed klines[:-1] (zero lagging oscillators).
+        """
+        out: Dict[str, Optional[float]] = {
+            "vwap_30d": None,
+            "vpoc_30d_primary": None,
+            "vpoc_30d_secondary": None,
+            "realized_vol_30d_pct": None,
+        }
+        window_30d = closed_daily[-30:] if len(closed_daily) >= 30 else closed_daily
+        if window_30d:
+            cum_pv = 0.0
+            cum_vol = 0.0
+            for k in window_30d:
+                h, l, c, v = float(k[2]), float(k[3]), float(k[4]), float(k[5])
+                typical = (h + l + c) / 3.0
+                cum_pv += typical * v
+                cum_vol += v
+            if cum_vol > 0:
+                out["vwap_30d"] = round(cum_pv / cum_vol, 2)
+
+        # 30D Volume Profile POCs ($250 price bins across closed 30D daily + closed 4H klines)
+        bin_step = 250.0
+        vol_bins: Dict[float, float] = {}
+        profile_bars = list(window_30d) + list(closed_4h[-60:])
+        for k in profile_bars:
+            h, l, c, v = float(k[2]), float(k[3]), float(k[4]), float(k[5])
+            if v <= 0 or h <= 0 or l <= 0:
+                continue
+            typical = (h + l + c) / 3.0
+            b_center = round(typical / bin_step) * bin_step
+            vol_bins[b_center] = vol_bins.get(b_center, 0.0) + v
+
+        if vol_bins:
+            ranked_bins = sorted(vol_bins.items(), key=lambda x: x[1], reverse=True)
+            primary_poc = ranked_bins[0][0]
+            out["vpoc_30d_primary"] = round(primary_poc, 2)
+            for cand_price, _ in ranked_bins[1:]:
+                if abs(cand_price - primary_poc) / max(primary_poc, 1.0) >= 0.015:
+                    out["vpoc_30d_secondary"] = round(cand_price, 2)
+                    break
+
+        # 30D Annualized Realized Volatility from closed daily log returns
+        ret_window = closed_daily[-31:] if len(closed_daily) >= 31 else closed_daily
+        closes = [float(k[4]) for k in ret_window if float(k[4]) > 0]
+        if len(closes) >= 10:
+            log_rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
+            n = len(log_rets)
+            mean_r = sum(log_rets) / n
+            var_r = sum((r - mean_r) ** 2 for r in log_rets) / max(1, n - 1)
+            rvol_ann = math.sqrt(var_r) * math.sqrt(365.0) * 100.0
+            out["realized_vol_30d_pct"] = round(rvol_ann, 2)
+
+        return out

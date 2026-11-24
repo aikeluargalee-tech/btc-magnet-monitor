@@ -353,6 +353,53 @@ class WebGenerator:
             for r in lower_rows
         )
 
+        # Section 5: Cross-Venue & Macro Context Sidecar (strictly raw/closed-bar & options, zero lagging TA)
+        cb_px = float(metrics.get("coinbase_spot_price") or 0.0)
+        okx_px = float(metrics.get("okx_spot_price") or 0.0)
+        cb_prem_usd = metrics.get("coinbase_premium_usd")
+        cb_prem_bps = metrics.get("coinbase_premium_bps")
+        if cb_px > 0 and cb_prem_usd is not None and cb_prem_bps is not None:
+            cb_str = f"${cb_px:,.2f} (Coinbase Premium: {float(cb_prem_usd):+.2f} USD / {float(cb_prem_bps):+.2f} bps vs Binance)"
+        elif cb_px > 0:
+            cb_str = f"${cb_px:,.2f}"
+        else:
+            cb_str = "DATA UNAVAILABLE"
+        okx_str = f"${okx_px:,.2f}" if okx_px > 0 else "DATA UNAVAILABLE"
+
+        etf_1d = metrics.get("etf_net_inflow_m")
+        if etf_1d is not None:
+            etf_str = f"${float(etf_1d):+.1f}M (1D Verified Spot ETF Netflow)"
+            if cb_prem_bps is not None:
+                etf_str += f" | Live Coinbase US Institutional Proxy: {float(cb_prem_bps):+.2f} bps"
+        elif cb_prem_bps is not None and cb_prem_usd is not None:
+            etf_str = f"Live On-Exchange US Spot Proxy via Coinbase Premium: {float(cb_prem_usd):+.2f} USD ({float(cb_prem_bps):+.2f} bps vs Offshore Spot)"
+        else:
+            etf_str = "DATA UNAVAILABLE (Off-exchange T-1 issuer report not wired; monitor Coinbase Spot spread)"
+
+        vwap_30d = float(metrics.get("vwap_30d") or 0.0)
+        vwap_30d_str = (
+            f"${vwap_30d:,.2f} [{((price - vwap_30d) / vwap_30d * 100):+.2f}% vs Spot]"
+            if (vwap_30d > 0 and price > 0) else "DATA UNAVAILABLE"
+        )
+        vpoc_1 = float(metrics.get("vpoc_30d_primary") or 0.0)
+        vpoc_2 = float(metrics.get("vpoc_30d_secondary") or 0.0)
+        if vpoc_1 > 0 and vpoc_2 > 0:
+            vpoc_str = f"Primary ${vpoc_1:,.0f} / Secondary ${vpoc_2:,.0f}"
+        elif vpoc_1 > 0:
+            vpoc_str = f"Primary ${vpoc_1:,.0f}"
+        else:
+            vpoc_str = "DATA UNAVAILABLE"
+
+        dvol_pct = metrics.get("implied_vol_dvol_pct")
+        rvol_pct = metrics.get("realized_vol_30d_pct")
+        var_prem = metrics.get("variance_premium_pts")
+        dvol_str = f"{float(dvol_pct):.2f}%" if dvol_pct is not None else "DATA UNAVAILABLE"
+        rvol_str = f"{float(rvol_pct):.2f}%" if rvol_pct is not None else "DATA UNAVAILABLE"
+        var_str = (
+            f"Variance Premium: {float(var_prem):+.2f} vol pts (Implied minus 30D Realized)"
+            if var_prem is not None else "Variance Premium: DATA UNAVAILABLE"
+        )
+
         sections = f"""SECTION 1 • RAW PRICE BENCHMARKS & CLOSED 4H STRUCTURE
 • Current BTC Spot Price: {self._fmt_usd_or_na(price)}
 • Closed 4H Structural Cutoff: {closed_4h_cutoff} (Completed bars only — zero intrabar repainting)
@@ -380,7 +427,13 @@ SECTION 4 • MODELED LIQUIDATION LADDER (CLOSED 4H SWINGS & PRICE-% BANDS)
 {upper_lines}
 ● CURRENT BTC SPOT ANCHOR: {self._fmt_usd_or_na(price)}
 [MODELED LOWER LONG POOLS — LOOP A WASHOUT/ACCUMULATION TARGETS]:
-{lower_lines}"""
+{lower_lines}
+
+SECTION 5 • CROSS-VENUE & MACRO CONTEXT (SUPPLEMENTAL SIDECAR — ZERO LAGGING OSCILLATORS)
+• 3-Venue Spot & Coinbase Premium: Binance {self._fmt_usd_or_na(price)} | Coinbase {cb_str} | OKX {okx_str}
+• US Institutional Spot Flow Proxy: {etf_str}
+• 30-Day Closed Macro Structure: 30D VWAP {vwap_30d_str} | 30D Volume Profile POCs: {vpoc_str}
+• Volatility Regime (Options vs Closed 1D): Deribit Implied DVOL {dvol_str} vs 30D Realized Vol {rvol_str} ({var_str})"""
 
         return {
             "scan_id": scan_id,
@@ -4055,6 +4108,36 @@ Timestamp: {t['ts'][:19]} UTC | Status: {data.get('data_status', 'LIVE')}
             + ")"
         ) if ls_avail else "DATA UNAVAILABLE"
 
+        cb_px = float(metrics.get("coinbase_spot_price") or 0.0)
+        cb_prem_usd = metrics.get("coinbase_premium_usd")
+        cb_prem_bps = metrics.get("coinbase_premium_bps")
+        if cb_px > 0 and cb_prem_usd is not None and cb_prem_bps is not None:
+            cb_prem_disp = f"{float(cb_prem_usd):+.2f} USD ({float(cb_prem_bps):+.1f} bps)"
+        else:
+            cb_prem_disp = "DATA UNAVAILABLE"
+        vwap_30d_val = float(metrics.get("vwap_30d") or 0.0)
+        vwap_30d_disp = (
+            f"${vwap_30d_val:,.0f} ({((price - vwap_30d_val) / vwap_30d_val * 100):+.2f}%)"
+            if (vwap_30d_val > 0 and price > 0) else "DATA UNAVAILABLE"
+        )
+        vpoc_1_val = float(metrics.get("vpoc_30d_primary") or 0.0)
+        vpoc_2_val = float(metrics.get("vpoc_30d_secondary") or 0.0)
+        if vpoc_1_val > 0 and vpoc_2_val > 0:
+            vpoc_30d_disp = f"${vpoc_1_val:,.0f} / ${vpoc_2_val:,.0f}"
+        elif vpoc_1_val > 0:
+            vpoc_30d_disp = f"${vpoc_1_val:,.0f}"
+        else:
+            vpoc_30d_disp = "DATA UNAVAILABLE"
+        dvol_val = metrics.get("implied_vol_dvol_pct")
+        rvol_val = metrics.get("realized_vol_30d_pct")
+        var_val = metrics.get("variance_premium_pts")
+        if dvol_val is not None and rvol_val is not None and var_val is not None:
+            vol_regime_disp = f"DVOL {float(dvol_val):.1f}% vs 30D {float(rvol_val):.1f}% ({float(var_val):+.1f}p)"
+        elif rvol_val is not None:
+            vol_regime_disp = f"30D Realized {float(rvol_val):.1f}% (DVOL N/A)"
+        else:
+            vol_regime_disp = "DATA UNAVAILABLE"
+
         regime_name = self._public_copy(str(regime.get("name", "Transition / Mixed")))
         diagnosis = wrap36(self._public_copy(str(regime.get("diagnosis", ""))))
         tagline = wrap36(self._public_copy(tagline_src))
@@ -4803,12 +4886,20 @@ Futures Basis:  __BASIS__% (Ann.)
 L/S Ratio:      __LS_RATIO_DISP__</pre>
         </div>
 
-        <div class="sub-card sub-card-purple" style="margin-bottom: 2px;">
+        <div class="sub-card sub-card-purple">
           <pre class="ascii"><span class="c-purple">Feed 4 &bull; Channel Swings &amp; Wicks:</span>
 24h Wicks L/H:  __WICKS_24H__
 Wick Span (24h):__WICK_SPAN__
 Book Liquidity: __DEPTH_RATIO__ (Bids/Asks)
 Indicators:     Zero MA/EMA/RSI/ATR</pre>
+        </div>
+
+        <div class="sub-card sub-card-teal" style="margin-bottom: 2px;">
+          <pre class="ascii"><span class="c-cyan">Feed 5 &bull; Cross-Venue &amp; Macro Sidecar:</span>
+CB Spot Prem:   __CB_PREM_DISP__
+30D Closed VWAP:__VWAP_30D_DISP__
+30D Vol POCs:   __VPOC_30D_DISP__
+Vol (DVOL/30D): __VOL_REGIME_DISP__</pre>
         </div>
       </div>
 
@@ -5657,6 +5748,10 @@ Decisive Call:
         html = html.replace("__FUNDING__", f"{funding:.4f}")
         html = html.replace("__FUNDING_ANN__", f"{funding_ann:+.2f}")
         html = html.replace("__BASIS__", f"{basis:+.2f}")
+        html = html.replace("__CB_PREM_DISP__", cb_prem_disp)
+        html = html.replace("__VWAP_30D_DISP__", vwap_30d_disp)
+        html = html.replace("__VPOC_30D_DISP__", vpoc_30d_disp)
+        html = html.replace("__VOL_REGIME_DISP__", vol_regime_disp)
 
         live_payload_json = _json.dumps({
             "scan_ts": ts_iso,

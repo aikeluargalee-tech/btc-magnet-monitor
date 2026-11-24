@@ -262,6 +262,86 @@ class TestAuditFixesAndRegressions(unittest.TestCase):
             self.assertIn(cron_expr, radar_yml)
         self.assertIn("needs.build.outputs.skip != 'true'", radar_yml)
 
+    def test_section5_sidecar_macro_anchors_and_045_cluster_clearance(self):
+        from engine.fetcher import MarketDataFetcher
+
+        fetcher = MarketDataFetcher()
+        # Craft 40 closed 4H klines where an offset bin lands only +0.02% ($12) above spot ($61,289.62)
+        spot = 61289.62
+        near_low = 61300.0 / 1.008  # target_liq = 61,300.0 (+0.02% from spot)
+        closed_4h = []
+        for i in range(40):
+            h = 64000.0 + (i * 50.0)
+            l = near_low if i == 0 else (58500.0 + (i * 40.0))
+            c = 61200.0 + (i * 15.0)
+            v = 1200.0 + (i * 10.0)
+            closed_4h.append([i * 14400000, c, h, l, c, v, (i + 1) * 14400000 - 1, 0, 0, v * 0.5])
+
+        clusters = fetcher._calc_liquidation_clusters(spot, closed_4h, total_oi=85000.0)
+        for c in clusters:
+            self.assertGreaterEqual(
+                c.distance_pct,
+                0.45,
+                f"Cluster {c.side} at ${c.price_level} is too close ({c.distance_pct}% < 0.45% micro-straddle floor)",
+            )
+
+        # Verify 30D macro anchors (30D VWAP, 30D Volume Profile POCs, 30D Realized Vol)
+        closed_daily = []
+        for d in range(35):
+            # Two distinct volume clusters around $61,000 and $65,000
+            px = 61000.0 + (d % 5) * 120.0 if d < 20 else 65000.0 + (d % 4) * 110.0
+            vol = 28000.0 if d in (10, 25) else 12000.0
+            closed_daily.append([d * 86400000, px, px * 1.01, px * 0.99, px, vol, (d + 1) * 86400000 - 1, 0, 0, vol * 0.5])
+
+        macro = fetcher._calc_30d_macro_anchors(closed_daily, closed_4h)
+        self.assertIsNotNone(macro["vwap_30d"])
+        self.assertGreater(macro["vwap_30d"], 50000.0)
+        self.assertIsNotNone(macro["vpoc_30d_primary"])
+        self.assertIsNotNone(macro["vpoc_30d_secondary"])
+        self.assertGreaterEqual(
+            abs(macro["vpoc_30d_primary"] - macro["vpoc_30d_secondary"]) / macro["vpoc_30d_primary"],
+            0.015,
+        )
+        self.assertIsNotNone(macro["realized_vol_30d_pct"])
+        self.assertGreater(macro["realized_vol_30d_pct"], 0.0)
+
+        # Verify Section 5 in blind prompt and Feed 5 in text.html
+        metrics, sample_clusters = _make_sample_inputs()
+        metrics.coinbase_spot_price = 73425.17
+        metrics.okx_spot_price = 73505.00
+        metrics.coinbase_premium_usd = -84.12
+        metrics.coinbase_premium_bps = -11.44
+        metrics.vwap_30d = 70221.00
+        metrics.vpoc_30d_primary = 75931.00
+        metrics.vpoc_30d_secondary = 64748.00
+        metrics.realized_vol_30d_pct = 46.78
+        metrics.implied_vol_dvol_pct = 47.70
+        metrics.variance_premium_pts = 0.92
+
+        regime = RegimeClassifier().classify(metrics, sample_clusters)
+        risk = RiskManager().evaluate_risk(regime)
+        payload = {
+            "timestamp": "2026-11-24T00:32:00+00:00",
+            "symbol": "BTCUSDT",
+            "regime": asdict(regime),
+            "metrics": asdict(metrics),
+            "risk": risk,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            gen = WebGenerator(output_dir=tmp)
+            gen.generate(payload)
+            blind_prompt = gen._build_blind_llm_prompt(payload)
+            with open(os.path.join(tmp, "text.html"), encoding="utf-8") as fh:
+                text_html = fh.read()
+
+        self.assertIn("SECTION 5 • CROSS-VENUE & MACRO CONTEXT", blind_prompt)
+        self.assertIn("Coinbase Premium: -84.12 USD / -11.44 bps", blind_prompt)
+        self.assertIn("30D VWAP $70,221.00", blind_prompt)
+        self.assertIn("Primary $75,931 / Secondary $64,748", blind_prompt)
+        self.assertIn("Deribit Implied DVOL 47.70% vs 30D Realized Vol 46.78%", blind_prompt)
+        self.assertIn("Feed 5 &bull; Cross-Venue &amp; Macro Sidecar:", text_html)
+        self.assertIn("-84.12 USD (-11.4 bps)", text_html)
+
 
 if __name__ == "__main__":
     unittest.main()
